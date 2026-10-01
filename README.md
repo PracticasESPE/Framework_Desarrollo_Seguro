@@ -87,7 +87,7 @@ git push -u origin feature/nombre-de-la-tarea
 
 | Integrante | Responsabilidad |
 |---|---|
-| Marcelo Acuña  | _(motor e IA / plataforma y seguridad)_ |
-| Abner Arboleda | _(motor e IA / plataforma y seguridad)_ |
+| Marcelo Acuña  | Motor e IA: motor en Python, adaptador de LLM, base de conocimiento y Neo4j, políticas OPA, refinamiento, trazabilidad e informe de evidencia |
+| Abner Arboleda | Plataforma y seguridad: microservicio NestJS de referencia y plantilla, CI/CD y Telegram, Security Gates, integración, pruebas, contenedores, DAST y dashboard |
 
 Universidad de las Fuerzas Armadas – ESPE · Ingeniería de Software
