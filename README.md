@@ -54,10 +54,15 @@ semgrep_rules/    Reglas SAST propias para TypeScript/NestJS
 spectral/         Reglas de seguridad para contratos OpenAPI
 templates/        Plantilla Copier del microservicio NestJS
 orchestrator/     Motor del framework en Python
+tools/            Utilidades auxiliares (ts-integrity con ts-morph)
 dashboard/        Interfaz React + Vite
 evaluation/       Datasets, líneas base y experimentos
+scripts/          Scripts de instalación de herramientas
+docs/             Plan técnico y documentación del proyecto
 .github/workflows Pipeline de CI
 ```
+
+El plan técnico completo está en [docs/framework_desarrollo_seguro_v2.pdf](docs/framework_desarrollo_seguro_v2.pdf).
 
 ## Flujo de ramas
 
