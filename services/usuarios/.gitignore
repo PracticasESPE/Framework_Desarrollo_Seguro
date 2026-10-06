@@ -1,0 +1,10 @@
+/dist
+/node_modules
+/coverage
+/.nyc_output
+*.log
+npm-debug.log*
+.env
+.env.*
+!.env.example
+.DS_Store
