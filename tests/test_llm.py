@@ -128,7 +128,7 @@ def test_gemini_devuelve_el_esquema_validado():
 
     assert resultado == ESPERADO
     llamada = generar.llamadas[0]
-    assert llamada["model"] == "gemini-2.5-flash"
+    assert llamada["model"] == "gemini-3.5-flash-lite"
     assert llamada["contents"] == "extrae"
     assert llamada["config"]["response_mime_type"] == "application/json"
     assert llamada["config"]["response_schema"] is Requisito
@@ -228,7 +228,7 @@ def test_nivel_desconocido():
 
 def test_modelos_incompletos():
     with pytest.raises(ValueError, match="razonamiento"):
-        ProveedorGemini(cliente=SimpleNamespace(), modelos={"rapido": "gemini-2.5-flash"})
+        ProveedorGemini(cliente=SimpleNamespace(), modelos={"rapido": "gemini-3.5-flash-lite"})
 
 
 def _config(**valores) -> Configuracion:

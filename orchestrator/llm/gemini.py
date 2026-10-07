@@ -8,8 +8,8 @@ from google.genai import errors
 from orchestrator.llm.base import ErrorProveedorLLM, Nivel, ProveedorBase, T
 
 MODELOS_POR_DEFECTO: dict[Nivel, str] = {
-    "rapido": "gemini-2.5-flash",
-    "razonamiento": "gemini-2.5-pro",
+    "rapido": "gemini-3.5-flash-lite",
+    "razonamiento": "gemini-3.8-flash",
 }
 
 
@@ -33,6 +33,8 @@ class ProveedorGemini(ProveedorBase):
             "response_mime_type": "application/json",
             "response_schema": esquema,
             "temperature": self.temperatura,
+            # No se usan herramientas; evita el aviso del SDK sobre llamadas automáticas.
+            "automatic_function_calling": {"disable": True},
         }
         if sistema:
             configuracion["system_instruction"] = sistema

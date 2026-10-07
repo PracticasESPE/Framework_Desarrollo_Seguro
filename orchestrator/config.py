@@ -15,9 +15,10 @@ class Configuracion(BaseSettings):
         extra="ignore",
     )
 
-    llm_provider: str = "gemini"
+    llm_provider: str = "groq"
     gemini_api_key: SecretStr | None = None
     anthropic_api_key: SecretStr | None = None
+    groq_api_key: SecretStr | None = None
     ollama_host: str = "http://localhost:11434"
     # Si no se definen, cada adaptador usa sus modelos por defecto.
     llm_modelo_rapido: str | None = None
@@ -40,6 +41,7 @@ class Configuracion(BaseSettings):
             "llm_provider": self.llm_provider,
             "gemini_api_key_definida": self.gemini_api_key is not None,
             "anthropic_api_key_definida": self.anthropic_api_key is not None,
+            "groq_api_key_definida": self.groq_api_key is not None,
             "ollama_host": self.ollama_host,
             "neo4j_uri": self.neo4j_uri,
             "neo4j_user": self.neo4j_user,
