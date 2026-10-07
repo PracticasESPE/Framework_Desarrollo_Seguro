@@ -86,7 +86,18 @@ git push -u origin feature/nombre-de-la-tarea
 
 ## Instalación y uso
 
-*Se completará a medida que avance el desarrollo.*
+Requisitos: [uv](https://docs.astral.sh/uv/) (instala Python 3.12 por su cuenta) y Docker.
+
+```bash
+cp .env.example .env        # completar los valores
+uv sync                     # crea el entorno e instala las dependencias
+uv run framework --help     # comandos disponibles
+uv run framework fases      # fases del pipeline
+uv run framework api        # API del motor en http://127.0.0.1:8000/docs
+uv run pytest               # pruebas del motor
+```
+
+*El resto se completará a medida que avance el desarrollo.*
 
 ## Equipo
 
