@@ -5,7 +5,10 @@ description = "Framework de desarrollo seguro basado en métodos computacionales
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
+    "anthropic>=1.11.0",
     "fastapi>=0.115",
+    "google-genai>=2.28.0",
+    "ollama>=0.6.3",
     "pydantic>=2.9",
     "pydantic-settings>=2.6",
     "typer>=0.15",

@@ -17,6 +17,12 @@ class Configuracion(BaseSettings):
 
     llm_provider: str = "gemini"
     gemini_api_key: SecretStr | None = None
+    anthropic_api_key: SecretStr | None = None
+    ollama_host: str = "http://localhost:11434"
+    # Si no se definen, cada adaptador usa sus modelos por defecto.
+    llm_modelo_rapido: str | None = None
+    llm_modelo_razonamiento: str | None = None
+    llm_max_intentos: int = Field(default=3, ge=1, le=10)
 
     neo4j_uri: str = "bolt://localhost:7687"
     neo4j_user: str = "neo4j"
@@ -32,7 +38,9 @@ class Configuracion(BaseSettings):
         """Valores visibles de la configuración; de los secretos solo indica si están definidos."""
         return {
             "llm_provider": self.llm_provider,
-            "llm_api_key_definida": self.gemini_api_key is not None,
+            "gemini_api_key_definida": self.gemini_api_key is not None,
+            "anthropic_api_key_definida": self.anthropic_api_key is not None,
+            "ollama_host": self.ollama_host,
             "neo4j_uri": self.neo4j_uri,
             "neo4j_user": self.neo4j_user,
             "neo4j_password_definida": self.neo4j_password is not None,

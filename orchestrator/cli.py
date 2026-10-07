@@ -46,9 +46,7 @@ def run(
     ] = None,
     fase: Annotated[
         int | None,
-        typer.Option(
-            "--fase", min=1, max=len(FASES), help="Ejecuta solo la fase indicada (1-11)."
-        ),
+        typer.Option("--fase", min=1, max=len(FASES), help="Ejecuta solo la fase indicada (1-11)."),
     ] = None,
     entrada: Annotated[
         Path | None,
