@@ -5,7 +5,7 @@ from pydantic import SecretStr
 from orchestrator.config import Configuracion, obtener_configuracion
 from orchestrator.llm.base import ErrorLLM, Nivel, ProveedorLLM
 
-PROVEEDORES: tuple[str, ...] = ("gemini", "claude", "ollama")
+PROVEEDORES: tuple[str, ...] = ("gemini", "groq", "claude", "ollama")
 
 
 def _clave(valor: SecretStr | None, variable: str) -> str:
@@ -39,6 +39,14 @@ def crear_proveedor(
 
         return ProveedorGemini(
             api_key=_clave(config.gemini_api_key, "GEMINI_API_KEY"),
+            modelos=modelos,
+            max_intentos=intentos,
+        )
+    if elegido == "groq":
+        from orchestrator.llm.groq import ProveedorGroq
+
+        return ProveedorGroq(
+            api_key=_clave(config.groq_api_key, "GROQ_API_KEY"),
             modelos=modelos,
             max_intentos=intentos,
         )

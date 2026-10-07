@@ -1,0 +1,32 @@
+[
+  {
+    "id": "RF-01",
+    "texto": "El cliente debe poder registrarse en la tienda con su correo electrónico y una contraseña.",
+    "tipo": "funcional",
+    "etiquetas": ["autenticacion", "validacion_entrada", "hash_password"]
+  },
+  {
+    "id": "RF-02",
+    "texto": "El cliente debe poder consultar únicamente sus propios pedidos y el detalle de cada uno.",
+    "tipo": "funcional",
+    "etiquetas": ["autorizacion", "control_acceso_recursos"]
+  },
+  {
+    "id": "RF-03",
+    "texto": "El administrador debe poder crear, modificar y eliminar productos del catálogo.",
+    "tipo": "funcional",
+    "etiquetas": ["autorizacion", "validacion_entrada", "auditoria"]
+  },
+  {
+    "id": "RNF-01",
+    "texto": "Toda la comunicación entre los clientes y el sistema debe viajar cifrada y existir un único punto de entrada.",
+    "tipo": "no_funcional",
+    "etiquetas": ["cifrado_transito", "punto_unico_acceso"]
+  },
+  {
+    "id": "RNF-02",
+    "texto": "El sistema debe limitar a 50 las peticiones por minuto de un mismo cliente y registrar los intentos de acceso fallidos.",
+    "tipo": "no_funcional",
+    "etiquetas": ["limite_peticiones", "auditoria"]
+  }
+]
