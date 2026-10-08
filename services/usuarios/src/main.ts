@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
@@ -20,7 +21,9 @@ async function bootstrap(): Promise<void> {
 
   const config = new DocumentBuilder()
     .setTitle('Servicio de usuarios')
-    .setDescription('Microservicio de referencia del framework de desarrollo seguro')
+    .setDescription(
+      'Microservicio de referencia del framework de desarrollo seguro',
+    )
     .setVersion('1.0')
     .build();
   SwaggerModule.setup('docs', app, SwaggerModule.createDocument(app, config));

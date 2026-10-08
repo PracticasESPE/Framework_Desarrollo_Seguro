@@ -36,7 +36,8 @@ export class CrearUsuarioDto {
   })
   @IsOptional()
   @Matches(/^\+?[0-9]{7,15}$/, {
-    message: 'telefono debe tener entre 7 y 15 dígitos, con + opcional al inicio',
+    message:
+      'telefono debe tener entre 7 y 15 dígitos, con + opcional al inicio',
   })
   telefono?: string;
 }

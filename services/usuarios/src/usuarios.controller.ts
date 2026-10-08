@@ -29,14 +29,14 @@ export class UsuariosController {
   @ApiCreatedResponse({ type: UsuarioRespuestaDto })
   @ApiBadRequestResponse({ description: 'Datos de entrada inválidos' })
   @ApiConflictResponse({ description: 'El correo ya está registrado' })
-  crear(@Body() dto: CrearUsuarioDto): UsuarioRespuestaDto {
+  crear(@Body() dto: CrearUsuarioDto): Promise<UsuarioRespuestaDto> {
     return this.usuariosService.crear(dto);
   }
 
   @Get()
   @ApiOperation({ summary: 'Listar usuarios' })
   @ApiOkResponse({ type: [UsuarioRespuestaDto] })
-  listar(): UsuarioRespuestaDto[] {
+  listar(): Promise<UsuarioRespuestaDto[]> {
     return this.usuariosService.listar();
   }
 
@@ -45,7 +45,9 @@ export class UsuariosController {
   @ApiOkResponse({ type: UsuarioRespuestaDto })
   @ApiBadRequestResponse({ description: 'El id no es un UUID válido' })
   @ApiNotFoundResponse({ description: 'Usuario no encontrado' })
-  obtener(@Param('id', new ParseUUIDPipe()) id: string): UsuarioRespuestaDto {
+  obtener(
+    @Param('id', new ParseUUIDPipe()) id: string,
+  ): Promise<UsuarioRespuestaDto> {
     return this.usuariosService.obtener(id);
   }
 }
