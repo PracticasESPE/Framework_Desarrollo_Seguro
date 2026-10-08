@@ -59,8 +59,27 @@ services:
     volumes:
       - keycloak_data:/opt/keycloak/data
 
+  usuarios-db:
+    image: postgres:16-alpine
+    container_name: fw-usuarios-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: usuarios
+      POSTGRES_USER: usuarios
+      POSTGRES_PASSWORD: ${USUARIOS_DB_PASSWORD:?Falta USUARIOS_DB_PASSWORD en .env}
+    ports:
+      - '127.0.0.1:${USUARIOS_DB_PORT:-5433}:5432'
+    volumes:
+      - usuarios_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U usuarios -d usuarios']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
 volumes:
   neo4j_data:
   neo4j_logs:
   rabbitmq_data:
   keycloak_data:
+  usuarios_db_data:
