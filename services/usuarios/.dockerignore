@@ -1,0 +1,12 @@
+node_modules
+dist
+coverage
+.git
+.env
+.env.*
+src/generated
+test
+**/*.spec.ts
+*.md
+Dockerfile
+.dockerignore

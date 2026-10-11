@@ -1,0 +1,71 @@
+name: framework-desarrollo-seguro
+
+on:
+  pull_request:
+    branches: [dev, test, main]
+  push:
+    branches: [dev, test, main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: framework-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pipeline:
+    name: Pipeline por fases
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Descargar el repositorio
+        uses: actions/checkout@v6
+
+      - name: Preparar Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: services/usuarios/package-lock.json
+
+      - name: "Fase 1: Adquisición de requisitos"
+        run: echo "Pendiente - se implementa en el sprint 3 (Docling y modelo de requisitos)"
+
+      - name: "Fase 2: Análisis y propuesta arquitectónica"
+        run: echo "Pendiente - se implementa en el sprint 3 (arquitectura validada por OPA)"
+
+      - name: "Fase 3: Generación y compilación del servicio"
+        working-directory: services/usuarios
+        env:
+          DATABASE_URL: postgresql://ci:ci@localhost:5432/ci
+        run: |
+          npm ci --ignore-scripts
+          npx prisma generate
+          npx tsc --noEmit
+          npm run build
+
+      - name: "Fase 4: Security Gate 1 (por ahora Hadolint)"
+        run: |
+          docker run --rm -v "$PWD:/work" -w /work hadolint/hadolint:v2.15.1 \
+            hadolint --failure-threshold warning services/usuarios/Dockerfile
+
+      - name: "Fases 5-6: Refinamiento iterativo"
+        run: echo "Pendiente - se implementa en el sprint 5"
+
+      - name: "Fase 7: Integración de microservicios"
+        run: echo "Pendiente - se implementa en el sprint 5 (Traefik, RabbitMQ, Keycloak)"
+
+      - name: "Fase 8: Security Gate 2"
+        run: echo "Pendiente - versión inicial el 21/10 (Spectral y Conftest)"
+
+      - name: "Fase 9: Pruebas automatizadas"
+        working-directory: services/usuarios
+        run: npm run test:cov
+
+      - name: "Fase 10: Contenerización"
+        run: docker build -t fw-usuarios:ci services/usuarios
+
+      - name: "Fase 11: DAST y Security Gate 3"
+        run: echo "Pendiente - versión inicial el 26/10 (ZAP, Nuclei, Trivy image)"
