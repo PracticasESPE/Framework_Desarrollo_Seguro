@@ -1,0 +1,87 @@
+{
+  "$schema": "https://docs.oasis-open.org/sarif/sarif/v2.1.0/os/schemas/sarif-schema-2.1.0.json",
+  "version": "2.1.0",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "Semgrep OSS",
+          "semanticVersion": "1.90.0",
+          "rules": [
+            {
+              "id": "semgrep_rules.nestjs.consulta-sql-concatenada",
+              "name": "consulta-sql-concatenada",
+              "shortDescription": { "text": "Consulta SQL construida con concatenación" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": {
+                "precision": "high",
+                "tags": ["CWE-89: Improper Neutralization of Special Elements used in an SQL Command", "OWASP-A03:2021", "security"]
+              }
+            },
+            {
+              "id": "semgrep_rules.nestjs.hash-debil-md5",
+              "name": "hash-debil-md5",
+              "shortDescription": { "text": "Uso de MD5 para derivar contraseñas" },
+              "defaultConfiguration": { "level": "warning" },
+              "properties": {
+                "tags": ["CWE-327: Use of a Broken or Risky Cryptographic Algorithm", "CWE-916", "security"]
+              }
+            }
+          ]
+        }
+      },
+      "results": [
+        {
+          "ruleId": "semgrep_rules.nestjs.consulta-sql-concatenada",
+          "message": { "text": "La consulta se construye concatenando datos del usuario; usa consultas parametrizadas." },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": { "uri": "services/usuarios/src/usuarios.service.ts", "uriBaseId": "%SRCROOT%" },
+                "region": {
+                  "startLine": 42,
+                  "endLine": 44,
+                  "startColumn": 12,
+                  "endColumn": 63,
+                  "snippet": { "text": "this.prisma.$queryRawUnsafe('SELECT * FROM usuario WHERE correo = ' + correo)" }
+                }
+              }
+            }
+          ],
+          "fingerprints": { "matchBasedId/v1": "9f2c1a7be4d05c33a1b7_0" }
+        },
+        {
+          "ruleId": "semgrep_rules.nestjs.hash-debil-md5",
+          "message": { "text": "MD5 no es adecuado para contraseñas; usa argon2 o bcrypt." },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": { "uri": "services/usuarios/src/usuarios.service.ts", "uriBaseId": "%SRCROOT%" },
+                "region": {
+                  "startLine": 18,
+                  "endLine": 18,
+                  "snippet": { "text": "createHash('md5').update(contrasena).digest('hex')" }
+                }
+              }
+            }
+          ],
+          "fingerprints": { "matchBasedId/v1": "5e0d8a41c7f2b9960d3e_0" }
+        },
+        {
+          "ruleId": "semgrep_rules.nestjs.hash-debil-md5",
+          "message": { "text": "MD5 no es adecuado para contraseñas; usa argon2 o bcrypt." },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": { "uri": "services/usuarios/test/datos.ts", "uriBaseId": "%SRCROOT%" },
+                "region": { "startLine": 7, "endLine": 7 }
+              }
+            }
+          ],
+          "fingerprints": { "matchBasedId/v1": "77a1c0de55b2e4f1aa90_0" },
+          "suppressions": [{ "kind": "inSource" }]
+        }
+      ]
+    }
+  ]
+}
