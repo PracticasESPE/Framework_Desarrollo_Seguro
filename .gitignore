@@ -29,6 +29,7 @@ npm-debug.log*
 salida/
 salida_proyecto/
 *.sarif
+!tests/datos/sarif/*.sarif
 sbom.json
 
 # Datos locales de contenedores
