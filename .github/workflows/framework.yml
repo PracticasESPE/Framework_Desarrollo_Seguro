@@ -19,6 +19,9 @@ jobs:
     name: Pipeline por fases
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    permissions:
+      contents: read
+      security-events: write
     steps:
       - name: Descargar el repositorio
         uses: actions/checkout@v6
@@ -51,6 +54,9 @@ jobs:
       - name: "Fase 4: Security Gate 1 (análisis estático)"
         run: |
           fallos=0
+          SARIF=salida/security/sarif
+          mkdir -p "$SARIF" .trivy-cache
+          TRIVY="docker run --rm -v $PWD:/work -v $PWD/.trivy-cache:/root/.cache/trivy -w /work aquasec/trivy:0.71.1"
 
           echo "=== 1/7 tsc --noEmit (compilación y tipos) ==="
           (cd services/usuarios && npx tsc --noEmit) || fallos=$((fallos+1))
@@ -59,19 +65,46 @@ jobs:
           (cd services/usuarios && npx eslint "src/**/*.ts") || fallos=$((fallos+1))
 
           echo "=== 3/7 Semgrep (SAST) ==="
-          docker run --rm -v "$PWD:/src" semgrep/semgrep:1.172.0             semgrep scan --config p/typescript --config p/nodejs --metrics=off             --error --severity ERROR --severity WARNING             --exclude generated --exclude "*.spec.ts" services/usuarios/src             || fallos=$((fallos+1))
+          docker run --rm -v "$PWD:/src" semgrep/semgrep:1.172.0 \
+            semgrep scan --config p/typescript --config p/nodejs --metrics=off \
+            --error --severity ERROR --severity WARNING \
+            --sarif-output="$SARIF/semgrep.sarif" \
+            --exclude generated --exclude "*.spec.ts" services/usuarios/src \
+            || fallos=$((fallos+1))
 
           echo "=== 4/7 Gitleaks (secretos en el historial) ==="
-          docker run --rm -v "$PWD:/repo"             -e GIT_CONFIG_COUNT=1 -e GIT_CONFIG_KEY_0=safe.directory -e GIT_CONFIG_VALUE_0=/repo             ghcr.io/gitleaks/gitleaks:v8.30.1 git --no-banner --redact --verbose /repo             || fallos=$((fallos+1))
+          docker run --rm -v "$PWD:/repo" \
+            -e GIT_CONFIG_COUNT=1 -e GIT_CONFIG_KEY_0=safe.directory -e GIT_CONFIG_VALUE_0=/repo \
+            ghcr.io/gitleaks/gitleaks:v8.30.1 git --no-banner --redact --verbose \
+            --report-format sarif --report-path "/repo/$SARIF/gitleaks.sarif" /repo \
+            || fallos=$((fallos+1))
 
           echo "=== 5/7 Trivy fs (SCA: dependencias npm) ==="
-          docker run --rm -v "$PWD:/work" -w /work aquasec/trivy:0.71.1             fs --scanners vuln --severity HIGH,CRITICAL --exit-code 1             --skip-dirs "**/node_modules" services/usuarios             || fallos=$((fallos+1))
+          $TRIVY fs --scanners vuln --severity HIGH,CRITICAL --exit-code 1 \
+            --skip-dirs "**/node_modules" --skip-dirs .trivy-cache --skip-dirs salida . \
+            || fallos=$((fallos+1))
+          $TRIVY fs --scanners vuln --severity HIGH,CRITICAL \
+            --skip-dirs "**/node_modules" --skip-dirs .trivy-cache --skip-dirs salida \
+            --format sarif --output "$SARIF/trivy-fs.sarif" . || true
 
           echo "=== 6/7 Trivy config (Dockerfile y Compose) ==="
-          docker run --rm -v "$PWD:/work" -w /work aquasec/trivy:0.71.1             config --severity HIGH,CRITICAL --exit-code 1             --skip-dirs "**/node_modules" .             || fallos=$((fallos+1))
+          $TRIVY config --severity HIGH,CRITICAL --exit-code 1 \
+            --skip-dirs "**/node_modules" --skip-dirs .trivy-cache --skip-dirs salida . \
+            || fallos=$((fallos+1))
+          $TRIVY config --severity HIGH,CRITICAL \
+            --skip-dirs "**/node_modules" --skip-dirs .trivy-cache --skip-dirs salida \
+            --format sarif --output "$SARIF/trivy-config.sarif" . || true
 
           echo "=== 7/7 Hadolint (buenas prácticas del Dockerfile) ==="
-          docker run --rm -v "$PWD:/work" -w /work hadolint/hadolint:v2.15.1             hadolint --failure-threshold warning services/usuarios/Dockerfile             || fallos=$((fallos+1))
+          docker run --rm -v "$PWD:/work" -w /work hadolint/hadolint:v2.15.1 \
+            hadolint --failure-threshold warning services/usuarios/Dockerfile \
+            || fallos=$((fallos+1))
+          docker run --rm -v "$PWD:/work" -w /work hadolint/hadolint:v2.15.1 \
+            hadolint --no-fail --format sarif services/usuarios/Dockerfile \
+            > "$SARIF/hadolint.sarif" || true
+
+          echo "=== Archivos SARIF generados ==="
+          ls -l "$SARIF"
 
           echo "=== Resultado del Gate 1: $fallos herramienta(s) con hallazgos ==="
           [ "$fallos" -eq 0 ]
@@ -94,3 +127,47 @@ jobs:
 
       - name: "Fase 11: DAST y Security Gate 3"
         run: echo "Pendiente - versión inicial el 26/10 (ZAP, Nuclei, Trivy image)"
+
+      - name: "Publicar SARIF: Semgrep"
+        if: always() && hashFiles('salida/security/sarif/semgrep.sarif') != ''
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: salida/security/sarif/semgrep.sarif
+          category: semgrep
+
+      - name: "Publicar SARIF: Gitleaks"
+        if: always() && hashFiles('salida/security/sarif/gitleaks.sarif') != ''
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: salida/security/sarif/gitleaks.sarif
+          category: gitleaks
+
+      - name: "Publicar SARIF: Trivy fs"
+        if: always() && hashFiles('salida/security/sarif/trivy-fs.sarif') != ''
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: salida/security/sarif/trivy-fs.sarif
+          category: trivy-fs
+
+      - name: "Publicar SARIF: Trivy config"
+        if: always() && hashFiles('salida/security/sarif/trivy-config.sarif') != ''
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: salida/security/sarif/trivy-config.sarif
+          category: trivy-config
+
+      - name: "Publicar SARIF: Hadolint"
+        if: always() && hashFiles('salida/security/sarif/hadolint.sarif') != ''
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: salida/security/sarif/hadolint.sarif
+          category: hadolint
+
+      - name: Guardar los SARIF como artefacto
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: sarif-gate1
+          path: salida/security/sarif/
+          if-no-files-found: ignore
+          retention-days: 14

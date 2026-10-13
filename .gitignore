@@ -44,3 +44,6 @@ Thumbs.db
 
 # Configuración local de Claude Code
 .claude/settings.local.json
+
+# Caché local de Trivy (Gate 1)
+.trivy-cache/
