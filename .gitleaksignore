@@ -1,5 +1,7 @@
-# Falsos positivos revisados manualmente.
-# token=abc123def456 es el placeholder del badge de CircleCI de la plantilla README de NestJS;
+# Falsos positivos revisados manualmente (regla generic-api-key).
+# Es el token de ejemplo del badge de CircleCI que trae la plantilla README de NestJS;
 # no es una credencial real. Se eliminó del README, pero sigue en estos commits del historial.
+# No escribir el valor en este archivo: Gitleaks también lo escanea.
 b7e1fcc45b92c1ec2fe0516a892cc4117473a144:services/usuarios/README.md:generic-api-key:5
 0a9f514b6da153a442bafa9d2d07566de322a328:services/usuarios/README.md:generic-api-key:5
+efcbb40c922947b2cdefb44efc843693dbb465f5:.gitleaksignore:generic-api-key:2
