@@ -22,6 +22,8 @@ jobs:
     steps:
       - name: Descargar el repositorio
         uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
 
       - name: Preparar Node.js 22
         uses: actions/setup-node@v6
@@ -46,10 +48,33 @@ jobs:
           npx tsc --noEmit
           npm run build
 
-      - name: "Fase 4: Security Gate 1 (por ahora Hadolint)"
+      - name: "Fase 4: Security Gate 1 (análisis estático)"
         run: |
-          docker run --rm -v "$PWD:/work" -w /work hadolint/hadolint:v2.15.1 \
-            hadolint --failure-threshold warning services/usuarios/Dockerfile
+          fallos=0
+
+          echo "=== 1/7 tsc --noEmit (compilación y tipos) ==="
+          (cd services/usuarios && npx tsc --noEmit) || fallos=$((fallos+1))
+
+          echo "=== 2/7 ESLint + eslint-plugin-security ==="
+          (cd services/usuarios && npx eslint "src/**/*.ts") || fallos=$((fallos+1))
+
+          echo "=== 3/7 Semgrep (SAST) ==="
+          docker run --rm -v "$PWD:/src" semgrep/semgrep:1.172.0             semgrep scan --config p/typescript --config p/nodejs --metrics=off             --error --severity ERROR --severity WARNING             --exclude generated --exclude "*.spec.ts" services/usuarios/src             || fallos=$((fallos+1))
+
+          echo "=== 4/7 Gitleaks (secretos en el historial) ==="
+          docker run --rm -v "$PWD:/repo"             -e GIT_CONFIG_COUNT=1 -e GIT_CONFIG_KEY_0=safe.directory -e GIT_CONFIG_VALUE_0=/repo             ghcr.io/gitleaks/gitleaks:v8.30.1 git --no-banner --redact --verbose /repo             || fallos=$((fallos+1))
+
+          echo "=== 5/7 Trivy fs (SCA: dependencias npm) ==="
+          docker run --rm -v "$PWD:/work" -w /work aquasec/trivy:0.71.1             fs --scanners vuln --severity HIGH,CRITICAL --exit-code 1             --skip-dirs "**/node_modules" services/usuarios             || fallos=$((fallos+1))
+
+          echo "=== 6/7 Trivy config (Dockerfile y Compose) ==="
+          docker run --rm -v "$PWD:/work" -w /work aquasec/trivy:0.71.1             config --severity HIGH,CRITICAL --exit-code 1             --skip-dirs "**/node_modules" .             || fallos=$((fallos+1))
+
+          echo "=== 7/7 Hadolint (buenas prácticas del Dockerfile) ==="
+          docker run --rm -v "$PWD:/work" -w /work hadolint/hadolint:v2.15.1             hadolint --failure-threshold warning services/usuarios/Dockerfile             || fallos=$((fallos+1))
+
+          echo "=== Resultado del Gate 1: $fallos herramienta(s) con hallazgos ==="
+          [ "$fallos" -eq 0 ]
 
       - name: "Fases 5-6: Refinamiento iterativo"
         run: echo "Pendiente - se implementa en el sprint 5"
