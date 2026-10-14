@@ -99,5 +99,55 @@ def api(
     uvicorn.run("orchestrator.api:app", host=host, port=puerto, reload=recarga)
 
 
+grafo_app = typer.Typer(help="Base de conocimiento en Neo4j.", no_args_is_help=True)
+app.add_typer(grafo_app, name="grafo")
+
+
+@grafo_app.command("esquema")
+def grafo_esquema() -> None:
+    """Aplica las restricciones e índices de los scripts de graph/."""
+    from orchestrator.knowledge import ErrorGrafo, aplicar_esquema, conectar
+
+    config = obtener_configuracion()
+    try:
+        driver = conectar(config)
+        try:
+            aplicadas = aplicar_esquema(driver, config.neo4j_database)
+        finally:
+            driver.close()
+    except ErrorGrafo as error:
+        typer.echo(f"Error: {error}", err=True)
+        raise typer.Exit(code=1) from error
+    typer.echo(f"Esquema aplicado: {aplicadas} sentencias en {config.neo4j_uri}")
+
+
+@grafo_app.command("estado")
+def grafo_estado() -> None:
+    """Lista las restricciones e índices presentes en Neo4j."""
+    from orchestrator.knowledge import ErrorGrafo, conectar, estado_esquema
+
+    config = obtener_configuracion()
+    try:
+        driver = conectar(config)
+        try:
+            estado = estado_esquema(driver, config.neo4j_database)
+        finally:
+            driver.close()
+    except ErrorGrafo as error:
+        typer.echo(f"Error: {error}", err=True)
+        raise typer.Exit(code=1) from error
+
+    typer.echo(f"Restricciones ({len(estado['restricciones'])}):")
+    for r in estado["restricciones"]:
+        typer.echo(f"  {r['name']}: {r['type']} {r['labelsOrTypes']} {r['properties']}")
+    typer.echo(f"Índices ({len(estado['indices'])}):")
+    for i in estado["indices"]:
+        origen = f" (de {i['owningConstraint']})" if i.get("owningConstraint") else ""
+        typer.echo(
+            f"  {i['name']}: {i['type']} {i['labelsOrTypes']} {i['properties']} "
+            f"{i['state']}{origen}"
+        )
+
+
 if __name__ == "__main__":
     app()

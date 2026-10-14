@@ -94,6 +94,8 @@ uv sync                     # crea el entorno e instala las dependencias
 uv run framework --help     # comandos disponibles
 uv run framework fases      # fases del pipeline
 uv run framework api        # API del motor en http://127.0.0.1:8000/docs
+docker compose -f docker-compose.dev.yml up -d neo4j
+uv run framework grafo esquema   # restricciones e índices de graph/ en Neo4j
 uv run pytest               # pruebas del motor
 ```
 
