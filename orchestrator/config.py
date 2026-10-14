@@ -28,6 +28,7 @@ class Configuracion(BaseSettings):
     neo4j_uri: str = "bolt://localhost:7687"
     neo4j_user: str = "neo4j"
     neo4j_password: SecretStr | None = None
+    neo4j_database: str = "neo4j"
 
     telegram_bot_token: SecretStr | None = None
     telegram_chat_id: str | None = None
@@ -45,6 +46,7 @@ class Configuracion(BaseSettings):
             "ollama_host": self.ollama_host,
             "neo4j_uri": self.neo4j_uri,
             "neo4j_user": self.neo4j_user,
+            "neo4j_database": self.neo4j_database,
             "neo4j_password_definida": self.neo4j_password is not None,
             "telegram_configurado": (
                 self.telegram_bot_token is not None and self.telegram_chat_id is not None
