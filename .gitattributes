@@ -1,0 +1,2 @@
+# Los scripts de shell se ejecutan en Linux (runner de GitHub): siempre con LF
+*.sh text eol=lf
