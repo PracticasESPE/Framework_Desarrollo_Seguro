@@ -64,12 +64,16 @@ jobs:
           echo "=== 2/7 ESLint + eslint-plugin-security ==="
           (cd services/usuarios && npx eslint "src/**/*.ts") || fallos=$((fallos+1))
 
-          echo "=== 3/7 Semgrep (SAST) ==="
+          echo "=== 3/7 Semgrep (SAST: reglas públicas y reglas propias) ==="
           docker run --rm -v "$PWD:/src" semgrep/semgrep:1.172.0 \
-            semgrep scan --config p/typescript --config p/nodejs --metrics=off \
-            --error --severity ERROR --severity WARNING \
+            semgrep scan --config p/typescript --config p/nodejs --config semgrep_rules/ \
+            --metrics=off --error --severity ERROR --severity WARNING \
             --sarif-output="$SARIF/semgrep.sarif" \
             --exclude generated --exclude "*.spec.ts" services/usuarios/src \
+            || fallos=$((fallos+1))
+          echo "--- Pruebas de las reglas propias (semgrep --test) ---"
+          docker run --rm -v "$PWD:/src" semgrep/semgrep:1.172.0 \
+            semgrep --test semgrep_rules/ \
             || fallos=$((fallos+1))
 
           echo "=== 4/7 Gitleaks (secretos en el historial) ==="
