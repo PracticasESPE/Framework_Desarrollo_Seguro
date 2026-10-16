@@ -27,10 +27,10 @@ def test_fases_lista_las_once():
 
 
 def test_run_con_una_fase():
-    resultado = runner.invoke(app, ["run", "--fase", "4"])
+    resultado = runner.invoke(app, ["run", "--fase", "5"])
     assert resultado.exit_code == 0
-    assert "Fase 4" in resultado.output
-    assert "Fase 5" not in resultado.output
+    assert "Fase 5" in resultado.output
+    assert "Fase 6" not in resultado.output
 
 
 def test_run_rechaza_fase_inexistente():

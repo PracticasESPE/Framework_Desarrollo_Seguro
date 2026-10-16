@@ -56,6 +56,21 @@ def run(
         str,
         typer.Option("--nivel", help="Nivel de seguridad exigido: bajo, medio o alto."),
     ] = "medio",
+    sarif: Annotated[
+        Path | None,
+        typer.Option("--sarif", help="Carpeta con los SARIF del Gate 1 (fase 4)."),
+    ] = None,
+    grafo: Annotated[
+        bool | None,
+        typer.Option(
+            "--grafo/--sin-grafo",
+            help="Registrar los hallazgos en Neo4j. Por defecto, solo si NEO4J_PASSWORD existe.",
+        ),
+    ] = None,
+    ejecucion: Annotated[
+        str | None,
+        typer.Option("--ejecucion", help="Ejecución de Neo4j a la que se añaden los hallazgos."),
+    ] = None,
 ) -> None:
     """Ejecuta el pipeline completo o una sola fase."""
     if nivel not in {"bajo", "medio", "alto"}:
@@ -67,7 +82,44 @@ def run(
 
     seleccionadas = [obtener_fase(fase)] if fase is not None else list(FASES)
     for actual in seleccionadas:
-        typer.echo(f"Fase {actual.numero}: {actual.nombre} - aún no implementada")
+        if actual.numero == 4:
+            _ejecutar_fase4(sarif, grafo, ejecucion, str(origen) if origen else None)
+        else:
+            typer.echo(f"Fase {actual.numero}: {actual.nombre} - aún no implementada")
+
+
+def _ejecutar_fase4(
+    sarif: Path | None, grafo: bool | None, ejecucion: str | None, documento: str | None
+) -> None:
+    from orchestrator.gates.fase4 import (
+        ErrorFase,
+        ejecutar_fase4,
+        guardar_resultado,
+        publicar_resumen_en_actions,
+        resumen_markdown,
+    )
+
+    config = obtener_configuracion()
+    typer.echo(f"Fase 4: {obtener_fase(4).nombre}")
+    try:
+        resultado = ejecutar_fase4(config, sarif, grafo, ejecucion, documento)
+    except ErrorFase as error:
+        typer.echo(f"Error: {error}", err=True)
+        raise typer.Exit(code=1) from error
+
+    destino = guardar_resultado(resultado, config)
+    typer.echo(f"  SARIF leídos: {', '.join(resultado.archivos_sarif)}")
+    typer.echo(f"  Hallazgos: {resultado.total}")
+    for severidad, total in resultado.por_severidad.items():
+        typer.echo(f"    {severidad}: {total}")
+    for herramienta, total in resultado.por_herramienta.items():
+        typer.echo(f"    {herramienta}: {total}")
+    if resultado.registrado_en_grafo:
+        typer.echo(f"  Registrados en Neo4j, ejecución {resultado.ejecucion_id}")
+    else:
+        typer.echo(f"  Sin registro en Neo4j: {resultado.motivo_sin_grafo}")
+    typer.echo(f"  Resultado guardado en {destino.as_posix()}")
+    publicar_resumen_en_actions(resumen_markdown(resultado))
 
 
 @app.command()

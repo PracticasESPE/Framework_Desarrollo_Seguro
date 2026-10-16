@@ -35,6 +35,14 @@ jobs:
           cache: npm
           cache-dependency-path: services/usuarios/package-lock.json
 
+      - name: Preparar uv (motor en Python)
+        uses: astral-sh/setup-uv@v10
+        with:
+          enable-cache: true
+
+      - name: Pruebas del motor (pytest)
+        run: uv run pytest -q
+
       - name: "Fase 1: Adquisición de requisitos"
         run: echo "Pendiente - se implementa en el sprint 3 (Docling y modelo de requisitos)"
 
@@ -60,6 +68,11 @@ jobs:
 
       - name: Fase 4 - Security Gate 1
         run: bash scripts/gate1.sh
+
+      # Se ejecuta aunque el Gate 1 encuentre problemas, para normalizar sus resultados.
+      - name: "Fase 4 en el motor: hallazgos normalizados"
+        if: ${{ !cancelled() && hashFiles('salida/security/sarif/*.sarif') != '' }}
+        run: uv run framework run --fase 4
 
       - name: "Fases 5-6: Refinamiento iterativo"
         run: echo "Pendiente - se implementa en el sprint 5"
@@ -120,6 +133,8 @@ jobs:
         uses: actions/upload-artifact@v5
         with:
           name: sarif-gate1
-          path: salida/security/sarif/
+          path: |
+            salida/security/sarif/
+            salida/hallazgos/
           if-no-files-found: ignore
           retention-days: 14
