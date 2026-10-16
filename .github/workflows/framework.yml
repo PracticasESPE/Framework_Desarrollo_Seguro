@@ -60,7 +60,17 @@ jobs:
           enable-cache: true
 
       - name: Pruebas del motor (pytest, incluye integración con Neo4j)
-        run: uv run pytest -q
+        run: |
+          mkdir -p salida/pruebas
+          uv run pytest -q --cov=orchestrator --cov-report=term \
+            --cov-report=xml:salida/pruebas/cobertura.xml \
+            --junitxml=salida/pruebas/pytest.xml | tee salida/pruebas/pytest.txt
+          {
+            echo "### Pruebas del motor (pytest)"
+            echo '```'
+            grep -E "^(Name|TOTAL|orchestrator)|passed|failed|error" salida/pruebas/pytest.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Esquema de Neo4j (restricciones e índices)
         run: uv run framework grafo esquema
@@ -177,5 +187,6 @@ jobs:
           path: |
             salida/security/sarif/
             salida/hallazgos/
+            salida/pruebas/
           if-no-files-found: ignore
           retention-days: 14

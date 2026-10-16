@@ -55,3 +55,12 @@ def test_config_no_revela_secretos(monkeypatch):
     assert resultado.exit_code == 0
     assert "valor-de-prueba" not in resultado.output
     assert "neo4j_password_definida: True" in resultado.output
+
+
+def test_obtener_fase_inexistente():
+    import pytest
+
+    from orchestrator.fases import obtener_fase
+
+    with pytest.raises(ValueError, match="fases válidas"):
+        obtener_fase(12)

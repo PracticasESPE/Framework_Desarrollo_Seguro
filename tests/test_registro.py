@@ -24,7 +24,7 @@ from orchestrator.knowledge import (
     registrar_hallazgos,
     ultima_ejecucion,
 )
-from orchestrator.knowledge.registro import nuevo_id_ejecucion
+from orchestrator.knowledge.registro import nuevo_id_ejecucion, version_conocimiento
 
 EJEMPLOS = Path(__file__).parent / "datos" / "sarif"
 runner = CliRunner()
@@ -80,6 +80,20 @@ class DriverSimulado:
 def test_id_de_ejecucion_legible_y_unico():
     primero, segundo = nuevo_id_ejecucion(), nuevo_id_ejecucion()
     assert primero.startswith("ej-") and primero != segundo
+
+
+def test_version_del_conocimiento_es_el_commit_actual():
+    version = version_conocimiento()
+    assert version is not None and 7 <= len(version) <= 12
+    assert all(c in "0123456789abcdef" for c in version)
+
+
+def test_version_del_conocimiento_sin_git(monkeypatch):
+    def sin_git(*args, **kwargs):
+        raise OSError("git no instalado")
+
+    monkeypatch.setattr("orchestrator.knowledge.registro.subprocess.run", sin_git)
+    assert version_conocimiento() is None
 
 
 def test_crear_ejecucion():
