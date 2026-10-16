@@ -37,6 +37,7 @@ packages = ["orchestrator"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]
+markers = ["integracion: necesita Neo4j real (NEO4J_INTEGRACION=1)"]
 
 [tool.ruff]
 line-length = 100

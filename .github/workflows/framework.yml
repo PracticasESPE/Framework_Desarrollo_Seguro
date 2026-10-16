@@ -22,6 +22,25 @@ jobs:
     permissions:
       contents: read
       security-events: write
+    # Neo4j propio de cada ejecución: nace y muere con el trabajo, solo es accesible
+    # desde el runner. La contraseña cambia en cada ejecución y no es un secreto.
+    services:
+      neo4j:
+        image: neo4j:5.26-community
+        env:
+          NEO4J_AUTH: neo4j/ci-${{ github.run_id }}
+        ports:
+          - 7687:7687
+        options: >-
+          --health-cmd "wget --no-verbose --tries=1 --spider http://localhost:7474 || exit 1"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 20
+          --health-start-period 30s
+    env:
+      NEO4J_URI: bolt://localhost:7687
+      NEO4J_PASSWORD: ci-${{ github.run_id }}
+      NEO4J_INTEGRACION: "1"
     steps:
       - name: Descargar el repositorio
         uses: actions/checkout@v6
@@ -40,8 +59,11 @@ jobs:
         with:
           enable-cache: true
 
-      - name: Pruebas del motor (pytest)
+      - name: Pruebas del motor (pytest, incluye integración con Neo4j)
         run: uv run pytest -q
+
+      - name: Esquema de Neo4j (restricciones e índices)
+        run: uv run framework grafo esquema
 
       - name: "Fase 1: Adquisición de requisitos"
         run: echo "Pendiente - se implementa en el sprint 3 (Docling y modelo de requisitos)"
@@ -70,9 +92,28 @@ jobs:
         run: bash scripts/gate1.sh
 
       # Se ejecuta aunque el Gate 1 encuentre problemas, para normalizar sus resultados.
-      - name: "Fase 4 en el motor: hallazgos normalizados"
+      - name: "Fase 4 en el motor: hallazgos registrados en Neo4j"
         if: ${{ !cancelled() && hashFiles('salida/security/sarif/*.sarif') != '' }}
-        run: uv run framework run --fase 4
+        run: >-
+          uv run framework run --fase 4 --grafo
+          --descripcion "CI ${{ github.event_name }} ${{ github.ref_name }} ${{ github.sha }}"
+
+      - name: Hallazgos visibles en Neo4j
+        if: ${{ !cancelled() && hashFiles('salida/hallazgos/fase4.json') != '' }}
+        run: |
+          uv run framework hallazgos listar
+          echo "--- Contenido del grafo ---"
+          uv run framework grafo resumen
+
+      # Cuando el Gate 1 no encuentra nada, esto muestra cómo se ven los hallazgos en el
+      # grafo usando los SARIF de ejemplo de las pruebas, en una ejecución aparte.
+      - name: "Demostración: SARIF de ejemplo registrados en Neo4j"
+        if: ${{ !cancelled() }}
+        run: |
+          uv run framework hallazgos registrar tests/datos/sarif --documento "Ejemplos SARIF (demostración)"
+          uv run framework hallazgos listar
+          echo "--- Contenido del grafo ---"
+          uv run framework grafo resumen
 
       - name: "Fases 5-6: Refinamiento iterativo"
         run: echo "Pendiente - se implementa en el sprint 5"

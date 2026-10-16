@@ -19,6 +19,7 @@ from orchestrator.knowledge import (
     conectar,
     estado_esquema,
     leer_sentencias,
+    resumen_grafo,
     scripts_esquema,
 )
 
@@ -44,6 +45,13 @@ class DriverSimulado:
             filas = [
                 Registro(name="cwe_id", type="UNIQUENESS", labelsOrTypes=["CWE"], properties=["id"])
             ]
+        elif "UNWIND labels(n)" in consulta:
+            filas = [
+                Registro(etiqueta="Ejecucion", total=1),
+                Registro(etiqueta="Hallazgo", total=9),
+            ]
+        elif "type(r)" in consulta:
+            filas = [Registro(relacion="REGISTRA", total=9)]
         elif consulta.startswith("SHOW INDEXES"):
             filas = [
                 Registro(
@@ -135,6 +143,20 @@ def test_estado_esquema():
     assert estado["indices"][0]["owningConstraint"] == "cwe_id"
 
 
+def test_resumen_grafo():
+    resumen = resumen_grafo(DriverSimulado())
+    assert resumen == {"nodos": {"Ejecucion": 1, "Hallazgo": 9}, "relaciones": {"REGISTRA": 9}}
+
+
+def test_cli_grafo_resumen(monkeypatch):
+    monkeypatch.setattr("orchestrator.knowledge.conectar", lambda config: DriverSimulado())
+    resultado = runner.invoke(app, ["grafo", "resumen"])
+
+    assert resultado.exit_code == 0, resultado.output
+    assert "Hallazgo: 9" in resultado.output
+    assert "REGISTRA: 9" in resultado.output
+
+
 def test_conectar_exige_la_contrasena():
     with pytest.raises(ErrorGrafo, match="NEO4J_PASSWORD"):
         conectar(Configuracion(_env_file=None))
@@ -180,6 +202,7 @@ def test_cli_grafo_sin_conexion(monkeypatch):
 # --- Integración con Neo4j real -------------------------------------------------------------
 
 
+@pytest.mark.integracion
 @pytest.mark.skipif(
     os.environ.get("NEO4J_INTEGRACION") != "1",
     reason="Requiere Neo4j levantado y NEO4J_INTEGRACION=1",

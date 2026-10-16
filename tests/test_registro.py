@@ -200,6 +200,7 @@ def test_cli_listar_sin_ejecuciones(monkeypatch):
 # --- Integración con Neo4j real -------------------------------------------------------------
 
 
+@pytest.mark.integracion
 @pytest.mark.skipif(
     os.environ.get("NEO4J_INTEGRACION") != "1",
     reason="Requiere Neo4j levantado y NEO4J_INTEGRACION=1",
