@@ -36,7 +36,7 @@ jobs:
           cache-dependency-path: services/usuarios/package-lock.json
 
       - name: Preparar uv (motor en Python)
-        uses: astral-sh/setup-uv@v10
+        uses: astral-sh/setup-uv@v10.3.0
         with:
           enable-cache: true
 
