@@ -149,5 +149,100 @@ def grafo_estado() -> None:
         )
 
 
+hallazgos_app = typer.Typer(
+    help="Hallazgos de seguridad registrados en Neo4j.", no_args_is_help=True
+)
+app.add_typer(hallazgos_app, name="hallazgos")
+
+
+@hallazgos_app.command("registrar")
+def hallazgos_registrar(
+    origen: Annotated[Path, typer.Argument(help="Archivo .sarif o carpeta con archivos .sarif.")],
+    ejecucion: Annotated[
+        str | None,
+        typer.Option("--ejecucion", help="Ejecución existente; si se omite se crea una nueva."),
+    ] = None,
+    documento: Annotated[
+        str | None, typer.Option("--documento", help="Documento de requisitos de la ejecución.")
+    ] = None,
+    fase: Annotated[
+        int, typer.Option("--fase", min=1, max=len(FASES), help="Fase que produjo los hallazgos.")
+    ] = 4,
+) -> None:
+    """Lee resultados SARIF y los registra como nodos Hallazgo de una ejecución."""
+    from orchestrator.gates import ErrorSarif, contar_por_severidad, leer_carpeta_sarif, leer_sarif
+    from orchestrator.knowledge import (
+        ErrorGrafo,
+        conectar,
+        crear_ejecucion,
+        registrar_hallazgos,
+    )
+
+    if not origen.exists():
+        raise typer.BadParameter(f"no existe la ruta '{origen}'", param_hint="ORIGEN")
+    try:
+        hallazgos = leer_carpeta_sarif(origen) if origen.is_dir() else leer_sarif(origen)
+    except ErrorSarif as error:
+        typer.echo(f"Error: {error}", err=True)
+        raise typer.Exit(code=1) from error
+
+    config = obtener_configuracion()
+    try:
+        driver = conectar(config)
+        try:
+            ejecucion_id = ejecucion or crear_ejecucion(
+                driver, documento=documento, base_datos=config.neo4j_database
+            )
+            registrados = registrar_hallazgos(
+                driver, ejecucion_id, hallazgos, fase=fase, base_datos=config.neo4j_database
+            )
+        finally:
+            driver.close()
+    except ErrorGrafo as error:
+        typer.echo(f"Error: {error}", err=True)
+        raise typer.Exit(code=1) from error
+
+    typer.echo(f"Ejecución: {ejecucion_id}")
+    typer.echo(f"Hallazgos registrados: {registrados}")
+    for severidad, total in contar_por_severidad(hallazgos).items():
+        typer.echo(f"  {severidad}: {total}")
+
+
+@hallazgos_app.command("listar")
+def hallazgos_listar(
+    ejecucion: Annotated[
+        str | None,
+        typer.Option("--ejecucion", help="Ejecución a consultar; por defecto la más reciente."),
+    ] = None,
+) -> None:
+    """Muestra los hallazgos de una ejecución, del más grave al más leve."""
+    from orchestrator.knowledge import ErrorGrafo, conectar, listar_hallazgos, ultima_ejecucion
+
+    config = obtener_configuracion()
+    try:
+        driver = conectar(config)
+        try:
+            ejecucion_id = ejecucion or ultima_ejecucion(driver, config.neo4j_database)
+            filas = (
+                listar_hallazgos(driver, ejecucion_id, config.neo4j_database)
+                if ejecucion_id
+                else []
+            )
+        finally:
+            driver.close()
+    except ErrorGrafo as error:
+        typer.echo(f"Error: {error}", err=True)
+        raise typer.Exit(code=1) from error
+
+    if ejecucion_id is None:
+        typer.echo("No hay ejecuciones registradas.")
+        return
+    typer.echo(f"Ejecución: {ejecucion_id} ({len(filas)} hallazgos)")
+    for f in filas:
+        ubicacion = f"{f['archivo']}:{f['linea_inicio']}" if f["archivo"] else "-"
+        cwe = ", ".join(f["cwe"] or []) or "-"
+        typer.echo(f"  [{f['severidad']}] {f['herramienta']} {f['regla_id']} {ubicacion} {cwe}")
+
+
 if __name__ == "__main__":
     app()
