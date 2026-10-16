@@ -129,16 +129,21 @@ def resumen_markdown(resultado: ResultadoFase4) -> str:
         "",
         f"Archivos SARIF leídos: {', '.join(resultado.archivos_sarif)}",
         "",
-        "| Severidad | Hallazgos |",
-        "|---|---|",
-        *(f"| {s} | {n} |" for s, n in resultado.por_severidad.items()),
-        f"| **total** | **{resultado.total}** |",
-        "",
-        "| Herramienta | Hallazgos |",
-        "|---|---|",
-        *(f"| {h} | {n} |" for h, n in resultado.por_herramienta.items()),
-        "",
     ]
+    if resultado.total == 0:
+        lineas += ["Sin hallazgos: ninguna herramienta del Gate 1 encontró problemas.", ""]
+    else:
+        lineas += [
+            "| Severidad | Hallazgos |",
+            "|---|---|",
+            *(f"| {s} | {n} |" for s, n in resultado.por_severidad.items()),
+            f"| **total** | **{resultado.total}** |",
+            "",
+            "| Herramienta | Hallazgos |",
+            "|---|---|",
+            *(f"| {h} | {n} |" for h, n in resultado.por_herramienta.items()),
+            "",
+        ]
     if resultado.registrado_en_grafo:
         lineas.append(f"Registrados en Neo4j en la ejecución `{resultado.ejecucion_id}`.")
     else:

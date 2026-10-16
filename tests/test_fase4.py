@@ -157,3 +157,28 @@ def test_cli_run_fase4_con_otra_carpeta(entorno_cli, tmp_path):
 def test_cli_run_fase4_sin_sarif(entorno_cli, tmp_path):
     resultado = runner.invoke(app, ["run", "--fase", "4", "--sarif", str(tmp_path)])
     assert resultado.exit_code == 1
+
+
+def test_resumen_sin_hallazgos(tmp_path):
+    carpeta = tmp_path / "salida" / "security" / "sarif"
+    carpeta.mkdir(parents=True)
+    (carpeta / "gitleaks.sarif").write_text(
+        '{"version": "2.1.0", "runs": [{"tool": {"driver": {"name": "gitleaks"}}, "results": []}]}',
+        encoding="utf-8",
+    )
+    texto = resumen_markdown(ejecutar_fase4(_config(tmp_path / "salida")))
+
+    assert "Sin hallazgos" in texto
+    assert "| Herramienta |" not in texto
+
+
+def test_cli_run_fase4_con_descripcion_registra(entorno_cli, monkeypatch):
+    recibido = {}
+
+    def falso(config, sarif, grafo, ejecucion, documento):
+        recibido.update(grafo=grafo, documento=documento)
+        raise ErrorFase("detenido en la prueba")
+
+    monkeypatch.setattr("orchestrator.gates.fase4.ejecutar_fase4", falso)
+    runner.invoke(app, ["run", "--fase", "4", "--grafo", "--descripcion", "CI push dev abc"])
+    assert recibido == {"grafo": True, "documento": "CI push dev abc"}

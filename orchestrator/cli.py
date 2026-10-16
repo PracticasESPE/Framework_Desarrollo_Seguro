@@ -71,6 +71,12 @@ def run(
         str | None,
         typer.Option("--ejecucion", help="Ejecución de Neo4j a la que se añaden los hallazgos."),
     ] = None,
+    descripcion: Annotated[
+        str | None,
+        typer.Option(
+            "--descripcion", help="Descripción de la ejecución en Neo4j si no hay documento."
+        ),
+    ] = None,
 ) -> None:
     """Ejecuta el pipeline completo o una sola fase."""
     if nivel not in {"bajo", "medio", "alto"}:
@@ -83,7 +89,7 @@ def run(
     seleccionadas = [obtener_fase(fase)] if fase is not None else list(FASES)
     for actual in seleccionadas:
         if actual.numero == 4:
-            _ejecutar_fase4(sarif, grafo, ejecucion, str(origen) if origen else None)
+            _ejecutar_fase4(sarif, grafo, ejecucion, str(origen) if origen else descripcion)
         else:
             typer.echo(f"Fase {actual.numero}: {actual.nombre} - aún no implementada")
 
@@ -199,6 +205,30 @@ def grafo_estado() -> None:
             f"  {i['name']}: {i['type']} {i['labelsOrTypes']} {i['properties']} "
             f"{i['state']}{origen}"
         )
+
+
+@grafo_app.command("resumen")
+def grafo_resumen() -> None:
+    """Cuenta los nodos por etiqueta y las relaciones por tipo."""
+    from orchestrator.knowledge import ErrorGrafo, conectar, resumen_grafo
+
+    config = obtener_configuracion()
+    try:
+        driver = conectar(config)
+        try:
+            resumen = resumen_grafo(driver, config.neo4j_database)
+        finally:
+            driver.close()
+    except ErrorGrafo as error:
+        typer.echo(f"Error: {error}", err=True)
+        raise typer.Exit(code=1) from error
+
+    typer.echo("Nodos:")
+    for etiqueta, total in resumen["nodos"].items() or [("(ninguno)", 0)]:
+        typer.echo(f"  {etiqueta}: {total}")
+    typer.echo("Relaciones:")
+    for relacion, total in resumen["relaciones"].items() or [("(ninguna)", 0)]:
+        typer.echo(f"  {relacion}: {total}")
 
 
 hallazgos_app = typer.Typer(

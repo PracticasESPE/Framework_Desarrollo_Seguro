@@ -6,6 +6,7 @@ from orchestrator.knowledge.grafo import (
     conectar,
     estado_esquema,
     leer_sentencias,
+    resumen_grafo,
     scripts_esquema,
 )
 from orchestrator.knowledge.registro import (
@@ -29,5 +30,6 @@ __all__ = [
     "conectar",
     "estado_esquema",
     "leer_sentencias",
+    "resumen_grafo",
     "scripts_esquema",
 ]

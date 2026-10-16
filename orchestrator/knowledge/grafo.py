@@ -90,3 +90,20 @@ def estado_esquema(driver: Any, base_datos: str = "neo4j") -> dict[str, list[dic
         "restricciones": [registro.data() for registro in restricciones],
         "indices": [registro.data() for registro in indices],
     }
+
+
+def resumen_grafo(driver: Any, base_datos: str = "neo4j") -> dict[str, dict[str, int]]:
+    """Cuántos nodos hay por etiqueta y cuántas relaciones por tipo."""
+    nodos = driver.execute_query(
+        "MATCH (n) UNWIND labels(n) AS etiqueta "
+        "RETURN etiqueta, count(*) AS total ORDER BY etiqueta",
+        database_=base_datos,
+    ).records
+    relaciones = driver.execute_query(
+        "MATCH ()-[r]->() RETURN type(r) AS relacion, count(*) AS total ORDER BY relacion",
+        database_=base_datos,
+    ).records
+    return {
+        "nodos": {r["etiqueta"]: r["total"] for r in nodos},
+        "relaciones": {r["relacion"]: r["total"] for r in relaciones},
+    }
