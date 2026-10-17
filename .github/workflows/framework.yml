@@ -17,7 +17,9 @@ concurrency:
 jobs:
   pipeline:
     name: Pipeline por fases
-    runs-on: ubuntu-latest
+    # Versión fijada: ubuntu-latest pasa a Ubuntu 26 desde el 19/10/2026 y cambiaría el
+    # entorno a mitad del proyecto. Se actualiza a propósito, no por sorpresa.
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     permissions:
       contents: read
@@ -91,11 +93,17 @@ jobs:
           npx tsc --noEmit
           npm run build
 
+      # Una entrada de caché por día (unos 130 MB): evita guardar la base de Trivy en
+      # cada ejecución y agotar el límite de caché del repositorio.
+      - name: Fecha para la caché de Trivy
+        id: fecha
+        run: echo "hoy=$(date -u +%F)" >> "$GITHUB_OUTPUT"
+
       - name: Caché de la base de datos de Trivy
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: .trivy-cache
-          key: trivy-db-${{ github.run_id }}
+          key: trivy-db-${{ steps.fecha.outputs.hoy }}
           restore-keys: trivy-db-
 
       - name: Fase 4 - Security Gate 1
@@ -181,7 +189,7 @@ jobs:
 
       - name: Guardar los SARIF como artefacto
         if: always()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: sarif-gate1
           path: |

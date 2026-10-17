@@ -1,0 +1,548 @@
+% Informe del sprint 1 del framework de desarrollo seguro.
+% Compilar con XeLaTeX (dos pasadas para el índice):
+%   latexmk -xelatex informe_sprint1.tex
+\documentclass[11pt,a4paper]{report}
+
+% ---------- Idioma y tipografía ----------
+\usepackage{fontspec}
+\usepackage[spanish,es-noshorthands,es-tabla]{babel}
+\setmonofont{Latin Modern Mono}[Scale=0.95]
+
+% ---------- Página ----------
+\usepackage[a4paper,top=2.6cm,bottom=2.6cm,left=2.5cm,right=2.5cm,headheight=14pt]{geometry}
+\usepackage{xcolor}
+\usepackage{titlesec}
+\usepackage{fancyhdr}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{colortbl}
+\usepackage{enumitem}
+\usepackage{caption}
+\usepackage{float}
+\usepackage[most]{tcolorbox}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,fit,backgrounds}
+\usepackage{xurl}
+\usepackage[hidelinks]{hyperref}
+
+% ---------- Colores (los mismos del plan técnico v2) ----------
+\definecolor{azulfw}{HTML}{2A64A8}
+\definecolor{azulclaro}{HTML}{E4EEF9}
+\definecolor{verdefw}{HTML}{3E6B12}
+\definecolor{verdeclaro}{HTML}{EAF1E1}
+\definecolor{ocrefw}{HTML}{8A4E0B}
+\definecolor{ocreclaro}{HTML}{FCF0DF}
+\definecolor{rojofw}{HTML}{A33A3A}
+\definecolor{rojoclaro}{HTML}{F8E3E3}
+\definecolor{grisfw}{HTML}{6B6B6B}
+
+% ---------- Títulos ----------
+\titleformat{\chapter}[hang]{\huge\bfseries\color{azulfw}}{\thechapter.}{0.5em}{}
+\titlespacing*{\chapter}{0pt}{0pt}{1.2em}
+\titleformat{\section}{\Large\bfseries\color{azulfw}}{\thesection}{0.6em}{}
+\titleformat{\subsection}{\large\bfseries}{\thesubsection}{0.6em}{}
+\addto\captionsspanish{\renewcommand{\contentsname}{\color{azulfw}Índice}}
+
+% ---------- Encabezado y pie ----------
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small\color{grisfw}Framework de desarrollo seguro guiado por conocimiento}
+\fancyhead[R]{\small\color{grisfw}Informe del sprint 1}
+\fancyfoot[C]{\small\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+\fancypagestyle{plain}{\fancyhf{}\fancyfoot[C]{\small\thepage}\renewcommand{\headrulewidth}{0pt}}
+
+% ---------- Tablas ----------
+\renewcommand{\arraystretch}{1.25}
+\newcolumntype{L}{>{\raggedright\arraybackslash}X}
+\newcolumntype{P}[1]{>{\raggedright\arraybackslash}p{#1}}
+\captionsetup{font=small,labelsep=colon}
+\setlist{itemsep=0.25em,topsep=0.4em}
+
+% ---------- Recuadros ----------
+\newtcolorbox{cajaverde}[1]{enhanced,colback=verdeclaro,colframe=verdefw,
+  coltitle=white,fonttitle=\bfseries,title={#1},arc=1.5mm,boxrule=0.6pt,
+  left=2mm,right=2mm,top=1mm,bottom=1mm}
+\newtcolorbox{cajaazul}[1]{enhanced,colback=azulclaro,colframe=azulfw,
+  coltitle=white,fonttitle=\bfseries,title={#1},arc=1.5mm,boxrule=0.6pt,
+  left=2mm,right=2mm,top=1mm,bottom=1mm}
+\newtcolorbox{cajaocre}[1]{enhanced,colback=ocreclaro,colframe=ocrefw,
+  coltitle=white,fonttitle=\bfseries,title={#1},arc=1.5mm,boxrule=0.6pt,
+  left=2mm,right=2mm,top=1mm,bottom=1mm}
+
+\newcommand{\pr}[1]{\href{https://github.com/PracticasESPE/Framework_Desarrollo_Seguro/pull/#1}{\##1}}
+\newcommand{\filasprint}[1]{\rowcolor{azulclaro}\multicolumn{5}{l}{\bfseries #1}\\}
+
+\hypersetup{pdftitle={Informe del sprint 1},pdfauthor={Marcelo Acuña Gamboa, Abner Arboleda}}
+
+\begin{document}
+
+% ======================================================================
+% PORTADA
+% ======================================================================
+\begin{titlepage}
+\centering
+\vspace*{4.2cm}
+{\color{azulfw}\rule{\textwidth}{0.8pt}}\par\vspace{0.9cm}
+{\fontsize{24}{30}\selectfont\bfseries Framework de desarrollo seguro\\
+basado en métodos computacionales\\ guiados por conocimiento\par}
+\vspace{0.9cm}{\color{azulfw}\rule{\textwidth}{0.8pt}}\par
+\vspace{1.1cm}
+{\Large Informe del sprint 1\par}
+\vspace{0.3cm}
+{\large Walking skeleton y fase 4 inicial (Security Gate 1)\par}
+\vspace{0.3cm}
+{\normalsize 5 al 16 de octubre de 2026\par}
+\vspace{2.2cm}
+{\normalsize
+\begin{tabular}{rl}
+Marcelo Acuña Gamboa & Participante 1: motor e IA\\
+Abner Arboleda & Participante 2: plataforma y seguridad\\
+\end{tabular}\par}
+\vfill
+{\normalsize Universidad de las Fuerzas Armadas – ESPE \quad$\bullet$\quad Ingeniería de Software\par}
+\vspace{0.4cm}
+{\normalsize Versión 1.0 \quad$\bullet$\quad 16 de octubre de 2026\par}
+\end{titlepage}
+
+\tableofcontents
+
+% ======================================================================
+\chapter{Resumen del sprint}
+% ======================================================================
+
+\section{Objetivo e hito}
+
+El sprint 1 corresponde al principio P3 del plan técnico, \emph{primero de punta a punta,
+después inteligente}. Su objetivo era construir las herramientas del Security Gate 1 y hacer
+que un microservicio NestJS escrito a mano lo superara en GitHub Actions, con sus hallazgos
+registrados en Neo4j. También había que elegir el proveedor de LLM.
+
+\begin{cajaazul}{Hito de control del 16 de octubre de 2026}
+\emph{Fase 4 inicial: un microservicio escrito a mano pasa el Security Gate 1 en CI. Si no se
+cumple, no se avanza a la generación con LLM.}
+\end{cajaazul}
+
+\begin{cajaverde}{Resultado: hito cumplido}
+El servicio de referencia \texttt{usuarios} superó el Security Gate 1 en la ejecución
+\href{https://github.com/PracticasESPE/Framework_Desarrollo_Seguro/actions/runs/38955751601}{38955751601}
+de GitHub Actions sobre la rama \texttt{dev} (16/10/2026). Las ocho comprobaciones terminaron en
+\emph{OK} al primer intento y los cinco archivos SARIF se publicaron en la pestaña Security. La
+fase 4 del motor registró la ejecución en Neo4j. Se completaron todas las tareas planificadas
+del sprint y se puede pasar al sprint 2.
+\end{cajaverde}
+
+\section{Indicadores}
+
+\begin{table}[H]
+\centering
+\caption{Indicadores del sprint 1 medidos en la última ejecución sobre \texttt{dev}.}
+\begin{tabularx}{\textwidth}{@{}P{6.2cm}L@{}}
+\toprule
+\textbf{Indicador} & \textbf{Valor}\\
+\midrule
+Días y horas del sprint & 9 días, 72 horas de equipo (36 por integrante)\\
+Tareas planificadas completadas & 18 de 18 (9 por integrante)\\
+Pull requests fusionados en \texttt{dev} & 17 (\pr{137} a \pr{155}), todos con revisión del otro integrante\\
+Duración del pipeline completo & 3 min 25 s (Security Gate 1: 46 s)\\
+Resultado del Security Gate 1 & 8 de 8 comprobaciones en \emph{OK}, 0 hallazgos\\
+Reglas Semgrep aplicadas & 82: 74 públicas (\texttt{p/typescript}, \texttt{p/nodejs}) y 8 propias\\
+Casos de prueba de las reglas propias & 23 detecciones esperadas, 23 obtenidas; 0 falsos positivos en los casos \emph{ok}\\
+Pruebas del motor (pytest) & 106 pruebas en verde, 95\,\% de cobertura de \texttt{orchestrator/}\\
+Pruebas del servicio (Jest) & 16 pruebas en verde, 80,8\,\% de cobertura de sentencias\\
+Esquema de Neo4j & 14 restricciones y 7 índices, aplicados en cada ejecución de CI\\
+Proveedor de LLM & Groq (\texttt{openai/gpt-oss-20b} y \texttt{gpt-oss-120b})\\
+Alertas abiertas en GitHub Security & 0\\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+% ======================================================================
+\chapter{Trabajo realizado}
+% ======================================================================
+
+\section{Cumplimiento del cronograma}
+
+La tabla compara el cronograma diario del plan con lo entregado. La columna PR indica el pull
+request con el que cada tarea entró en \texttt{dev}. Las filas de un solo bloque son trabajo conjunto.
+
+{\small
+\begin{longtable}{@{}P{1.55cm}P{4.6cm}P{4.6cm}P{1.6cm}P{1.6cm}@{}}
+\caption{Tareas del sprint 1 por integrante y pull request asociado.}\\
+\toprule
+\textbf{Fecha} & \textbf{Marcelo (motor e IA)} & \textbf{Abner (plataforma y seguridad)} & \textbf{PR Marcelo} & \textbf{PR Abner}\\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Fecha} & \textbf{Marcelo (motor e IA)} & \textbf{Abner (plataforma y seguridad)} & \textbf{PR Marcelo} & \textbf{PR Abner}\\
+\midrule
+\endhead
+\filasprint{Sprint 1: Walking skeleton y fase 4 inicial (Security Gate 1)}
+05/10 lun & Esqueleto del motor: uv, Typer, FastAPI y configuración. & \texttt{docker-compose.dev.yml} con Neo4j, RabbitMQ y Keycloak. & \pr{139} & \pr{137}\\
+06/10 mar & Interfaz \texttt{ProveedorLLM} y adaptadores (Claude, Gemini, Ollama). & Servicio de referencia \texttt{usuarios}: módulo, DTO con class-validator y Swagger. & \pr{140} & \pr{138}\\
+07/10 mié & Prueba comparativa con 5 requisitos; elección de Groq. & Prisma + PostgreSQL y pruebas Jest base. & \pr{141} & \pr{142}\\
+08/10 jue & Modelo común de hallazgos y lector SARIF. & Dockerfile multietapa con Hadolint; workflow con un paso por fase. & \pr{144} & \pr{143}\\
+12/10 lun & Esquema de Neo4j: restricciones e índices en \texttt{graph/}. & Gate 1 en CI: tsc, ESLint, Semgrep, Gitleaks, Trivy y Hadolint. & \pr{148} & \pr{146}\\
+13/10 mar & Registro de ejecuciones y hallazgos como nodos en Neo4j. & SARIF en la pestaña Security; \texttt{npm ci -{}-ignore-scripts} y \texttt{.npmrc}. & \pr{151} & \pr{147}\\
+14/10 mié & Comando \texttt{framework run -{}-fase 4} integrado al workflow. & Reglas Semgrep propias v1 para NestJS y Prisma. & \pr{152}, \pr{153} & \pr{149}\\
+15/10 jue & La fase 4 lee los SARIF del Gate 1 y los registra en Neo4j. & Gate 1 estable en el runner: reintentos, resumen y caché de Trivy. & \pr{155} & \pr{150}\\
+16/10 vie & Pruebas del motor con pytest y guía de demostración. & Correcciones del pipeline, este informe y planificación del sprint 2. & \pr{155} & este PR\\
+\bottomrule
+\end{longtable}}
+
+Algunas tareas se fusionaron uno o dos días después de su fecha planificada; por ejemplo,
+\pr{143} se fusionó el 11/10 y \pr{151} el 16/10. Estos retrasos se absorbieron dentro del
+sprint y no afectaron al hito.
+
+\section{Plataforma y seguridad}
+
+\subsection{Servicio de referencia \texttt{usuarios}}
+Es un microservicio NestJS escrito a mano que sirve de banco de pruebas para todas las fases
+antes de que exista la generación con LLM. Expone tres operaciones REST (crear, listar y
+consultar por identificador) documentadas con Swagger. Persiste los datos en PostgreSQL mediante
+Prisma y valida la entrada con un \texttt{ValidationPipe} global en modo \texttt{whitelist}. Las
+consultas de lista tienen un límite de 100 registros. Las 16 pruebas Jest cubren el DTO, el
+controlador y el servicio.
+
+\subsection{Contenerización}
+El Dockerfile tiene tres etapas: compilación, dependencias de producción e imagen final. La imagen
+final contiene solo el JavaScript compilado y las dependencias de producción, se ejecuta con un
+usuario sin privilegios (\texttt{USER 1000:1000}) e incluye \texttt{HEALTHCHECK}. Hadolint no
+reporta ningún aviso, ni siquiera de nivel \emph{info}.
+
+\subsection{Security Gate 1}
+El Gate 1 se ejecuta en la fase 4 del workflow mediante \texttt{scripts/gate1.sh}. Aplica ocho
+comprobaciones al servicio de referencia y genera un SARIF por herramienta.
+
+\begin{table}[H]
+\centering
+\caption{Comprobaciones del Security Gate 1 y resultado en la ejecución del hito.}
+\begin{tabularx}{\textwidth}{@{}P{3.3cm}LP{2.4cm}P{2.0cm}@{}}
+\toprule
+\textbf{Herramienta} & \textbf{Qué busca} & \textbf{SARIF} & \textbf{Resultado}\\
+\midrule
+\texttt{tsc -{}-noEmit} & Compilación y tipos & -- & OK\\
+ESLint + security & Patrones inseguros de JavaScript y estilo & -- & OK\\
+Semgrep & SAST con 74 reglas públicas y 8 propias & \texttt{semgrep} & OK\\
+\texttt{semgrep -{}-test} & Que las reglas propias detecten sus casos de prueba & -- & OK\\
+Gitleaks & Secretos en todo el historial de Git & \texttt{gitleaks} & OK\\
+Trivy fs & Vulnerabilidades HIGH y CRITICAL en \texttt{package-lock.json} y \texttt{uv.lock} & \texttt{trivy-fs} & OK\\
+Trivy config & Configuraciones inseguras en el Dockerfile & \texttt{trivy-config} & OK\\
+Hadolint & Buenas prácticas del Dockerfile & \texttt{hadolint} & OK\\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+El script distingue entre \emph{hallazgos}, cuando la herramienta funciona y encuentra problemas,
+y \emph{errores de la herramienta}, como fallos de red o de descarga. Los hallazgos ponen el Gate
+en rojo sin reintentar. Los errores se reintentan hasta dos veces, para que un fallo transitorio
+del runner no se confunda con un problema de seguridad. Al final, el script escribe una tabla de
+resultados en el resumen de la ejecución.
+
+\subsection{Reglas Semgrep propias (v1)}
+Las reglas de \texttt{semgrep\_rules/} forman parte de la base de conocimiento (principio P5). Cada
+una declara el CWE y la categoría OWASP que detecta, para que el cargador del sprint 2 pueda
+enlazarlas en Neo4j. El archivo \texttt{nestjs-seguridad.ts} contiene los casos de prueba, y el
+pipeline comprueba en cada ejecución que todas las reglas siguen detectándolos.
+
+\begin{table}[H]
+\centering
+\caption{Reglas Semgrep propias, versión 1.}
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash\footnotesize}p{5.65cm}LP{2.0cm}P{1.1cm}@{}}
+\toprule
+\textbf{Regla} & \textbf{Qué detecta} & \textbf{Severidad} & \textbf{CWE}\\
+\midrule
+\texttt{nestjs-validationpipe-sin-whitelist} & Asignación masiva por propiedades no declaradas & WARNING & 915\\
+\texttt{prisma-sql-crudo-inseguro} & \texttt{\$queryRawUnsafe} y \texttt{\$executeRawUnsafe} & ERROR & 89\\
+\texttt{nestjs-cors-abierto} & CORS abierto a cualquier origen & WARNING & 942\\
+\texttt{jwt-secreto-en-codigo} & Secreto JWT escrito en el código & ERROR & 798\\
+\texttt{jwt-ignora-expiracion} & Tokens vencidos aceptados & ERROR & 613\\
+\texttt{tls-verificacion-desactivada} & Certificados TLS sin verificar & ERROR & 295\\
+\texttt{hash-criptografico-debil} & MD5 o SHA-1 & WARNING & 327\\
+\texttt{prisma-findmany-sin-limite} & Consultas de lista sin \texttt{take} & WARNING & 770\\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{Motor e IA}
+
+\begin{itemize}
+\item \textbf{Esqueleto del motor} (\pr{139}): proyecto Python con uv, CLI \texttt{framework} con
+Typer, API con FastAPI y configuración por variables de entorno.
+\item \textbf{Adaptador de LLM} (\pr{140}, \pr{141}): interfaz común con salida estructurada en
+Pydantic y adaptadores para Claude, Gemini, Ollama y Groq.
+\item \textbf{Modelo de hallazgos y lector SARIF} (\pr{144}): convierte la salida de cualquier
+herramienta al modelo común, como pide el principio P2. Se probó con ejemplos y con salidas
+reales de Hadolint y Gitleaks.
+\item \textbf{Neo4j} (\pr{148}, \pr{151}): 14 restricciones y 7 índices, y registro de nodos
+\texttt{Ejecucion} y \texttt{Hallazgo} enlazados con su \texttt{CWE}.
+\item \textbf{Fase 4 en CI} (\pr{152}, \pr{153}, \pr{155}): el workflow levanta un Neo4j propio
+de la ejecución, ejecuta las pruebas del motor, aplica el esquema y registra los hallazgos del
+Gate 1. Los SARIF de ejemplo sirven para mostrar cómo se ve el grafo cuando sí hay hallazgos.
+\end{itemize}
+
+\begin{table}[H]
+\centering
+\caption{Comparación de proveedores de LLM con cinco requisitos (7/10/2026).}
+\begin{tabularx}{\textwidth}{@{}LP{2.6cm}P{2.6cm}@{}}
+\toprule
+\textbf{Criterio} & \textbf{Gemini} & \textbf{Groq}\\
+\midrule
+JSON válido al primer intento & 5/5 & 5/5\\
+Clasificación RF/RNF correcta & 5/5 & 5/5\\
+Cobertura de etiquetas de seguridad & 0,80 & 0,77\\
+TypeScript generado / que compila & 1/5 / 1 & 5/5 / 5\\
+Latencia media de generación & 110,3 s & 2,0 s\\
+Reintentos por saturación o cuota & 10 & 0\\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\begin{cajaazul}{Decisión: Groq como proveedor de LLM}
+Las dos opciones extraen requisitos con la misma calidad. Groq, en cambio, generó y compiló todo
+el TypeScript sin reintentos y fue unas 55 veces más rápido en generación. Gemini agotó la cuota
+gratuita durante la prueba. El adaptador permite cambiar de proveedor sin tocar el resto del motor.
+\end{cajaazul}
+
+% ======================================================================
+\chapter{Estado del pipeline al cierre}
+% ======================================================================
+
+\section{Walking skeleton hasta el Gate 1}
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+  font=\sffamily\footnotesize,
+  caja/.style={draw=azulfw,fill=azulclaro,rounded corners=2pt,align=center,minimum height=1.05cm,text width=2.35cm},
+  gate/.style={draw=ocrefw,fill=ocreclaro,rounded corners=2pt,align=center,minimum height=1.05cm,text width=2.6cm},
+  fin/.style={draw=verdefw,fill=verdeclaro,rounded corners=2pt,align=center,minimum height=1.05cm,text width=2.35cm},
+  flecha/.style={-{Stealth[length=2.2mm]},thick,color=grisfw},
+  node distance=0.55cm and 0.55cm]
+\node[caja] (svc) {Servicio\\\texttt{usuarios}\\(NestJS + Prisma)};
+\node[caja,right=of svc] (f3) {Fase 3\\compilación\\(\texttt{npm ci}, \texttt{tsc})};
+\node[gate,right=of f3] (g1) {Fase 4: Gate 1\\8 comprobaciones\\(\texttt{gate1.sh})};
+\node[caja,right=of g1] (sarif) {5 archivos\\SARIF};
+\node[fin,above right=0.25cm and 0.55cm of sarif] (sec) {GitHub\\Security};
+\node[caja,below right=0.25cm and 0.55cm of sarif] (motor) {Motor:\\\texttt{framework run}\\\texttt{-{}-fase 4}};
+\node[fin,below=0.55cm of motor,text width=3.2cm] (neo) {Neo4j\\Ejecucion → Hallazgo\\→ CWE};
+\node[caja,below=0.55cm of g1] (f910) {Fases 9 y 10\\Jest y\\\texttt{docker build}};
+\draw[flecha] (svc) -- (f3);
+\draw[flecha] (f3) -- (g1);
+\draw[flecha] (g1) -- (sarif);
+\draw[flecha] (sarif) |- (sec);
+\draw[flecha] (sarif) |- (motor);
+\draw[flecha] (motor) -- (neo);
+\draw[flecha] (g1) -- (f910);
+\end{tikzpicture}
+\caption{Recorrido del walking skeleton en cada ejecución de GitHub Actions.}
+\end{figure}
+
+\section{Fases del pipeline}
+
+\begin{table}[H]
+\centering
+\caption{Estado de cada fase del workflow al cierre del sprint 1.}
+\begin{tabularx}{\textwidth}{@{}P{0.9cm}P{4.2cm}P{2.6cm}L@{}}
+\toprule
+\textbf{Fase} & \textbf{Nombre} & \textbf{Estado} & \textbf{Detalle}\\
+\midrule
+1--2 & Requisitos y arquitectura & Pendiente & Sprint 3.\\
+3 & Generación y compilación & Versión inicial & Compila el servicio de referencia (20 s).\\
+4 & Security Gate 1 & Versión inicial & 8 comprobaciones, SARIF en Security y registro en Neo4j (46 s).\\
+5--6 & Refinamiento iterativo & Pendiente & Sprint 5.\\
+7 & Integración & Pendiente & Keycloak en el sprint 2; Traefik y RabbitMQ en el sprint 5.\\
+8 & Security Gate 2 & Pendiente & Spectral y Conftest el 21 y 22/10.\\
+9 & Pruebas automatizadas & Versión inicial & Jest con cobertura (3 s).\\
+10 & Contenerización & Versión inicial & \texttt{docker build} de la imagen (31 s).\\
+11 & DAST y Security Gate 3 & Pendiente & Trivy image y Syft el 26/10; ZAP y Nuclei el 27/10.\\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{Correcciones del pipeline del 16 de octubre}
+
+En la revisión de la última ejecución aparecieron dos avisos de GitHub y un problema de la caché.
+Se corrigen en el pull request de este informe.
+
+\begin{table}[H]
+\centering
+\caption{Correcciones aplicadas al workflow al cierre del sprint.}
+\begin{tabularx}{\textwidth}{@{}P{5.7cm}L@{}}
+\toprule
+\textbf{Problema} & \textbf{Corrección}\\
+\midrule
+\texttt{actions/cache@v4} y \texttt{actions/upload-artifact@v5} usan Node.js 20, que GitHub ya no admite. & Se actualizan a \texttt{cache@v5} y \texttt{upload-artifact@v6}, que usan Node.js 24. El único cambio entre versiones es el entorno de ejecución.\\
+\texttt{ubuntu-latest} pasa a Ubuntu 26 desde el 19/10/2026. & Se fija \texttt{ubuntu-24.04}, para que el entorno no cambie a mitad del proyecto y los experimentos DSR sean reproducibles.\\
+La base de Trivy (unos 130 MB) se guardaba como una entrada de caché nueva en cada ejecución. & La clave pasa a ser diaria: una sola entrada por día, sin agotar el límite de caché del repositorio.\\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+% ======================================================================
+\chapter{Incidencias y lecciones aprendidas}
+% ======================================================================
+
+Ninguna de las incidencias se resolvió relajando el Gate. Cada una se corrigió en su origen o,
+en el caso de los falsos positivos, se documentó con su justificación.
+
+{\small
+\begin{longtable}{@{}P{3.3cm}P{4.5cm}P{5.0cm}P{1.2cm}@{}}
+\caption{Incidencias del sprint 1 y su corrección.}\\
+\toprule
+\textbf{Incidencia} & \textbf{Causa} & \textbf{Corrección} & \textbf{PR}\\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Incidencia} & \textbf{Causa} & \textbf{Corrección} & \textbf{PR}\\
+\midrule
+\endhead
+Gitleaks marca un secreto en el historial & Token de ejemplo del badge de CircleCI en la plantilla README de NestJS. No es una credencial real. & Se eliminó del README y se registraron sus huellas en \texttt{.gitleaksignore}, sin repetir el valor en ese archivo. & \pr{146}\\
+Trivy fs con 2 vulnerabilidades HIGH & Dependencias transitivas del CLI de Prisma: \texttt{deepmerge-ts} (CVE-2026-40345) y \texttt{mysql2} (GHSA-3f6p-5ww8-9rcr). & \texttt{overrides} de npm a las versiones corregidas, tras verificar \texttt{prisma generate}, build, pruebas e imagen. & \pr{146}\\
+Hadolint DL3066 & \texttt{USER node} es un nombre; algunos sistemas no pueden comprobar que no sea administrador. & \texttt{USER 1000:1000}, el mismo usuario identificado por número. & \pr{149}\\
+Scripts de instalación de npm & Un paquete comprometido puede ejecutar código al instalarse. & \texttt{-{}-ignore-scripts} en CI y Dockerfile, y \texttt{ignore-scripts=true} en \texttt{.npmrc}. & \pr{147}\\
+Fallos de herramienta confundidos con hallazgos & Un error de red o de descarga en el runner dejaba el Gate en rojo igual que un hallazgo. & \texttt{gate1.sh} separa ambos casos, reintenta los errores y precarga las imágenes. & \pr{150}\\
+SARIF rechazados por GitHub & Las herramientas corren como root en contenedores y pueden dejar archivos vacíos. & El script devuelve la propiedad al usuario del runner y elimina los SARIF vacíos. & \pr{150}\\
+Riesgo de \texttt{\$'\textbackslash r'} en bash & Git en Windows convierte los finales de línea a CRLF. & \texttt{.gitattributes} con \texttt{*.sh text eol=lf}. & \pr{150}\\
+Workflow en rojo tras fusionar \pr{152} & \texttt{astral-sh/setup-uv@v10} no existe como etiqueta. & Versión fijada \texttt{v10.3.0}. & \pr{153}\\
+Trivy se cuelga en local & En Windows recorre \texttt{node\_modules} a través del montaje de Docker y supera los 5 minutos. & Solo ocurre en local. En el runner tarda segundos, así que se valida con el CI o con una copia limpia. & --\\
+\bottomrule
+\end{longtable}}
+
+\begin{cajaocre}{Lección principal}
+Casi todas las incidencias se debieron a diferencias entre el entorno local y el runner: Windows
+frente a Linux, finales de línea o versiones no fijadas. Probar cada cambio en un entorno
+equivalente al runner (un clon limpio, en Linux, con las mismas imágenes) permite detectarlas
+antes de abrir el PR. Fijar versiones de herramientas, acciones y sistema del runner es lo que
+hace reproducible el Gate.
+\end{cajaocre}
+
+% ======================================================================
+\chapter{Seguridad del propio framework}
+% ======================================================================
+
+El capítulo 10 del plan exige que el framework se aplique a sí mismo sus principios. Estos son
+los controles que ya están activos al cierre del sprint 1:
+
+\begin{table}[H]
+\centering
+\caption{Controles del capítulo 10 implementados en el sprint 1.}
+\begin{tabularx}{\textwidth}{@{}P{4.2cm}L@{}}
+\toprule
+\textbf{Riesgo} & \textbf{Control activo}\\
+\midrule
+Scripts de instalación de npm & \texttt{npm ci -{}-ignore-scripts} en CI y en las etapas del Dockerfile; \texttt{.npmrc} del servicio con \texttt{ignore-scripts=true}.\\
+Secretos del framework & \texttt{.env} fuera de Git; claves en GitHub Secrets; Gitleaks revisa todo el historial en cada ejecución.\\
+Dependencias del framework & Trivy fs revisa \texttt{package-lock.json} (servicio) y \texttt{uv.lock} (motor).\\
+Manipulación del conocimiento & Toda la integración pasa por pull request con aprobación del otro integrante y CODEOWNERS; \texttt{semgrep -{}-test} comprueba las reglas propias en cada ejecución.\\
+Contenedores & Imagen final sin herramientas de compilación y con usuario no root.\\
+Acceso a servicios locales & Los puertos del \texttt{docker-compose.dev.yml} se publican solo en \texttt{127.0.0.1}; el Neo4j de CI vive solo durante la ejecución.\\
+Permisos del workflow & \texttt{contents: read} por defecto; \texttt{security-events: write} solo en el trabajo que publica SARIF.\\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+% ======================================================================
+\chapter{Planificación del sprint 2}
+% ======================================================================
+
+\section{Objetivo e hito}
+
+\begin{cajaazul}{Hito de control del 30 de octubre de 2026}
+\emph{Walking skeleton completo (tres gates) con avisos en Telegram.} Es el primer hito importante
+del proyecto: no se empieza el sprint 3 sin haberlo cumplido.
+\end{cajaazul}
+
+El sprint 2 va del 19 al 30 de octubre: 10 días y 80 horas de equipo. Construye la base de
+conocimiento v1 con GraphRAG, las políticas OPA de los tres gates, las versiones iniciales de los
+Gates 2 y 3 sobre el servicio de referencia y los avisos de Telegram.
+
+{\small
+\begin{longtable}{@{}P{1.55cm}P{5.6cm}P{5.6cm}@{}}
+\caption{Cronograma del sprint 2 por integrante.}\\
+\toprule
+\textbf{Fecha} & \textbf{Marcelo (motor e IA)} & \textbf{Abner (plataforma y seguridad)}\\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Fecha} & \textbf{Marcelo (motor e IA)} & \textbf{Abner (plataforma y seguridad)}\\
+\midrule
+\endhead
+19/10 lun & Base de conocimiento: patrones de microservicios en YAML. & Notificador de Telegram: bot y mensaje de progreso editable.\\
+20/10 mar & Controles OWASP ASVS y catálogo CWE / OWASP API Top 10. & Notificaciones en cada paso del workflow y aviso de fallo.\\
+21/10 mié & Cargador YAML → Neo4j (nodos y relaciones). & Gate 2 inicial: Spectral con reglas OWASP API.\\
+22/10 jue & Índice vectorial; fragmentos y embeddings de OWASP/CWE. & Conftest con políticas Rego para Docker Compose.\\
+23/10 vie & Consulta GraphRAG (vectores + relaciones). & Realm de Keycloak y guard JWT en el servicio de referencia.\\
+26/10 lun & Políticas Rego de los Gates 1 y 2 con \texttt{opa test}. & Gate 3 inicial: Trivy image y Syft (SBOM).\\
+27/10 mar & Política Rego del Gate 3 con justificación. & ZAP API scan con límite de tiempo y Nuclei.\\
+28/10 mié & Benchmark Neo4j frente a PostgreSQL + pgvector. & Conversor de resultados de ZAP a SARIF.\\
+\rowcolor{azulclaro} 29/10 jue & \multicolumn{2}{P{11.6cm}}{Ambos: walking skeleton completo (Gates 1--3 con OPA en CI).}\\
+\rowcolor{azulclaro} 30/10 vie & \multicolumn{2}{P{11.6cm}}{Ambos: revisión, demostración con avisos en Telegram, informe del sprint 2 y planificación del sprint 3.}\\
+\bottomrule
+\end{longtable}}
+
+\section{Dependencias y preparación}
+
+La revisión del sprint 1 deja varias dependencias entre tareas que conviene resolver al empezar
+el sprint:
+
+\begin{itemize}
+\item \textbf{Telegram:} los secretos \texttt{TELEGRAM\_BOT\_TOKEN} y \texttt{TELEGRAM\_CHAT\_ID} ya
+están en GitHub Secrets, así que el notificador puede empezar el 19/10 sin bloqueo.
+\item \textbf{Spectral (21/10)} necesita el documento OpenAPI del servicio. Habrá que exportar
+\texttt{openapi.json} en CI desde la configuración de Swagger, sin levantar la base de datos.
+\item \textbf{Guard JWT (23/10):} el código nuevo de autenticación quedará cubierto
+automáticamente por las reglas propias \texttt{jwt-secreto-en-codigo} y
+\texttt{jwt-ignora-expiracion} del Gate 1.
+\item \textbf{Trivy image y Syft (26/10)} reutilizan la imagen \texttt{fw-usuarios:ci} que ya
+construye la fase 10.
+\item \textbf{ZAP y Nuclei (27/10)} necesitan el servicio en marcha dentro del runner. Hay que
+añadir PostgreSQL como contenedor de servicio en el workflow y aplicar las migraciones
+(\texttt{prisma migrate deploy}) antes de arrancarlo.
+\item \textbf{Políticas OPA (26--29/10):} \texttt{gate1.sh} ya produce los SARIF y una tabla de
+resultados. La política \texttt{gate1.rego} debe tomar esa decisión, y el script pasará a
+limitarse a ejecutar las herramientas.
+\item \textbf{Duración del CI:} con DAST, el pipeline crecerá desde los 3,5 minutos actuales. El
+límite de tiempo de ZAP y las cachés de imágenes deben mantenerlo por debajo de los 30 minutos de
+\texttt{timeout} del trabajo.
+\end{itemize}
+
+\appendix
+% ======================================================================
+\chapter{Evidencias}
+% ======================================================================
+
+\begin{table}[H]
+\centering
+\caption{Dónde comprobar cada resultado del sprint.}
+\begin{tabularx}{\textwidth}{@{}P{4.0cm}>{\raggedright\arraybackslash\small}X@{}}
+\toprule
+\textbf{Evidencia} & \textbf{Ubicación}\\
+\midrule
+Repositorio & \url{https://github.com/PracticasESPE/Framework_Desarrollo_Seguro}\\
+Ejecución del hito en \texttt{dev} & \url{https://github.com/PracticasESPE/Framework_Desarrollo_Seguro/actions/runs/38955751601}\\
+Pestaña Security (SARIF) & \url{https://github.com/PracticasESPE/Framework_Desarrollo_Seguro/security/code-scanning}\\
+Tablero del proyecto & \url{https://github.com/orgs/PracticasESPE/projects/1}\\
+Guía de demostración & \texttt{docs/sprints/sprint1-demostracion.md}\\
+Script del Gate 1 & \texttt{scripts/gate1.sh}\\
+Reglas Semgrep y casos de prueba & \texttt{semgrep\_rules/}\\
+Comparación de LLM & \texttt{evaluation/comparacion\_llm/resultados.md}\\
+Esquema de Neo4j & \texttt{graph/01\_restricciones.cypher}, \texttt{graph/02\_indices.cypher}\\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section*{Cómo reproducir el Gate 1 en local}
+Hace falta Docker en marcha y una terminal Linux (o WSL); en Windows, Trivy se vuelve muy lento
+al leer el repositorio a través del montaje de Docker. Desde la raíz del repositorio:
+
+\begin{tcolorbox}[colback=white,colframe=grisfw,boxrule=0.4pt,arc=1mm,left=2mm]
+\small\ttfamily
+cd services/usuarios \&\& npm ci -{}-ignore-scripts \&\& npx prisma generate \&\& cd ../..\\
+bash scripts/gate1.sh\\
+docker run -{}-rm -v "\$PWD:/src" semgrep/semgrep:1.172.0 semgrep -{}-test semgrep\_rules/
+\end{tcolorbox}
+
+\end{document}
