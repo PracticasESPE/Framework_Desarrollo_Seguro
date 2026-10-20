@@ -1,0 +1,10 @@
+id: arq.transaccion.001
+patron: saga
+descripcion: Transacción distribuida como secuencia de pasos locales con compensación
+aplica_cuando:
+  - etiqueta: transaccion_entre_servicios
+  - etiqueta: consistencia_eventual
+  - numero_servicios_minimo: 2
+controles_asociados: [ASVS-V11.1.1, ASVS-V11.1.6]
+cwe_mitigadas: [CWE-362, CWE-841]
+implementacion: rabbitmq

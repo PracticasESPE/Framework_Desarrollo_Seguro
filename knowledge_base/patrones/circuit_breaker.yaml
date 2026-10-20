@@ -1,0 +1,10 @@
+id: arq.resiliencia.001
+patron: circuit_breaker
+descripcion: Corta las llamadas a un servicio que falla para evitar fallos en cascada
+aplica_cuando:
+  - etiqueta: dependencia_sincrona_externa
+  - etiqueta: alta_disponibilidad
+  - numero_servicios_minimo: 2
+controles_asociados: [ASVS-V11.1.4]
+cwe_mitigadas: [CWE-400, CWE-770]
+implementacion: nestjs_interceptor_con_reintentos_y_timeout

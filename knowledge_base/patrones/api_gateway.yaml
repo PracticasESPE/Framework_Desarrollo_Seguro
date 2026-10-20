@@ -1,0 +1,10 @@
+id: arq.gateway.001
+patron: api_gateway
+descripcion: Punto único de entrada para los clientes
+aplica_cuando:
+  - etiqueta: punto_unico_acceso
+  - etiqueta: autenticacion_centralizada
+  - numero_servicios_minimo: 2
+controles_asociados: [ASVS-V4.1.1, ASVS-V13.1.3]
+cwe_mitigadas: [CWE-284, CWE-306]
+implementacion: traefik

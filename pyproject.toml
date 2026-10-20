@@ -8,11 +8,13 @@ dependencies = [
     "anthropic>=1.11.0",
     "fastapi>=0.115",
     "google-genai>=2.28.0",
+    "httpx>=0.28.1",
     "neo4j>=6.4.0",
     "ollama>=0.6.3",
     "openai>=3.26.0",
     "pydantic>=2.9",
     "pydantic-settings>=2.6",
+    "pyyaml>=6.0.3",
     "typer>=0.15",
     "uvicorn>=0.32",
 ]
