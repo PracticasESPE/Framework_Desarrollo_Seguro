@@ -1,0 +1,12 @@
+id: sbd.capas.001
+directriz: defensa_en_profundidad
+descripcion: La seguridad se apoya en varias capas independientes, de modo que el fallo de una no deja el sistema expuesto
+aplica_a: [servicio, gateway, base_datos, contenedor]
+practicas:
+  - La autenticación se comprueba en el gateway y otra vez en cada servicio
+  - Cada base de datos vive en una red propia, accesible solo por su servicio
+  - Los servicios validan la entrada aunque el gateway ya la haya filtrado
+  - El gateway aplica límite de peticiones además de los controles del servicio
+controles_asociados: [ASVS-V1.4.1, ASVS-V1.14.1]
+cwe_mitigadas: [CWE-284, CWE-653]
+verificacion: [conftest, spectral, zap]

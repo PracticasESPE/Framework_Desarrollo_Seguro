@@ -1,0 +1,12 @@
+id: sbd.entrada.001
+directriz: validacion_entrada
+descripcion: Toda entrada externa se valida contra un esquema explícito antes de usarse
+aplica_a: [servicio, gateway]
+practicas:
+  - Cada endpoint recibe un DTO validado con class-validator
+  - El ValidationPipe global rechaza propiedades no declaradas (lista blanca)
+  - Las consultas a la base de datos se hacen con Prisma, siempre parametrizadas
+  - El contrato OpenAPI declara longitudes y tamaños máximos de cadenas y listas
+controles_asociados: [ASVS-V5.1.3, ASVS-V5.1.4, ASVS-V5.3.4]
+cwe_mitigadas: [CWE-20, CWE-89]
+verificacion: [semgrep, eslint, spectral, schemathesis]

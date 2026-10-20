@@ -1,0 +1,11 @@
+id: sbd.fallo.001
+directriz: fallo_seguro
+descripcion: Ante un error, el sistema deniega el acceso y no revela detalles internos
+aplica_a: [servicio, gateway, identidad]
+practicas:
+  - Si la validación del token falla por cualquier motivo, la petición se rechaza
+  - Un filtro global de excepciones devuelve mensajes genéricos sin trazas ni rutas internas
+  - Los errores se registran en el log estructurado, no en la respuesta al cliente
+controles_asociados: [ASVS-V4.1.5, ASVS-V7.4.1]
+cwe_mitigadas: [CWE-209, CWE-636, CWE-755]
+verificacion: [semgrep, zap]
