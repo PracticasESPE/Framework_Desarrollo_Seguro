@@ -1,0 +1,10 @@
+id: arq.basedatos.001
+patron: database_per_service
+descripcion: Cada microservicio es dueño de su base de datos; ningún otro servicio accede a ella
+aplica_cuando:
+  - etiqueta: autonomia_de_datos
+  - etiqueta: acoplamiento_bajo
+  - numero_servicios_minimo: 2
+controles_asociados: [ASVS-V4.1.3, ASVS-V13.1.4]
+cwe_mitigadas: [CWE-284, CWE-668]
+implementacion: prisma_postgresql

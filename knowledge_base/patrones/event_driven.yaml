@@ -1,0 +1,10 @@
+id: arq.eventos.001
+patron: event_driven
+descripcion: Los servicios se comunican con eventos asíncronos en lugar de llamadas directas
+aplica_cuando:
+  - etiqueta: comunicacion_asincrona
+  - etiqueta: desacoplamiento_temporal
+  - numero_servicios_minimo: 2
+controles_asociados: [ASVS-V5.1.3]
+cwe_mitigadas: [CWE-20, CWE-345]
+implementacion: rabbitmq
