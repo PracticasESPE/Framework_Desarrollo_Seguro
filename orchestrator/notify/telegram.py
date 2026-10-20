@@ -16,7 +16,7 @@ from dataclasses import dataclass, field
 import httpx
 
 TIEMPO_ESPERA = 10
-ICONOS = {"pendiente": "⏳", "ejecutando": "🔄", "ok": "✅", "fallo": "❌"}
+ICONOS = {"pendiente": "⏳", "ejecutando": "🔄", "ok": "✅", "fallo": "❌", "omitida": "⏭️"}
 
 
 def _config() -> tuple[str, str] | None:

@@ -43,6 +43,10 @@ jobs:
       NEO4J_URI: bolt://localhost:7687
       NEO4J_PASSWORD: ci-${{ github.run_id }}
       NEO4J_INTEGRACION: "1"
+      # Avisos de progreso en Telegram. Solo los usa el notificador, que no se los pasa a los
+      # comandos de cada fase. En PR desde forks llegan vacíos y el notificador no hace nada.
+      TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+      TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
     steps:
       - name: Descargar el repositorio
         uses: actions/checkout@v6
@@ -61,6 +65,10 @@ jobs:
         with:
           enable-cache: true
 
+      # Un solo mensaje por ejecución que se edita al empezar y terminar cada fase.
+      - name: Aviso de inicio (Telegram)
+        run: uv run python -m orchestrator.notify.cli inicio
+
       - name: Pruebas del motor (pytest, incluye integración con Neo4j)
         run: |
           mkdir -p salida/pruebas
@@ -78,20 +86,26 @@ jobs:
         run: uv run framework grafo esquema
 
       - name: "Fase 1: Adquisición de requisitos"
-        run: echo "Pendiente - se implementa en el sprint 3 (Docling y modelo de requisitos)"
+        run: |
+          echo "Pendiente - se implementa en el sprint 3 (Docling y modelo de requisitos)"
+          uv run python -m orchestrator.notify.cli omitir "Fase 1: Requisitos"
 
       - name: "Fase 2: Análisis y propuesta arquitectónica"
-        run: echo "Pendiente - se implementa en el sprint 3 (arquitectura validada por OPA)"
+        run: |
+          echo "Pendiente - se implementa en el sprint 3 (arquitectura validada por OPA)"
+          uv run python -m orchestrator.notify.cli omitir "Fase 2: Arquitectura"
 
       - name: "Fase 3: Generación y compilación del servicio"
         working-directory: services/usuarios
         env:
           DATABASE_URL: postgresql://ci:ci@localhost:5432/ci
         run: |
-          npm ci --ignore-scripts
-          npx prisma generate
-          npx tsc --noEmit
-          npm run build
+          uv run python -m orchestrator.notify.cli ejecutar "Fase 3: Generación" -- bash -ec '
+            npm ci --ignore-scripts
+            npx prisma generate
+            npx tsc --noEmit
+            npm run build
+          '
 
       # Una entrada de caché por día (unos 130 MB): evita guardar la base de Trivy en
       # cada ejecución y agotar el límite de caché del repositorio.
@@ -107,7 +121,8 @@ jobs:
           restore-keys: trivy-db-
 
       - name: Fase 4 - Security Gate 1
-        run: bash scripts/gate1.sh
+        run: |
+          uv run python -m orchestrator.notify.cli ejecutar "Fase 4: Security Gate 1" -- bash scripts/gate1.sh
 
       # Se ejecuta aunque el Gate 1 encuentre problemas, para normalizar sus resultados.
       - name: "Fase 4 en el motor: hallazgos registrados en Neo4j"
@@ -134,23 +149,33 @@ jobs:
           uv run framework grafo resumen
 
       - name: "Fases 5-6: Refinamiento iterativo"
-        run: echo "Pendiente - se implementa en el sprint 5"
+        run: |
+          echo "Pendiente - se implementa en el sprint 5"
+          uv run python -m orchestrator.notify.cli omitir "Fases 5-6: Refinamiento"
 
       - name: "Fase 7: Integración de microservicios"
-        run: echo "Pendiente - se implementa en el sprint 5 (Traefik, RabbitMQ, Keycloak)"
+        run: |
+          echo "Pendiente - se implementa en el sprint 5 (Traefik, RabbitMQ, Keycloak)"
+          uv run python -m orchestrator.notify.cli omitir "Fase 7: Integración"
 
       - name: "Fase 8: Security Gate 2"
-        run: echo "Pendiente - versión inicial el 21/10 (Spectral y Conftest)"
+        run: |
+          echo "Pendiente - versión inicial el 21/10 (Spectral y Conftest)"
+          uv run python -m orchestrator.notify.cli omitir "Fase 8: Security Gate 2"
 
       - name: "Fase 9: Pruebas automatizadas"
         working-directory: services/usuarios
-        run: npm run test:cov
+        run: |
+          uv run python -m orchestrator.notify.cli ejecutar "Fase 9: Pruebas" -- npm run test:cov
 
       - name: "Fase 10: Contenerización"
-        run: docker build -t fw-usuarios:ci services/usuarios
+        run: |
+          uv run python -m orchestrator.notify.cli ejecutar "Fase 10: Contenedores" -- docker build -t fw-usuarios:ci services/usuarios
 
       - name: "Fase 11: DAST y Security Gate 3"
-        run: echo "Pendiente - versión inicial el 26/10 (ZAP, Nuclei, Trivy image)"
+        run: |
+          echo "Pendiente - versión inicial el 26/10 (ZAP, Nuclei, Trivy image)"
+          uv run python -m orchestrator.notify.cli omitir "Fase 11: DAST y Security Gate 3"
 
       - name: "Publicar SARIF: Semgrep"
         if: always() && hashFiles('salida/security/sarif/semgrep.sarif') != ''
@@ -198,3 +223,12 @@ jobs:
             salida/pruebas/
           if-no-files-found: ignore
           retention-days: 14
+
+      # Mensajes nuevos (no ediciones) para que Telegram avise del resultado final.
+      - name: Aviso de fin (Telegram)
+        if: success()
+        run: uv run python -m orchestrator.notify.cli fin
+
+      - name: Aviso de fallo (Telegram)
+        if: failure()
+        run: uv run python -m orchestrator.notify.cli fallo
