@@ -85,10 +85,26 @@ class Progreso:
             actualizar(self.message_id, self._texto(), self.cliente)
 
 
+def _cargar_desde_env() -> None:
+    """Toma las credenciales del archivo .env si no están ya en el entorno.
+
+    Solo la usa la demostración: las funciones del módulo leen únicamente el entorno, para que
+    las pruebas nunca envíen mensajes reales con las credenciales de un .env local.
+    """
+    from orchestrator.config import obtener_configuracion
+
+    cfg = obtener_configuracion()
+    if cfg.telegram_bot_token and not os.environ.get("TELEGRAM_BOT_TOKEN", "").strip():
+        os.environ["TELEGRAM_BOT_TOKEN"] = cfg.telegram_bot_token.get_secret_value()
+    if cfg.telegram_chat_id and not os.environ.get("TELEGRAM_CHAT_ID", "").strip():
+        os.environ["TELEGRAM_CHAT_ID"] = cfg.telegram_chat_id
+
+
 if __name__ == "__main__":
-    # Demostración para la captura: uv run python -m orchestrator.notify.telegram
+    # Demostración para la captura: python -m orchestrator.notify.telegram (desde la raíz)
+    _cargar_desde_env()
     if _config() is None:
-        sys.exit("Faltan TELEGRAM_BOT_TOKEN y/o TELEGRAM_CHAT_ID en el entorno.")
+        sys.exit("Faltan TELEGRAM_BOT_TOKEN y/o TELEGRAM_CHAT_ID en el entorno o en el .env.")
     p = Progreso(
         "Framework de desarrollo seguro - prueba del notificador",
         "https://github.com/PracticasESPE/Framework_Desarrollo_Seguro/actions",

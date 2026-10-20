@@ -74,3 +74,14 @@ def test_estado_invalido():
     p = t.Progreso("T", fases={"F": "pendiente"}, message_id=1)
     with pytest.raises(ValueError):
         p.marcar("F", "raro")
+
+
+def test_demo_toma_las_credenciales_del_env(monkeypatch, tmp_path):
+    monkeypatch.delenv("TELEGRAM_BOT_TOKEN")
+    monkeypatch.delenv("TELEGRAM_CHAT_ID")
+    (tmp_path / ".env").write_text(
+        "TELEGRAM_BOT_TOKEN=999:DESDE-ENV\nTELEGRAM_CHAT_ID=-42\n", encoding="utf-8"
+    )
+    monkeypatch.chdir(tmp_path)
+    t._cargar_desde_env()
+    assert t._config() == ("999:DESDE-ENV", "-42")
