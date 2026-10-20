@@ -1,0 +1,12 @@
+id: sbd.defecto.001
+directriz: seguro_por_defecto
+descripcion: La configuración inicial de cada componente es la más segura; abrir algo exige una decisión explícita
+aplica_a: [servicio, gateway, contenedor, pipeline]
+practicas:
+  - Los modos de depuración y la documentación interactiva se desactivan fuera de desarrollo
+  - Las cabeceras de seguridad (Helmet) vienen activadas en la plantilla
+  - Traefik no expone servicios salvo que lo indique una etiqueta explícita
+  - Las dependencias se instalan con npm ci --ignore-scripts
+controles_asociados: [ASVS-V14.3.2, ASVS-V14.4.1]
+cwe_mitigadas: [CWE-489, CWE-1188]
+verificacion: [conftest, semgrep, trivy]

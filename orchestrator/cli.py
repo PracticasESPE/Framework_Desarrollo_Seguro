@@ -326,5 +326,37 @@ def hallazgos_listar(
         typer.echo(f"  [{f['severidad']}] {f['herramienta']} {f['regla_id']} {ubicacion} {cwe}")
 
 
+conocimiento_app = typer.Typer(
+    help="Base de conocimiento en YAML (knowledge_base/).", no_args_is_help=True
+)
+app.add_typer(conocimiento_app, name="conocimiento")
+
+
+@conocimiento_app.command("validar")
+def conocimiento_validar(
+    raiz: Annotated[
+        Path | None, typer.Option("--raiz", help="Carpeta de la base de conocimiento.")
+    ] = None,
+) -> None:
+    """Valida todos los archivos YAML de la base de conocimiento."""
+    from orchestrator.knowledge.base_conocimiento import (
+        RAIZ_POR_DEFECTO,
+        ErrorBaseConocimiento,
+        cargar_base_conocimiento,
+    )
+
+    try:
+        base = cargar_base_conocimiento(raiz or RAIZ_POR_DEFECTO)
+    except ErrorBaseConocimiento as error:
+        typer.echo(f"Base de conocimiento inválida ({len(error.errores)} error(es)):", err=True)
+        for detalle in error.errores:
+            typer.echo(f"  - {detalle}", err=True)
+        raise typer.Exit(1) from error
+
+    typer.echo("Base de conocimiento válida")
+    for clave, valor in base.resumen().items():
+        typer.echo(f"  {clave}: {valor}")
+
+
 if __name__ == "__main__":
     app()

@@ -1,0 +1,12 @@
+id: sbd.privilegio.001
+directriz: minimo_privilegio
+descripcion: Cada componente recibe solo los permisos que necesita para su función, y nada más
+aplica_a: [servicio, base_datos, contenedor, identidad]
+practicas:
+  - El contenedor se ejecuta con un usuario no root y sistema de archivos de solo lectura
+  - Cada servicio se conecta a su base de datos con un usuario propio, sin permisos de administración
+  - Los tokens de Keycloak llevan solo los roles que el servicio necesita
+  - Cada endpoint protegido declara el rol mínimo que exige
+controles_asociados: [ASVS-V1.4.3, ASVS-V4.1.3]
+cwe_mitigadas: [CWE-250, CWE-269, CWE-272]
+verificacion: [conftest, hadolint, semgrep]
