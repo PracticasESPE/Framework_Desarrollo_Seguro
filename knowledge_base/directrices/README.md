@@ -17,7 +17,7 @@ Campos obligatorios:
 | `cwe_mitigadas` | Debilidades del catálogo CWE que evita (`CWE-<número>`) |
 | `verificacion` | Herramientas del pipeline que comprueban las prácticas |
 
-Los mapeos a ASVS y CWE son una primera propuesta; se revisan contra ASVS 4.0.3 y el catálogo
-CWE en la tarea de controles (20/10).
+Los mapeos a ASVS y CWE se revisaron contra ASVS 4.0.3 el 20/10; las correcciones están en
+`../controles/README.md`.
 
 Validación: `uv run framework conocimiento validar`.

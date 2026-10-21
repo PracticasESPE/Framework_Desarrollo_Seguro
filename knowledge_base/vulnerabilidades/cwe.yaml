@@ -1,0 +1,132 @@
+# Debilidades del catálogo CWE (Common Weakness Enumeration, de MITRE) que cita la base de conocimiento.
+# Nombre oficial en inglés; descripción resumida en español.
+# Las descripciones largas de MITRE se convertirán en fragmentos con embeddings para GraphRAG (22/10).
+fuente: MITRE Common Weakness Enumeration
+url: https://cwe.mitre.org/
+debilidades:
+  - id: CWE-20
+    nombre: Improper Input Validation
+    descripcion: La entrada no se valida, o se valida mal, antes de usarla
+  - id: CWE-89
+    nombre: Improper Neutralization of Special Elements used in an SQL Command ('SQL Injection')
+    descripcion: Datos del usuario terminan dentro de una consulta SQL y alteran su significado
+  - id: CWE-116
+    nombre: Improper Encoding or Escaping of Output
+    descripcion: La salida no se codifica correctamente para el contexto donde se interpreta
+  - id: CWE-200
+    nombre: Exposure of Sensitive Information to an Unauthorized Actor
+    descripcion: Información sensible llega a quien no está autorizado a verla
+  - id: CWE-204
+    nombre: Observable Response Discrepancy
+    descripcion: Respuestas distintas ante casos distintos (por ejemplo, usuario inexistente o contraseña errónea) revelan información
+  - id: CWE-209
+    nombre: Generation of Error Message Containing Sensitive Information
+    descripcion: Los mensajes de error revelan datos internos como rutas, consultas o versiones
+  - id: CWE-210
+    nombre: Self-generated Error Message Containing Sensitive Information
+    descripcion: La propia aplicación genera mensajes de error con información sensible
+  - id: CWE-213
+    nombre: Exposure of Sensitive Information Due to Incompatible Policies
+    descripcion: El sistema entrega información que es aceptable para el desarrollador pero sensible para otros interesados
+  - id: CWE-250
+    nombre: Execution with Unnecessary Privileges
+    descripcion: El programa se ejecuta con más privilegios de los que necesita
+  - id: CWE-269
+    nombre: Improper Privilege Management
+    descripcion: Los privilegios no se asignan, modifican o revocan correctamente
+  - id: CWE-272
+    nombre: Least Privilege Violation
+    descripcion: Los privilegios elevados no se reducen después de usarlos
+  - id: CWE-284
+    nombre: Improper Access Control
+    descripcion: No se restringe, o se restringe mal, el acceso a un recurso
+  - id: CWE-285
+    nombre: Improper Authorization
+    descripcion: No se comprueba, o se comprueba mal, si el actor tiene permiso para la acción o el recurso
+  - id: CWE-306
+    nombre: Missing Authentication for Critical Function
+    descripcion: Una función crítica puede usarse sin autenticarse
+  - id: CWE-307
+    nombre: Improper Restriction of Excessive Authentication Attempts
+    descripcion: No se limitan los intentos fallidos de autenticación, lo que permite ataques de fuerza bruta
+  - id: CWE-312
+    nombre: Cleartext Storage of Sensitive Information
+    descripcion: Información sensible se guarda sin cifrar
+  - id: CWE-319
+    nombre: Cleartext Transmission of Sensitive Information
+    descripcion: Información sensible viaja por la red sin cifrar
+  - id: CWE-345
+    nombre: Insufficient Verification of Data Authenticity
+    descripcion: No se verifica bien el origen o la integridad de los datos
+  - id: CWE-362
+    nombre: Concurrent Execution using Shared Resource with Improper Synchronization ('Race Condition')
+    descripcion: Operaciones concurrentes sobre un recurso compartido sin sincronizar producen resultados inconsistentes
+  - id: CWE-367
+    nombre: Time-of-check Time-of-use (TOCTOU) Race Condition
+    descripcion: El estado de un recurso cambia entre el momento en que se comprueba y el momento en que se usa
+  - id: CWE-400
+    nombre: Uncontrolled Resource Consumption
+    descripcion: Un actor puede agotar recursos como memoria, CPU o conexiones
+  - id: CWE-444
+    nombre: Inconsistent Interpretation of HTTP Requests ('HTTP Request/Response Smuggling')
+    descripcion: Un proxy y un servidor interpretan distinto la misma petición HTTP, lo que permite colar peticiones ocultas
+  - id: CWE-489
+    nombre: Active Debug Code
+    descripcion: Código o modos de depuración siguen activos en producción
+  - id: CWE-497
+    nombre: Exposure of Sensitive System Information to an Unauthorized Control Sphere
+    descripcion: Se revela información interna del sistema (versiones, configuración, rutas) a usuarios no autorizados
+  - id: CWE-523
+    nombre: Unprotected Transport of Credentials
+    descripcion: Las credenciales se envían por un canal que no está protegido
+  - id: CWE-602
+    nombre: Client-Side Enforcement of Server-Side Security
+    descripcion: Un control de seguridad que debería estar en el servidor se aplica solo en el cliente
+  - id: CWE-636
+    nombre: Not Failing Securely ('Failing Open')
+    descripcion: Ante un fallo, el sistema queda en un estado permisivo en lugar de denegar
+  - id: CWE-639
+    nombre: Authorization Bypass Through User-Controlled Key
+    descripcion: Cambiando un identificador controlado por el usuario se accede a datos de otro
+  - id: CWE-650
+    nombre: Trusting HTTP Permission Methods on the Server Side
+    descripcion: El servidor asume que ciertos métodos HTTP son seguros y no los controla
+  - id: CWE-653
+    nombre: Improper Isolation or Compartmentalization
+    descripcion: Componentes con distintos niveles de confianza no están suficientemente aislados
+  - id: CWE-668
+    nombre: Exposure of Resource to Wrong Sphere
+    descripcion: Un recurso queda accesible para actores que no deberían alcanzarlo
+  - id: CWE-755
+    nombre: Improper Handling of Exceptional Conditions
+    descripcion: Las condiciones excepcionales no se manejan, o se manejan mal
+  - id: CWE-770
+    nombre: Allocation of Resources Without Limits or Throttling
+    descripcion: Se asignan recursos sin límites ni control de frecuencia
+  - id: CWE-798
+    nombre: Use of Hard-coded Credentials
+    descripcion: Contraseñas o claves escritas directamente en el código
+  - id: CWE-799
+    nombre: Improper Control of Interaction Frequency
+    descripcion: No se limita cuántas veces un actor puede interactuar con el sistema
+  - id: CWE-841
+    nombre: Improper Enforcement of Behavioral Workflow
+    descripcion: Se pueden ejecutar los pasos de un flujo fuera del orden previsto
+  - id: CWE-915
+    nombre: Improperly Controlled Modification of Dynamically-Determined Object Attributes
+    descripcion: El usuario puede modificar atributos de un objeto que no debería (asignación masiva)
+  - id: CWE-918
+    nombre: Server-Side Request Forgery (SSRF)
+    descripcion: El servidor hace peticiones a direcciones elegidas por el usuario sin validarlas
+  - id: CWE-923
+    nombre: Improper Restriction of Communication Channel to Intended Endpoints
+    descripcion: Un canal de comunicación no garantiza que solo hable con los extremos previstos
+  - id: CWE-942
+    nombre: Permissive Cross-domain Policy with Untrusted Domains
+    descripcion: La política entre dominios (como CORS) permite orígenes no confiables
+  - id: CWE-1059
+    nombre: Insufficient Technical Documentation
+    descripcion: Falta documentación técnica suficiente sobre el sistema y sus componentes
+  - id: CWE-1188
+    nombre: Initialization of a Resource with an Insecure Default
+    descripcion: Un recurso arranca con una configuración por defecto insegura

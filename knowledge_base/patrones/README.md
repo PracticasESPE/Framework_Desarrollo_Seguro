@@ -5,4 +5,4 @@ Un archivo YAML por patrón. Campos obligatorios: `id`, `patron`, `descripcion`,
 
 - `id`: `arq.<tema>.<NNN>`, único en toda la base.
 - `aplica_cuando`: lista de condiciones (`etiqueta` o `numero_servicios_minimo`) que usará OPA para inferir el patrón.
-- Los mapeos a ASVS y CWE son una primera propuesta; se revisan contra ASVS 4.0.3 y el catálogo CWE en la tarea de controles (20/10).
+- Los mapeos a ASVS y CWE se revisaron contra ASVS 4.0.3 el 20/10; las correcciones están en `../controles/README.md`.
