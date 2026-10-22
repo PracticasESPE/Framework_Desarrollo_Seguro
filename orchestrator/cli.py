@@ -358,5 +358,59 @@ def conocimiento_validar(
         typer.echo(f"  {clave}: {valor}")
 
 
+@conocimiento_app.command("cargar")
+def conocimiento_cargar(
+    raiz: Annotated[
+        Path | None, typer.Option("--raiz", help="Carpeta de la base de conocimiento.")
+    ] = None,
+) -> None:
+    """Valida la base de conocimiento y la carga en Neo4j como nodos y relaciones."""
+    from orchestrator.knowledge import ErrorGrafo, aplicar_esquema, conectar
+    from orchestrator.knowledge.base_conocimiento import (
+        RAIZ_POR_DEFECTO,
+        ErrorBaseConocimiento,
+        cargar_base_conocimiento,
+    )
+    from orchestrator.knowledge.cargador import calcular_version, cargar_en_grafo
+
+    carpeta = raiz or RAIZ_POR_DEFECTO
+    try:
+        base = cargar_base_conocimiento(carpeta)
+    except ErrorBaseConocimiento as error:
+        typer.echo(f"Base de conocimiento inválida ({len(error.errores)} error(es)):", err=True)
+        for detalle in error.errores:
+            typer.echo(f"  - {detalle}", err=True)
+        raise typer.Exit(1) from error
+
+    config = obtener_configuracion()
+    try:
+        driver = conectar(config)
+    except ErrorGrafo as error:
+        typer.echo(str(error), err=True)
+        raise typer.Exit(1) from error
+    try:
+        aplicar_esquema(driver, config.neo4j_database)
+        resultado = cargar_en_grafo(
+            driver, base, calcular_version(carpeta), base_datos=config.neo4j_database
+        )
+    except ErrorGrafo as error:
+        typer.echo(str(error), err=True)
+        raise typer.Exit(1) from error
+    finally:
+        driver.close()
+
+    typer.echo(f"Conocimiento cargado en Neo4j (versión {resultado['version']})")
+    typer.echo("  Nodos:")
+    for etiqueta, total in resultado["nodos"].items():
+        typer.echo(f"    {etiqueta}: {total}")
+    typer.echo("  Relaciones:")
+    for tipo, total in sorted(resultado["relaciones"].items()):
+        typer.echo(f"    {tipo}: {total}")
+    typer.echo(
+        f"  Retirados de versiones anteriores: {resultado['nodos_retirados']} nodos, "
+        f"{resultado['relaciones_retiradas']} relaciones"
+    )
+
+
 if __name__ == "__main__":
     app()
