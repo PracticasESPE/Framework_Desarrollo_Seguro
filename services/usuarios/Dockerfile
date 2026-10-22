@@ -7,8 +7,10 @@ COPY prisma ./prisma
 COPY prisma.config.ts tsconfig.json tsconfig.build.json nest-cli.json ./
 COPY src ./src
 # DATABASE_URL ficticia: solo para que prisma.config.ts cargue. generate no se conecta a la base.
+# El generador del contrato OpenAPI solo lo usa el pipeline (Gate 2): no va en la imagen.
 RUN DATABASE_URL="postgresql://build:build@localhost:5432/build" npx prisma generate \
-    && npm run build
+    && npm run build \
+    && rm -f dist/openapi/generar-openapi.*
 
 # ---- Etapa 2: dependencias de produccion ----
 FROM node:22-slim AS prod-deps

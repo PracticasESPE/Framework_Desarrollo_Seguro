@@ -58,7 +58,9 @@ jobs:
         with:
           node-version: 22
           cache: npm
-          cache-dependency-path: services/usuarios/package-lock.json
+          cache-dependency-path: |
+            services/usuarios/package-lock.json
+            spectral/package-lock.json
 
       - name: Preparar uv (motor en Python)
         uses: astral-sh/setup-uv@v10.3.0
@@ -158,10 +160,14 @@ jobs:
           echo "Pendiente - se implementa en el sprint 5 (Traefik, RabbitMQ, Keycloak)"
           uv run python -m orchestrator.notify.cli omitir "Fase 7: Integración"
 
+      - name: Instalar Spectral (Gate 2)
+        run: npm ci --ignore-scripts --prefix spectral
+
+      # Gate 2 inicial: contrato OpenAPI del servicio con reglas OWASP API Top 10 (Spectral).
+      # Conftest (políticas de Docker Compose) se añade el 22/10.
       - name: "Fase 8: Security Gate 2"
         run: |
-          echo "Pendiente - versión inicial el 21/10 (Spectral y Conftest)"
-          uv run python -m orchestrator.notify.cli omitir "Fase 8: Security Gate 2"
+          uv run python -m orchestrator.notify.cli ejecutar "Fase 8: Security Gate 2" -- bash scripts/gate2.sh
 
       - name: "Fase 9: Pruebas automatizadas"
         working-directory: services/usuarios
@@ -212,6 +218,13 @@ jobs:
           sarif_file: salida/security/sarif/hadolint.sarif
           category: hadolint
 
+      - name: "Publicar SARIF: Spectral"
+        if: always() && hashFiles('salida/security/sarif/spectral.sarif') != ''
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: salida/security/sarif/spectral.sarif
+          category: spectral
+
       - name: Guardar los SARIF como artefacto
         if: always()
         uses: actions/upload-artifact@v6
@@ -219,6 +232,7 @@ jobs:
           name: sarif-gate1
           path: |
             salida/security/sarif/
+            salida/openapi/
             salida/hallazgos/
             salida/pruebas/
           if-no-files-found: ignore

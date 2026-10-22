@@ -1,0 +1,14 @@
+# Gate 2 (inicial): reglas de contrato OpenAPI alineadas con OWASP API Security Top 10 (2023).
+# Todas las reglas conservan su severidad original, salvo las de abajo: dependen de piezas que
+# el plan programa más adelante. Cada una vuelve a "error" cuando exista esa pieza
+# (tabla en spectral/README.md). No se baja la severidad de ninguna otra regla.
+extends:
+  - spectral:oas
+  - "@stoplight/spectral-owasp-ruleset"
+  - ./reglas-propias.yaml
+
+rules:
+  # Autenticación con el guard JWT de Keycloak (23/10).
+  owasp:api2:2023-write-restricted: warn
+  # Limitación de tasa en el gateway Traefik (sprint 5, 01/12).
+  owasp:api4:2023-rate-limit: warn
