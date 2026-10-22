@@ -1,0 +1,138 @@
+# Requisitos de OWASP ASVS 4.0.3 que usa la base de conocimiento.
+# Identificador, sección, niveles y CWE tomados del CSV oficial de la versión 4.0.3;
+# las descripciones son un resumen propio en español.
+fuente: OWASP Application Security Verification Standard 4.0.3
+url: https://github.com/OWASP/ASVS/tree/v4.0.3/4.0
+controles:
+  - id: ASVS-V1.4.1
+    capitulo: V1 Arquitectura, diseño y modelado de amenazas
+    seccion: Arquitectura de control de acceso
+    descripcion: El control de acceso se aplica en puntos de confianza (gateway, servidor, funciones), nunca en el cliente
+    niveles: [2, 3]
+    cwe: [CWE-602]
+  - id: ASVS-V1.14.1
+    capitulo: V1 Arquitectura, diseño y modelado de amenazas
+    seccion: Arquitectura de configuración
+    descripcion: Los componentes con distinto nivel de confianza están separados por controles bien definidos (firewall, API gateway, proxy inverso)
+    niveles: [2, 3]
+    cwe: [CWE-923]
+  - id: ASVS-V2.10.4
+    capitulo: V2 Autenticación
+    seccion: Autenticación de servicios
+    descripcion: Contraseñas, credenciales de bases de datos y claves de API se gestionan de forma segura y no están en el código fuente
+    niveles: [2, 3]
+    cwe: [CWE-798]
+  - id: ASVS-V3.5.3
+    capitulo: V3 Gestión de sesiones
+    seccion: Sesiones basadas en tokens
+    descripcion: Los tokens de sesión sin estado (como JWT) usan firmas digitales y otras contramedidas contra manipulación y repetición
+    niveles: [2, 3]
+    cwe: [CWE-345]
+  - id: ASVS-V4.1.1
+    capitulo: V4 Control de acceso
+    seccion: Diseño general de control de acceso
+    descripcion: Las reglas de control de acceso se aplican en una capa de servicio de confianza, aunque exista un control en el cliente
+    niveles: [1, 2, 3]
+    cwe: [CWE-602]
+  - id: ASVS-V4.1.3
+    capitulo: V4 Control de acceso
+    seccion: Diseño general de control de acceso
+    descripcion: Se aplica el principio de mínimo privilegio; cada usuario solo accede a los recursos para los que tiene autorización específica
+    niveles: [1, 2, 3]
+    cwe: [CWE-285]
+  - id: ASVS-V4.1.5
+    capitulo: V4 Control de acceso
+    seccion: Diseño general de control de acceso
+    descripcion: El control de acceso falla de forma segura, incluso cuando ocurre una excepción
+    niveles: [1, 2, 3]
+    cwe: [CWE-285]
+  - id: ASVS-V4.2.1
+    capitulo: V4 Control de acceso
+    seccion: Control de acceso a nivel de operación
+    descripcion: Los datos y las API sensibles están protegidos contra referencias directas inseguras a objetos (acceder a recursos ajenos cambiando un identificador)
+    niveles: [1, 2, 3]
+    cwe: [CWE-639]
+  - id: ASVS-V5.1.3
+    capitulo: V5 Validación, saneamiento y codificación
+    seccion: Validación de entrada
+    descripcion: Toda entrada (formularios, peticiones REST, parámetros, cabeceras, archivos) se valida con listas de valores permitidos
+    niveles: [1, 2, 3]
+    cwe: [CWE-20]
+  - id: ASVS-V5.1.4
+    capitulo: V5 Validación, saneamiento y codificación
+    seccion: Validación de entrada
+    descripcion: Los datos estructurados tienen tipos estrictos y se validan contra un esquema definido
+    niveles: [1, 2, 3]
+    cwe: [CWE-20]
+  - id: ASVS-V5.3.4
+    capitulo: V5 Validación, saneamiento y codificación
+    seccion: Codificación de salida y prevención de inyección
+    descripcion: Las consultas a bases de datos (SQL, ORM, NoSQL) usan consultas parametrizadas o protección equivalente contra inyección
+    niveles: [1, 2, 3]
+    cwe: [CWE-89]
+  - id: ASVS-V6.4.1
+    capitulo: V6 Criptografía almacenada
+    seccion: Gestión de secretos
+    descripcion: Se usa una solución de gestión de secretos (por ejemplo, un almacén de claves) para crear, guardar y controlar el acceso a los secretos
+    niveles: [2, 3]
+    cwe: [CWE-798]
+  - id: ASVS-V7.4.1
+    capitulo: V7 Manejo de errores y registro
+    seccion: Manejo de errores
+    descripcion: Ante un error inesperado o de seguridad se muestra un mensaje genérico, con un identificador que ayude al soporte
+    niveles: [1, 2, 3]
+    cwe: [CWE-210]
+  - id: ASVS-V9.1.1
+    capitulo: V9 Comunicaciones
+    seccion: Seguridad de las comunicaciones con el cliente
+    descripcion: Toda conexión de clientes usa TLS y no recurre a comunicaciones inseguras o sin cifrar
+    niveles: [1, 2, 3]
+    cwe: [CWE-319]
+  - id: ASVS-V11.1.1
+    capitulo: V11 Lógica de negocio
+    seccion: Seguridad de la lógica de negocio
+    descripcion: Los flujos de negocio de un usuario se procesan solo en orden secuencial y sin saltarse pasos
+    niveles: [1, 2, 3]
+    cwe: [CWE-841]
+  - id: ASVS-V11.1.4
+    capitulo: V11 Lógica de negocio
+    seccion: Seguridad de la lógica de negocio
+    descripcion: Hay controles contra la automatización que protegen de llamadas excesivas, robo masivo de datos y denegación de servicio
+    niveles: [1, 2, 3]
+    cwe: [CWE-770]
+  - id: ASVS-V11.1.6
+    capitulo: V11 Lógica de negocio
+    seccion: Seguridad de la lógica de negocio
+    descripcion: La aplicación no sufre condiciones de carrera entre la comprobación y el uso (TOCTOU) en operaciones sensibles
+    niveles: [2, 3]
+    cwe: [CWE-367]
+  - id: ASVS-V13.1.4
+    capitulo: V13 API y servicios web
+    seccion: Seguridad genérica de servicios web
+    descripcion: Las decisiones de autorización se toman tanto en la ruta (URI) como en el recurso
+    niveles: [2, 3]
+    cwe: [CWE-285]
+  - id: ASVS-V13.2.1
+    capitulo: V13 API y servicios web
+    seccion: Servicios web REST
+    descripcion: Los métodos HTTP habilitados en cada ruta son válidos para el usuario o la acción (por ejemplo, que no se pueda borrar sin permiso)
+    niveles: [1, 2, 3]
+    cwe: [CWE-650]
+  - id: ASVS-V14.3.2
+    capitulo: V14 Configuración
+    seccion: Divulgación de seguridad no intencionada
+    descripcion: Los modos de depuración del servidor y del framework están desactivados en producción
+    niveles: [1, 2, 3]
+    cwe: [CWE-497]
+  - id: ASVS-V14.4.4
+    capitulo: V14 Configuración
+    seccion: Cabeceras de seguridad HTTP
+    descripcion: Todas las respuestas incluyen la cabecera X-Content-Type-Options con el valor nosniff
+    niveles: [1, 2, 3]
+    cwe: [CWE-116]
+  - id: ASVS-V14.4.5
+    capitulo: V14 Configuración
+    seccion: Cabeceras de seguridad HTTP
+    descripcion: Todas las respuestas incluyen la cabecera Strict-Transport-Security, que obliga al navegador a usar HTTPS
+    niveles: [1, 2, 3]
+    cwe: [CWE-523]

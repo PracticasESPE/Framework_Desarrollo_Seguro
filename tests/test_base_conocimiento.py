@@ -77,8 +77,11 @@ def test_base_valida_con_patrones_y_directrices(tmp_path):
     assert base.resumen() == {
         "patrones": 1,
         "directrices": 1,
-        "controles_distintos": 2,
-        "cwe_distintas": 2,
+        "controles_asvs": 0,
+        "debilidades_cwe": 0,
+        "riesgos_api_top10": 0,
+        "controles_referenciados": 2,
+        "cwe_referenciadas": 2,
     }
     assert base.patrones[0].aplica_cuando[1].numero_servicios_minimo == 2
 

@@ -7,6 +7,6 @@ practicas:
   - Las cabeceras de seguridad (Helmet) vienen activadas en la plantilla
   - Traefik no expone servicios salvo que lo indique una etiqueta explícita
   - Las dependencias se instalan con npm ci --ignore-scripts
-controles_asociados: [ASVS-V14.3.2, ASVS-V14.4.1]
+controles_asociados: [ASVS-V14.3.2, ASVS-V14.4.4, ASVS-V14.4.5]
 cwe_mitigadas: [CWE-489, CWE-1188]
 verificacion: [conftest, semgrep, trivy]
