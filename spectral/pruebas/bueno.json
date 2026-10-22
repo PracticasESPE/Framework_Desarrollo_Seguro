@@ -1,0 +1,6 @@
+{"openapi":"3.0.0","info":{"title":"Bueno","version":"1.0.0","description":"x"},
+ "servers":[{"url":"https://api.fw.local","description":"Entorno local","x-internal":true}],
+ "paths":{"/api/usuarios":{"get":{"operationId":"a","summary":"a","description":"a","tags":["t"],
+   "responses":{"400":{"description":"mal"},"200":{"description":"ok","content":{"application/json":{"schema":{"$ref":"#/components/schemas/UsuarioRespuesta"}}}}}}}},
+ "tags":[{"name":"t"}],
+ "components":{"schemas":{"UsuarioRespuesta":{"type":"object","properties":{"nombre":{"type":"string","maxLength":60}}}}}}

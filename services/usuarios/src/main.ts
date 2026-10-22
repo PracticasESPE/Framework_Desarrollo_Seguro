@@ -1,7 +1,7 @@
 import 'dotenv/config';
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
-import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { configurarSwagger } from './openapi/configuracion';
 import { UsuariosModule } from './usuarios.module';
 
 async function bootstrap(): Promise<void> {
@@ -19,14 +19,8 @@ async function bootstrap(): Promise<void> {
     }),
   );
 
-  const config = new DocumentBuilder()
-    .setTitle('Servicio de usuarios')
-    .setDescription(
-      'Microservicio de referencia del framework de desarrollo seguro',
-    )
-    .setVersion('1.0')
-    .build();
-  SwaggerModule.setup('docs', app, SwaggerModule.createDocument(app, config));
+  // Swagger en /docs con el mismo contrato que analiza el Gate 2 (Spectral).
+  configurarSwagger(app);
 
   await app.listen(process.env.PORT ?? 3000);
 }

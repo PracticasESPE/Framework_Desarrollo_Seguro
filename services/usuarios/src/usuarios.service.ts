@@ -15,6 +15,9 @@ interface FilaUsuario {
   creadoEn: Date;
 }
 
+// Límite del listado; el contrato OpenAPI lo declara como maxItems (Gate 2, OWASP API4).
+export const MAXIMO_POR_LISTADO = 100;
+
 // Código de Prisma para "ya existe un registro con ese valor único".
 const VIOLACION_UNICA = 'P2002';
 
@@ -60,10 +63,10 @@ export class UsuariosService {
   }
 
   async listar(): Promise<UsuarioRespuestaDto[]> {
-    // Máximo 100 por ahora; la paginación llega más adelante.
+    // Máximo MAXIMO_POR_LISTADO por ahora; la paginación llega más adelante.
     const filas = await this.prisma.usuario.findMany({
       orderBy: { creadoEn: 'asc' },
-      take: 100,
+      take: MAXIMO_POR_LISTADO,
     });
     return filas.map(aRespuesta);
   }

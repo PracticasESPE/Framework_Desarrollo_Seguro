@@ -1,0 +1,9 @@
+{
+  "name": "spectral-gate2",
+  "private": true,
+  "description": "Herramientas del Gate 2 (contrato OpenAPI)",
+  "devDependencies": {
+    "@stoplight/spectral-cli": "6.16.3",
+    "@stoplight/spectral-owasp-ruleset": "2.0.1"
+  }
+}

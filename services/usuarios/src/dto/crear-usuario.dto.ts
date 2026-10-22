@@ -22,7 +22,11 @@ export class CrearUsuarioDto {
   @MaxLength(100)
   nombre!: string;
 
-  @ApiProperty({ example: 'ana.perez@example.com', maxLength: 254 })
+  @ApiProperty({
+    example: 'ana.perez@example.com',
+    format: 'email',
+    maxLength: 254,
+  })
   @Transform(({ value }: { value: unknown }) =>
     typeof value === 'string' ? value.trim().toLowerCase() : value,
   )
@@ -33,6 +37,8 @@ export class CrearUsuarioDto {
   @ApiPropertyOptional({
     example: '+593991234567',
     description: 'Teléfono de 7 a 15 dígitos, con + opcional al inicio',
+    pattern: '^\\+?[0-9]{7,15}$',
+    maxLength: 16,
   })
   @IsOptional()
   @Matches(/^\+?[0-9]{7,15}$/, {

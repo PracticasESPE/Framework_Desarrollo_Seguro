@@ -83,7 +83,8 @@
     "collectCoverageFrom": [
       "**/*.(t|j)s",
       "!**/generated/**",
-      "!main.ts"
+      "!main.ts",
+      "!openapi/generar-openapi.ts"
     ],
     "coverageDirectory": "../coverage",
     "testEnvironment": "node"
