@@ -1,0 +1,54 @@
+{
+  "realm": "framework",
+  "enabled": true,
+  "sslRequired": "external",
+  "registrationAllowed": false,
+  "bruteForceProtected": true,
+  "accessTokenLifespan": 300,
+  "roles": {
+    "realm": [
+      { "name": "usuarios-lectura", "description": "Puede consultar usuarios" },
+      { "name": "usuarios-escritura", "description": "Puede crear usuarios" }
+    ]
+  },
+  "clients": [
+    {
+      "clientId": "usuarios-cli",
+      "name": "Cliente de pruebas del servicio de usuarios",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": true,
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": true,
+      "serviceAccountsEnabled": false,
+      "protocolMappers": [
+        {
+          "name": "audiencia-usuarios-api",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "consentRequired": false,
+          "config": {
+            "included.custom.audience": "usuarios-api",
+            "access.token.claim": "true",
+            "id.token.claim": "false"
+          }
+        }
+      ]
+    }
+  ],
+  "users": [
+    {
+      "username": "ana",
+      "enabled": true,
+      "email": "ana@correo.com",
+      "emailVerified": true,
+      "firstName": "Ana",
+      "lastName": "Pérez",
+      "credentials": [
+        { "type": "password", "value": "${KEYCLOAK_PRUEBA_PASSWORD}", "temporary": false }
+      ],
+      "realmRoles": ["usuarios-lectura", "usuarios-escritura"]
+    }
+  ]
+}

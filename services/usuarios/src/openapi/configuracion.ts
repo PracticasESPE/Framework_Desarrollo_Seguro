@@ -9,6 +9,16 @@ export function crearDocumentoOpenApi(app: INestApplication): OpenAPIObject {
       'Microservicio de referencia del framework de desarrollo seguro',
     )
     .setVersion('1.0.0')
+    .addBearerAuth(
+      {
+        type: 'http',
+        scheme: 'bearer',
+        bearerFormat: 'JWT',
+        description:
+          'Token de acceso JWT emitido por Keycloak; se valida con las buenas prácticas de RFC8725 (firma RS256, emisor, audiencia y vencimiento).',
+      },
+      'bearer',
+    )
     .addTag('usuarios', 'Gestión de usuarios')
     .addServer('https://usuarios.fw.local', 'Entorno local de referencia')
     .build();

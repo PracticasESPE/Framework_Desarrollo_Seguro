@@ -1,10 +1,13 @@
 import 'dotenv/config';
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
+import { validarConfiguracionJwt } from './auth/jwt-auth.guard';
 import { configurarSwagger } from './openapi/configuracion';
 import { UsuariosModule } from './usuarios.module';
 
 async function bootstrap(): Promise<void> {
+  // Sin emisor y audiencia de Keycloak el servicio no arranca (falla cerrado).
+  validarConfiguracionJwt();
   const app = await NestFactory.create(UsuariosModule);
 
   // Coincide con la ruta /api/usuarios que usará el gateway Traefik (01/12).

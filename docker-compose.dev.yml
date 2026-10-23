@@ -50,14 +50,18 @@ services:
     image: quay.io/keycloak/keycloak:26.7.3
     container_name: fw-keycloak
     restart: unless-stopped
-    command: start-dev
+    # Importa keycloak/realm-framework.json si el realm todavía no existe.
+    command: ['start-dev', '--import-realm']
     environment:
       KC_BOOTSTRAP_ADMIN_USERNAME: ${KEYCLOAK_ADMIN:?Falta KEYCLOAK_ADMIN en .env}
       KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:?Falta KEYCLOAK_ADMIN_PASSWORD en .env}
+      # Contraseña del usuario de prueba "ana"; el realm la toma de aquí al importarse.
+      KEYCLOAK_PRUEBA_PASSWORD: ${KEYCLOAK_PRUEBA_PASSWORD:?Falta KEYCLOAK_PRUEBA_PASSWORD en .env}
     ports:
       - '127.0.0.1:${KEYCLOAK_PORT:-8080}:8080'
     volumes:
       - keycloak_data:/opt/keycloak/data
+      - ./keycloak/realm-framework.json:/opt/keycloak/data/import/realm-framework.json:ro
 
   usuarios-db:
     image: postgres:16-alpine

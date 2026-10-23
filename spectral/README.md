@@ -22,18 +22,19 @@ pestaña Security.
 | `fw-respuesta-sin-campos-sensibles` | error | Los esquemas de respuesta no exponen contraseñas, hashes ni secretos (OWASP API3) |
 | `fw-version-semantica` | warn | `info.version` con formato `1.0.0` (OWASP API9) |
 
-## Reglas en "warn" que volverán a "error"
+## Severidades ajustadas
 
-Todas las reglas OWASP conservan su severidad original salvo estas dos, que dependen de piezas
-que el plan programa más adelante:
+Todas las reglas OWASP conservan su severidad original salvo estas:
 
-| Regla | Vuelve a "error" cuando |
-|---|---|
-| `owasp:api2:2023-write-restricted` | exista el guard JWT de Keycloak en el servicio (23/10) |
-| `owasp:api4:2023-rate-limit` | Traefik limite la tasa de peticiones (sprint 5, 01/12) |
+| Regla | Severidad | Motivo |
+|---|---|---|
+| `owasp:api2:2023-read-restricted` | warn → **error** | Desde el 23/10 todas las operaciones exigen el token de Keycloak (guard JWT) |
+| `owasp:api8:2023-define-error-responses-401` | warn → **error** | El contrato documenta el 401 de todas las operaciones |
+| `owasp:api4:2023-rate-limit` | error → warn | Volverá a "error" cuando Traefik limite la tasa de peticiones (sprint 5, 01/12) |
 
-Los avisos de 401, 429 y 500 sin documentar (`define-error-responses-*`, `rate-limit-responses-429`)
-y `read-restricted` se resolverán con esas mismas piezas.
+`owasp:api2:2023-write-restricted` volvió a su valor original ("error") con el guard JWT.
+Siguen como avisos `rate-limit-responses-429` y `define-error-responses-500`, que se resolverán
+con la limitación de tasa y el filtro global de errores.
 
 ## Probar en local
 
