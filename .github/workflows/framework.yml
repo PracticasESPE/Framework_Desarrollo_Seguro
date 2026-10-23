@@ -163,8 +163,8 @@ jobs:
       - name: Instalar Spectral (Gate 2)
         run: npm ci --ignore-scripts --prefix spectral
 
-      # Gate 2 inicial: contrato OpenAPI del servicio con reglas OWASP API Top 10 (Spectral).
-      # Conftest (políticas de Docker Compose) se añade el 22/10.
+      # Gate 2 inicial: contrato OpenAPI del servicio con reglas OWASP API Top 10 (Spectral) y
+      # políticas Rego de policies/integracion sobre el Docker Compose (Conftest).
       - name: "Fase 8: Security Gate 2"
         run: |
           uv run python -m orchestrator.notify.cli ejecutar "Fase 8: Security Gate 2" -- bash scripts/gate2.sh
@@ -224,6 +224,13 @@ jobs:
         with:
           sarif_file: salida/security/sarif/spectral.sarif
           category: spectral
+
+      - name: "Publicar SARIF: Conftest"
+        if: always() && hashFiles('salida/security/sarif/conftest.sarif') != ''
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: salida/security/sarif/conftest.sarif
+          category: conftest
 
       - name: Guardar los SARIF como artefacto
         if: always()
