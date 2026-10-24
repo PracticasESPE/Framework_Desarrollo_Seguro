@@ -469,5 +469,65 @@ def conocimiento_embeddings(
     )
 
 
+@conocimiento_app.command("consultar")
+def conocimiento_consultar(
+    pregunta: Annotated[str, typer.Argument(help="Pregunta en lenguaje natural.")],
+    k: Annotated[
+        int, typer.Option("--k", min=1, max=20, help="Fragmentos más parecidos a recuperar.")
+    ] = 5,
+    umbral: Annotated[
+        float, typer.Option("--umbral", min=0.0, max=1.0, help="Parecido mínimo (0 a 1).")
+    ] = 0.0,
+    contexto: Annotated[
+        bool, typer.Option("--contexto", help="Muestra el texto que recibiría el LLM.")
+    ] = False,
+) -> None:
+    """Consulta GraphRAG: fragmentos parecidos a la pregunta y el conocimiento conectado."""
+    from orchestrator.knowledge import ErrorGrafo, conectar
+    from orchestrator.knowledge.embeddings import EmbeddingsLocales, ErrorEmbeddings
+    from orchestrator.knowledge.graphrag import consultar
+
+    config = obtener_configuracion()
+    try:
+        proveedor = EmbeddingsLocales(config.embeddings_modelo, config.embeddings_cache)
+        driver = conectar(config)
+    except (ErrorEmbeddings, ErrorGrafo) as error:
+        typer.echo(str(error), err=True)
+        raise typer.Exit(1) from error
+    try:
+        resultado = consultar(
+            driver, proveedor, pregunta, k=k, umbral=umbral, base_datos=config.neo4j_database
+        )
+    except (ErrorEmbeddings, ErrorGrafo) as error:
+        typer.echo(str(error), err=True)
+        raise typer.Exit(1) from error
+    finally:
+        driver.close()
+
+    if contexto:
+        typer.echo(resultado.a_texto())
+        return
+
+    typer.echo(f"Pregunta: {pregunta}")
+    if not resultado.coincidencias:
+        typer.echo("Sin resultados. ¿Se cargaron los embeddings con 'conocimiento embeddings'?")
+        return
+    typer.echo("\nFragmentos más parecidos (búsqueda vectorial):")
+    for c in resultado.coincidencias:
+        typer.echo(f"  {c.puntuacion:.3f}  [{c.origen_tipo}] {c.origen_id}")
+    typer.echo("\nConocimiento conectado (grafo):")
+    secciones = [
+        ("CWE", resultado.cwe),
+        ("Patrones", resultado.patrones),
+        ("Directrices", resultado.directrices),
+        ("Controles ASVS", resultado.controles),
+        ("Riesgos API Top 10", resultado.riesgos),
+    ]
+    for titulo, elementos in secciones:
+        typer.echo(f"  {titulo} ({len(elementos)}):")
+        for e in elementos:
+            typer.echo(f"    - {e.id}: {e.nombre}")
+
+
 if __name__ == "__main__":
     app()
