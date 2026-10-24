@@ -38,6 +38,12 @@ build-backend = "hatchling.build"
 [tool.hatch.build.targets.wheel]
 packages = ["orchestrator"]
 
+[tool.uv]
+# fastembed 0.9.0 (su última versión) limita pillow a <13, pero pillow 12.x tiene vulnerabilidades
+# CRITICAL y HIGH que solo corrige la 13.0.0 (Trivy, Gate 1, 24/10/2026). El framework solo usa
+# TextEmbedding, que no procesa imágenes. Quitar cuando fastembed admita pillow 13.
+override-dependencies = ["pillow>=13.0.0"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]
