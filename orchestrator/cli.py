@@ -412,5 +412,62 @@ def conocimiento_cargar(
     )
 
 
+@conocimiento_app.command("embeddings")
+def conocimiento_embeddings(
+    raiz: Annotated[
+        Path | None, typer.Option("--raiz", help="Carpeta de la base de conocimiento.")
+    ] = None,
+) -> None:
+    """Carga el conocimiento, genera sus fragmentos con embeddings y crea el índice vectorial."""
+    from orchestrator.knowledge import ErrorGrafo, aplicar_esquema, conectar
+    from orchestrator.knowledge.base_conocimiento import (
+        RAIZ_POR_DEFECTO,
+        ErrorBaseConocimiento,
+        cargar_base_conocimiento,
+    )
+    from orchestrator.knowledge.cargador import calcular_version, cargar_en_grafo
+    from orchestrator.knowledge.embeddings import EmbeddingsLocales, ErrorEmbeddings
+    from orchestrator.knowledge.fragmentos import cargar_fragmentos
+
+    carpeta = raiz or RAIZ_POR_DEFECTO
+    try:
+        base = cargar_base_conocimiento(carpeta)
+    except ErrorBaseConocimiento as error:
+        typer.echo(f"Base de conocimiento inválida ({len(error.errores)} error(es)):", err=True)
+        for detalle in error.errores:
+            typer.echo(f"  - {detalle}", err=True)
+        raise typer.Exit(1) from error
+
+    config = obtener_configuracion()
+    typer.echo(f"Cargando el modelo de embeddings {config.embeddings_modelo}...")
+    try:
+        proveedor = EmbeddingsLocales(config.embeddings_modelo, config.embeddings_cache)
+        driver = conectar(config)
+    except (ErrorEmbeddings, ErrorGrafo) as error:
+        typer.echo(str(error), err=True)
+        raise typer.Exit(1) from error
+    try:
+        version = calcular_version(carpeta)
+        aplicar_esquema(driver, config.neo4j_database)
+        cargar_en_grafo(driver, base, version, base_datos=config.neo4j_database)
+        resultado = cargar_fragmentos(
+            driver, base, proveedor, version, base_datos=config.neo4j_database
+        )
+    except (ErrorEmbeddings, ErrorGrafo) as error:
+        typer.echo(str(error), err=True)
+        raise typer.Exit(1) from error
+    finally:
+        driver.close()
+
+    typer.echo("Fragmentos con embeddings cargados en Neo4j")
+    typer.echo(f"  Modelo: {resultado['modelo']} ({resultado['dimensiones']} dimensiones)")
+    typer.echo(f"  Índice vectorial: {resultado['indice']} ({resultado['estado_indice']})")
+    typer.echo(f"  Fragmentos: {resultado['fragmentos']}")
+    typer.echo(f"  Relaciones DESCRIBE: {resultado['enlaces_describe']}")
+    typer.echo(
+        f"  Fragmentos retirados de versiones anteriores: {resultado['fragmentos_retirados']}"
+    )
+
+
 if __name__ == "__main__":
     app()
