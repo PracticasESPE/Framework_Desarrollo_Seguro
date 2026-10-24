@@ -25,6 +25,10 @@ class Configuracion(BaseSettings):
     llm_modelo_razonamiento: str | None = None
     llm_max_intentos: int = Field(default=3, ge=1, le=10)
 
+    # Modelo local de embeddings (fastembed) y carpeta donde se guarda tras descargarlo.
+    embeddings_modelo: str = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
+    embeddings_cache: Path = Path(".cache/fastembed")
+
     neo4j_uri: str = "bolt://localhost:7687"
     neo4j_user: str = "neo4j"
     neo4j_password: SecretStr | None = None
@@ -47,6 +51,7 @@ class Configuracion(BaseSettings):
             "neo4j_uri": self.neo4j_uri,
             "neo4j_user": self.neo4j_user,
             "neo4j_database": self.neo4j_database,
+            "embeddings_modelo": self.embeddings_modelo,
             "neo4j_password_definida": self.neo4j_password is not None,
             "telegram_configurado": (
                 self.telegram_bot_token is not None and self.telegram_chat_id is not None

@@ -36,6 +36,9 @@ sbom.json
 neo4j_data/
 *.dump
 
+# Modelos descargados (embeddings locales)
+.cache/
+
 # Editor y sistema operativo
 .vscode/
 .idea/
