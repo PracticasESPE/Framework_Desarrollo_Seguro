@@ -84,6 +84,25 @@ jobs:
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
 
+      - name: Preparar OPA
+        uses: open-policy-agent/setup-opa@v2
+        with:
+          version: 1.21.x
+
+      # Las decisiones de los gates las toman políticas Rego; se prueban antes de usarlas.
+      - name: Políticas OPA (opa test)
+        run: |
+          set -o pipefail
+          mkdir -p salida/politicas
+          opa check --strict policies/
+          opa test policies/ -v | tee salida/politicas/opa-test.txt
+          {
+            echo "### Políticas OPA (opa test)"
+            echo '```'
+            grep -E "^(PASS|FAIL|ERROR)" salida/politicas/opa-test.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
       - name: Esquema de Neo4j (restricciones e índices)
         run: uv run framework grafo esquema
 
