@@ -1,0 +1,121 @@
+{
+  "fecha": "2026-10-29 00:46 UTC",
+  "equipo": "Windows 11, Python 3.12.15",
+  "iteraciones": 300,
+  "calentamiento": 30,
+  "datos": {
+    "nodos": 86,
+    "relaciones": 108,
+    "fragmentos": 86,
+    "dimensiones": 384
+  },
+  "motores": {
+    "neo4j": "neo4j:5.26-community",
+    "postgres": "pgvector/pgvector:0.8.1-pg17"
+  },
+  "verificacion": {
+    "trazabilidad": 10,
+    "total_trazabilidad": 10,
+    "controles_cwe": 42,
+    "total_controles_cwe": 42,
+    "vectorial": 0.8800000000000001
+  },
+  "latencias": {
+    "trazabilidad": {
+      "neo4j": {
+        "media": 10.226,
+        "p50": 9.354,
+        "p95": 17.181,
+        "muestras": 300
+      },
+      "postgres": {
+        "media": 1.276,
+        "p50": 1.26,
+        "p95": 1.702,
+        "muestras": 300
+      },
+      "neo4j_transaccion": {
+        "media": 10.212,
+        "p50": 8.938,
+        "p95": 11.787,
+        "muestras": 300
+      },
+      "neo4j_servidor": {
+        "media": 4.783,
+        "p50": 4.0,
+        "p95": 10.0,
+        "muestras": 300
+      },
+      "postgres_servidor": {
+        "media": 0.377,
+        "p50": 0.328,
+        "p95": 0.54,
+        "muestras": 300
+      }
+    },
+    "controles_cwe": {
+      "neo4j": {
+        "media": 6.128,
+        "p50": 6.02,
+        "p95": 7.751,
+        "muestras": 300
+      },
+      "postgres": {
+        "media": 1.784,
+        "p50": 1.609,
+        "p95": 3.23,
+        "muestras": 300
+      },
+      "neo4j_transaccion": {
+        "media": 10.368,
+        "p50": 8.36,
+        "p95": 14.48,
+        "muestras": 300
+      },
+      "neo4j_servidor": {
+        "media": 2.57,
+        "p50": 3.0,
+        "p95": 4.0,
+        "muestras": 300
+      },
+      "postgres_servidor": {
+        "media": 0.252,
+        "p50": 0.239,
+        "p95": 0.317,
+        "muestras": 300
+      }
+    },
+    "vectorial": {
+      "neo4j": {
+        "media": 7.854,
+        "p50": 7.758,
+        "p95": 10.426,
+        "muestras": 300
+      },
+      "postgres": {
+        "media": 1.549,
+        "p50": 1.446,
+        "p95": 2.215,
+        "muestras": 300
+      },
+      "neo4j_transaccion": {
+        "media": 8.513,
+        "p50": 8.348,
+        "p95": 10.41,
+        "muestras": 300
+      },
+      "neo4j_servidor": {
+        "media": 3.003,
+        "p50": 3.0,
+        "p95": 5.0,
+        "muestras": 300
+      },
+      "postgres_servidor": {
+        "media": 0.198,
+        "p50": 0.183,
+        "p95": 0.289,
+        "muestras": 300
+      }
+    }
+  }
+}
