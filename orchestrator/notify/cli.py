@@ -5,9 +5,11 @@
   python -m orchestrator.notify.cli omitir "Fase 1: Requisitos"
   python -m orchestrator.notify.cli fin
   python -m orchestrator.notify.cli fallo
+  python -m orchestrator.notify.cli cancelado
 
 El estado (id del mensaje y fases) se guarda en un JSON entre pasos del mismo job.
 Si Telegram falla, o no hay estado, el comando de la fase se ejecuta igual.
+Las tres últimas órdenes añaden al resumen de la ejecución el estado de la cadena de gates.
 """
 
 from __future__ import annotations
@@ -33,6 +35,14 @@ FASES = [
     "Fase 10: Contenedores",
     "Fase 11: DAST y Security Gate 3",
 ]
+
+# Security Gates en el orden en que se encadenan: cada uno solo corre si pasó el anterior.
+GATES = {
+    "Gate 1": "Fase 4: Security Gate 1",
+    "Gate 2": "Fase 8: Security Gate 2",
+    "Gate 3": "Fase 11: DAST y Security Gate 3",
+}
+_RESULTADOS = {"ok": "Aprobado", "fallo": "Rechazado"}
 
 # Las credenciales solo las usa el notificador; los comandos de cada fase no las reciben.
 _SECRETOS = ("TELEGRAM_BOT_TOKEN", "TELEGRAM_CHAT_ID")
@@ -109,18 +119,70 @@ def omitir(fase: str) -> int:
     return 0
 
 
+def _estado_gate(p: telegram.Progreso, fase: str) -> str:
+    return p.fases.get(fase, "no_ejecutada")
+
+
+def _publicar_cadena(p: telegram.Progreso | None) -> None:
+    """Deja la tabla de gates en el log y en el resumen: también funciona sin Telegram."""
+    if p is None:
+        return
+    filas = [
+        f"| {gate} | {fase} | {_RESULTADOS.get(_estado_gate(p, fase), 'No ejecutado')} |"
+        for gate, fase in GATES.items()
+    ]
+    tabla = ["## Cadena de Security Gates", "", "| Gate | Fase | Resultado |", "|---|---|---|"]
+    texto = "\n".join([*tabla, *filas, ""])
+    print(texto)
+    ruta = os.environ.get("GITHUB_STEP_SUMMARY")
+    if not ruta:
+        return
+    try:
+        with open(ruta, "a", encoding="utf-8") as resumen:
+            resumen.write(texto + "\n")
+    except OSError:
+        pass  # la notificación nunca bloquea el pipeline
+
+
+def _avisar(titulo: str, p: telegram.Progreso | None) -> None:
+    """Envía un mensaje nuevo, para que Telegram notifique el resultado final."""
+    cadena = ""
+    if p is not None:
+        cadena = " · ".join(
+            f"{telegram.ICONOS[_estado_gate(p, fase)]} {gate}" for gate, fase in GATES.items()
+        )
+    _publicar_cadena(p)
+    telegram.enviar("\n".join(linea for linea in (titulo, cadena, _enlace()) if linea))
+
+
+def _detener(p: telegram.Progreso | None, en_curso: str) -> None:
+    if p is None:
+        return
+    try:
+        p.detener(en_curso)
+        _guardar(p)
+    except Exception:
+        pass  # la notificación nunca bloquea el pipeline
+
+
 def fin() -> int:
-    telegram.enviar("✅ Pipeline terminado correctamente\n" + _enlace())
+    _avisar("✅ Pipeline terminado correctamente", _cargar())
     return 0
 
 
 def fallo() -> int:
     p = _cargar()
-    if p is not None:
-        for fase, estado in list(p.fases.items()):
-            if estado == "ejecutando":
-                _marcar(p, fase, "fallo")
-    telegram.enviar("❌ El pipeline falló. Revisa los registros:\n" + _enlace())
+    _detener(p, "fallo")
+    fallidas = [fase for fase, estado in p.fases.items() if estado == "fallo"] if p else []
+    titulo = f"❌ Pipeline detenido en {fallidas[0]}" if fallidas else "❌ El pipeline falló"
+    _avisar(titulo, p)
+    return 0
+
+
+def cancelado() -> int:
+    p = _cargar()
+    _detener(p, "no_ejecutada")
+    _avisar("⚠️ Ejecución cancelada", p)
     return 0
 
 
@@ -140,7 +202,7 @@ def main(argv: list[str]) -> int:
             print('Uso: omitir "Nombre de fase"')
             return 2
         return omitir(argv[1])
-    acciones = {"inicio": inicio, "fin": fin, "fallo": fallo}
+    acciones = {"inicio": inicio, "fin": fin, "fallo": fallo, "cancelado": cancelado}
     if orden in acciones:
         try:
             return acciones[orden]()

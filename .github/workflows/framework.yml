@@ -141,7 +141,10 @@ jobs:
           key: trivy-db-${{ steps.fecha.outputs.hoy }}
           restore-keys: trivy-db-
 
-      - name: Fase 4 - Security Gate 1
+      # Cadena de Security Gates: Gate 1 (fase 4), Gate 2 (fase 8) y Gate 3 (fase 11). Los pasos
+      # de fase no llevan "if": si uno falla, GitHub omite los siguientes y ningún gate corre
+      # sobre un resultado rechazado. tests/test_notify_cli.py comprueba que siga siendo así.
+      - name: "Fase 4: Security Gate 1"
         run: |
           uv run python -m orchestrator.notify.cli ejecutar "Fase 4: Security Gate 1" -- bash scripts/gate1.sh
 
@@ -297,3 +300,7 @@ jobs:
       - name: Aviso de fallo (Telegram)
         if: failure()
         run: uv run python -m orchestrator.notify.cli fallo
+
+      - name: Aviso de cancelación (Telegram)
+        if: cancelled()
+        run: uv run python -m orchestrator.notify.cli cancelado

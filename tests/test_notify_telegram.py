@@ -60,6 +60,24 @@ def test_progreso_edita_el_mismo_mensaje():
     assert "✅ Fase 1" in llamadas[2][1]["text"] and "⏳ Fase 2" in llamadas[2][1]["text"]
 
 
+def test_detener_cierra_el_mensaje_con_una_sola_edicion():
+    llamadas = []
+    p = t.Progreso("Titulo", cliente=cliente([ok(), ok(), ok()], llamadas))
+    p.iniciar(["Fase 1", "Fase 2", "Fase 3"])
+    p.marcar("Fase 1", "ejecutando")
+    p.detener("fallo")
+    assert [m for m, _ in llamadas] == ["sendMessage", "editMessageText", "editMessageText"]
+    assert p.fases == {"Fase 1": "fallo", "Fase 2": "no_ejecutada", "Fase 3": "no_ejecutada"}
+    assert "🚫 Fase 3" in llamadas[2][1]["text"]
+
+
+def test_detener_sin_mensaje_no_envia_nada():
+    llamadas = []
+    p = t.Progreso("Titulo", cliente=cliente([], llamadas), fases={"Fase 1": "pendiente"})
+    p.detener("fallo")
+    assert llamadas == [] and p.fases == {"Fase 1": "no_ejecutada"}
+
+
 def test_progreso_reenvia_si_el_primer_envio_fallo():
     llamadas = []
     respuestas = [httpx.Response(500, json={"ok": False}), ok()]
