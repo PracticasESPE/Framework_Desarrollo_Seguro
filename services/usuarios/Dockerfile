@@ -20,15 +20,15 @@ RUN npm ci --omit=dev --ignore-scripts \
     && npm cache clean --force
 
 # ---- Etapa 3: imagen final (solo JavaScript compilado y dependencias de produccion) ----
-FROM node:22-slim AS runtime
-ENV NODE_ENV=production \
-    PORT=3000
+# Distroless: sin shell, sin npm y sin utilidades del sistema, para reducir las vulnerabilidades
+# de la imagen (Gate 3). 65532 es su usuario sin privilegios y node es el punto de entrada.
+FROM gcr.io/distroless/nodejs22-debian13:nonroot AS runtime
+ENV NODE_ENV=production     PORT=3000
 WORKDIR /app
-COPY --from=prod-deps --chown=node:node /app/node_modules ./node_modules
-COPY --from=build --chown=node:node /app/dist ./dist
-COPY --chown=node:node package.json ./
-USER 1000:1000
+COPY --from=prod-deps --chown=65532:65532 /app/node_modules ./node_modules
+COPY --from=build --chown=65532:65532 /app/dist ./dist
+COPY --chown=65532:65532 package.json ./
+USER 65532:65532
 EXPOSE 3000
-HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
-  CMD ["node", "-e", "require('net').connect(process.env.PORT||3000,'127.0.0.1').on('connect',()=>process.exit(0)).on('error',()=>process.exit(1))"]
-CMD ["node", "dist/main.js"]
+HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3   CMD ["/nodejs/bin/node", "-e", "require('net').connect(process.env.PORT||3000,'127.0.0.1').on('connect',()=>process.exit(0)).on('error',()=>process.exit(1))"]
+CMD ["dist/main.js"]
