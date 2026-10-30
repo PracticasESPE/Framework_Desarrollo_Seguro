@@ -1,0 +1,73 @@
+# Entorno desechable del análisis dinámico (Gate 3, fase 11). Lo levanta y lo destruye
+# scripts/gate3.sh en cada ejecución: la base de datos, el realm y las contraseñas son nuevos cada
+# vez. No publica puertos: ZAP y Nuclei entran por la red privada "framework-dast".
+name: framework-dast
+
+services:
+  usuarios-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: usuarios
+      POSTGRES_USER: usuarios
+      POSTGRES_PASSWORD: ${DAST_DB_PASSWORD:?Falta DAST_DB_PASSWORD}
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U usuarios -d usuarios']
+      interval: 3s
+      timeout: 3s
+      retries: 20
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      - dast
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.7.3
+    command: ['start-dev', '--import-realm']
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${DAST_KEYCLOAK_ADMIN_PASSWORD:?Falta DAST_KEYCLOAK_ADMIN_PASSWORD}
+      KEYCLOAK_PRUEBA_PASSWORD: ${KEYCLOAK_PRUEBA_PASSWORD:?Falta KEYCLOAK_PRUEBA_PASSWORD}
+    volumes:
+      - ./keycloak/realm-framework.json:/opt/keycloak/data/import/realm-framework.json:ro
+    healthcheck:
+      test: ['CMD-SHELL', 'exec 3<>/dev/tcp/127.0.0.1/8080']
+      interval: 5s
+      timeout: 3s
+      retries: 30
+      start_period: 15s
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      - dast
+
+  usuarios:
+    image: ${IMAGEN:-fw-usuarios:ci}
+    depends_on:
+      usuarios-db:
+        condition: service_healthy
+      keycloak:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://usuarios:${DAST_DB_PASSWORD}@usuarios-db:5432/usuarios
+      KEYCLOAK_ISSUER: http://keycloak:8080/realms/framework
+      KEYCLOAK_AUDIENCE: usuarios-api
+    read_only: true
+    healthcheck:
+      test:
+        [
+          'CMD',
+          '/nodejs/bin/node',
+          '-e',
+          "require('net').connect(3000,'127.0.0.1').on('connect',()=>process.exit(0)).on('error',()=>process.exit(1))",
+        ]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      - dast
+
+networks:
+  dast:
+    name: framework-dast

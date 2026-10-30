@@ -197,8 +197,8 @@ jobs:
         run: |
           uv run python -m orchestrator.notify.cli ejecutar "Fase 10: Contenedores" -- docker build -t fw-usuarios:ci services/usuarios
 
-      # Gate 3 inicial: Trivy image y SBOM con Syft sobre la imagen de la fase 10.
-      # ZAP y Nuclei (DAST) se añaden a este mismo paso.
+      # Gate 3 inicial: Trivy image y SBOM con Syft sobre la imagen de la fase 10, y DAST con
+      # ZAP y Nuclei, autenticados, contra un entorno desechable (docker-compose.dast.yml).
       - name: "Fase 11: DAST y Security Gate 3"
         run: |
           uv run python -m orchestrator.notify.cli ejecutar "Fase 11: DAST y Security Gate 3" -- bash scripts/gate3.sh
@@ -259,6 +259,14 @@ jobs:
           sarif_file: salida/security/sarif/trivy-image.sarif
           category: trivy-image
 
+      # Nuclei solo genera su SARIF cuando encuentra algo.
+      - name: "Publicar SARIF: Nuclei"
+        if: always() && hashFiles('salida/security/sarif/nuclei.sarif') != ''
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: salida/security/sarif/nuclei.sarif
+          category: nuclei
+
       - name: Guardar los SARIF como artefacto
         if: always()
         uses: actions/upload-artifact@v6
@@ -268,6 +276,7 @@ jobs:
             salida/security/sarif/
             salida/openapi/
             salida/sbom/
+            salida/dast/
             salida/hallazgos/
             salida/pruebas/
           if-no-files-found: ignore
