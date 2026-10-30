@@ -16,7 +16,14 @@ from dataclasses import dataclass, field
 import httpx
 
 TIEMPO_ESPERA = 10
-ICONOS = {"pendiente": "⏳", "ejecutando": "🔄", "ok": "✅", "fallo": "❌", "omitida": "⏭️"}
+ICONOS = {
+    "pendiente": "⏳",
+    "ejecutando": "🔄",
+    "ok": "✅",
+    "fallo": "❌",
+    "omitida": "⏭️",
+    "no_ejecutada": "🚫",
+}
 
 
 def _config() -> tuple[str, str] | None:
@@ -82,6 +89,16 @@ class Progreso:
         if self.message_id is None:  # el envío inicial falló: se reintenta como mensaje nuevo
             self.message_id = enviar(self._texto(), self.cliente)
         else:
+            actualizar(self.message_id, self._texto(), self.cliente)
+
+    def detener(self, en_curso: str) -> None:
+        """Cierra el mensaje con una sola edición: nada se queda pendiente tras detenerse."""
+        for fase, estado in self.fases.items():
+            if estado == "ejecutando":
+                self.fases[fase] = en_curso
+            elif estado == "pendiente":
+                self.fases[fase] = "no_ejecutada"
+        if self.message_id is not None:
             actualizar(self.message_id, self._texto(), self.cliente)
 
 

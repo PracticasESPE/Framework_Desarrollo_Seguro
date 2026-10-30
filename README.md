@@ -31,6 +31,10 @@ El framework se organiza en tres capas:
 10. Contenerización
 11. **Security Gate 3:** DAST
 
+Los tres gates están encadenados en el workflow: cada uno solo se ejecuta si pasó el anterior. Telegram
+avisa en qué punto se detuvo la cadena, y el resumen de cada ejecución en GitHub Actions muestra el
+resultado de cada gate.
+
 ## Stack tecnológico
 
 | Área | Herramientas |
