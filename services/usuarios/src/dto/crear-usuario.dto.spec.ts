@@ -42,6 +42,25 @@ describe('CrearUsuarioDto', () => {
     ).toContain('nombre');
   });
 
+  it.each([
+    ['byte nulo', 'Ana\u0000Pérez'],
+    ['salto de línea', 'Ana\nPérez'],
+    ['carácter DEL', 'Ana\u007fPérez'],
+  ])(
+    'rechaza un nombre con %s (error 500 hallado por ZAP)',
+    async (_c, nombre) => {
+      expect(await erroresDe({ nombre, correo: 'ana@example.com' })).toContain(
+        'nombre',
+      );
+    },
+  );
+
+  it('acepta nombres con tildes, eñes y apóstrofos', async () => {
+    expect(
+      await erroresDe({ nombre: "Núñez O'Brien", correo: 'ana@example.com' }),
+    ).toEqual([]);
+  });
+
   it('rechaza un teléfono con letras', async () => {
     expect(
       await erroresDe({

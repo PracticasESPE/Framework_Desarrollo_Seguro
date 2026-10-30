@@ -14,7 +14,7 @@ INFORME=salida/openapi/spectral.json
 SARIF=salida/security/sarif
 SPECTRAL=spectral/node_modules/.bin/spectral
 REGLAS=spectral/.spectral.yaml
-COMPOSE=${COMPOSE:-docker-compose.dev.yml}
+COMPOSE=(docker-compose.dev.yml docker-compose.dast.yml)
 POLITICAS=policies/integracion
 CONFTEST_IMG=openpolicyagent/conftest:v0.70.1
 PAUSA=${PAUSA:-15}
@@ -93,10 +93,10 @@ done
 echo "--- Pruebas de las políticas (conftest verify) ---"
 conftest verify --policy "$POLITICAS"
 registrar "Conftest: pruebas de las políticas" $? 1
-echo "--- Análisis de $COMPOSE (conftest test) ---"
-conftest test "$COMPOSE" --policy "$POLITICAS" --namespace integracion.compose
-registrar "Conftest ($COMPOSE)" $? 1
-conftest test "$COMPOSE" --policy "$POLITICAS" --namespace integracion.compose \
+echo "--- Análisis de ${COMPOSE[*]} (conftest test) ---"
+conftest test "${COMPOSE[@]}" --policy "$POLITICAS" --namespace integracion.compose
+registrar "Conftest (Docker Compose)" $? 1
+conftest test "${COMPOSE[@]}" --policy "$POLITICAS" --namespace integracion.compose \
   --output sarif --no-fail > "$SARIF/conftest.sarif" 2>/dev/null \
   || echo "::warning::No se pudo generar conftest.sarif"
 

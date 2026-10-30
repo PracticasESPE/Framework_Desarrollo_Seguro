@@ -14,12 +14,22 @@ const limpiar = ({ value }: { value: unknown }): unknown =>
   typeof value === 'string' ? value.trim() : value;
 
 export class CrearUsuarioDto {
-  @ApiProperty({ example: 'Ana Pérez', minLength: 2, maxLength: 100 })
+  @ApiProperty({
+    example: 'Ana Pérez',
+    minLength: 2,
+    maxLength: 100,
+    // Mismo conjunto que /\P{Cc}/u, sin propiedades Unicode: el contrato lo leen otros motores.
+    pattern: '^[^\\u0000-\\u001F\\u007F-\\u009F]+$',
+  })
   @Transform(limpiar)
   @IsString()
   @IsNotEmpty()
   @MinLength(2)
   @MaxLength(100)
+  // Sin caracteres de control: PostgreSQL rechaza el byte 0x00 y daría un error 500 (hallazgo de ZAP).
+  @Matches(/^\P{Cc}+$/u, {
+    message: 'nombre no puede contener caracteres de control',
+  })
   nombre!: string;
 
   @ApiProperty({
