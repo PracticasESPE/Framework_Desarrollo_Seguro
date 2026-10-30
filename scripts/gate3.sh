@@ -5,6 +5,7 @@
 #   3. Syft: SBOM en CycloneDX, el inventario verificable de componentes (sbom.json).
 #   4. Levanta un entorno desechable (docker-compose.dast.yml) y comprueba la autenticación.
 #   5. OWASP ZAP: ataca la API a partir de su contrato OpenAPI, con token y límite de tiempo.
+#      Su reporte se convierte a SARIF (dast/zap-a-sarif.mjs).
 #   6. Nuclei: plantillas de CVE conocidas, configuraciones erróneas y paneles expuestos.
 # La decisión final la tomará OPA (gate3.rego).
 # Requiere la imagen construida (fase 10), el contrato OpenAPI (fase 8) y Docker.
@@ -158,6 +159,7 @@ escanear_zap() {
   codigo=$?
   unset ZAP_AUTH_HEADER_VALUE
   if [ ! -s "$DIR_DAST/zap.json" ]; then return 2; fi
+  node dast/zap-a-sarif.mjs "$DIR_DAST/zap.json" "$SARIF/zap.sarif" dast/zap-reglas.conf || return 2
   altos=$(node -e "
     const z = JSON.parse(require('fs').readFileSync(process.argv[1], 'utf8'));
     const c = { 3: 0, 2: 0, 1: 0, 0: 0 };
@@ -226,6 +228,8 @@ for img in "$TRIVY_IMG" "$SYFT_IMG" "$ZAP_IMG" "$NUCLEI_IMG"; do
     FILAS+=("| descarga de $img | ERROR DE LA HERRAMIENTA | 3 |")
   fi
 done
+echo "--- Pruebas del conversor de ZAP a SARIF ---"
+ejecutar "Conversor ZAP a SARIF (pruebas)" 1 node --test dast/zap-a-sarif.test.mjs
 
 echo "=== 1/6 Exportar la imagen $IMAGEN ==="
 if docker save -o "$ARCHIVO_IMAGEN" "$IMAGEN"; then
