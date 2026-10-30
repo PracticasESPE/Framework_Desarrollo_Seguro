@@ -42,6 +42,37 @@ El escaneo activo de ZAP se limita a 4 minutos porque el token de Keycloak vive 
 últimas peticiones recibirían 401. Además, cada regla tiene 1 minuto como máximo. ZAP y Nuclei tienen
 un tope total de 8 y 6 minutos.
 
+## Conversión a SARIF (`zap-a-sarif.mjs`)
+
+ZAP no genera SARIF, el formato común de los resultados (principio P2). El conversor toma `zap.json`
+y escribe `salida/security/sarif/zap.sarif`, que se publica en GitHub Security y que lee el motor
+(`orchestrator/gates/sarif.py`).
+
+| En ZAP | En SARIF |
+|---|---|
+| Riesgo alto, medio, bajo | `error` 8.0, `warning` 5.0, `note` 2.0 (`security-severity`) |
+| Regla `FAIL` en `zap-reglas.conf` | Alta (8.0), aunque ZAP le dé riesgo bajo: OPA solo bloquea alta o crítica |
+| Riesgo informativo | No se publica: sigue en `zap.html` y `zap.json` |
+| Confianza 0 (falso positivo) | Resultado con `suppressions`: queda constancia, pero no cuenta |
+| `cweid` | Etiqueta `external/cwe/cwe-N`; el valor `-1` (desconocida) se omite |
+| Cada instancia | Un resultado por regla, método, ruta y parámetro |
+
+- **Informativas:** el escaneo real generó 102 resultados de este tipo, casi todos respuestas 404
+  correctas ante rutas de prueba como `/.env`. No son fallos y tapaban los 7 hallazgos reales.
+- **Ubicación:** un hallazgo DAST no está en un archivo. Se usa la ruta de la API (`api/usuarios`) con
+  la línea 1, porque GitHub exige una línea. El detalle real va en el mensaje.
+- **Huella:** se calcula con la regla, el método, la ruta y el parámetro, sin el host, el ataque ni la
+  evidencia. Así el mismo hallazgo se reconoce entre ejecuciones y entornos.
+- **Secretos:** de la evidencia se ocultan los tokens `Bearer` y los JWT. El texto del ataque no se
+  publica.
+
+Si la conversión falla, el Gate da error de herramienta. Las pruebas del conversor se ejecutan al
+inicio del Gate 3:
+
+```bash
+node --test dast/zap-a-sarif.test.mjs
+```
+
 ## Reportes
 
 Quedan en `salida/dast/` y en el artefacto `sarif-gate1` de cada ejecución:
@@ -49,7 +80,7 @@ Quedan en `salida/dast/` y en el artefacto `sarif-gate1` de cada ejecución:
 | Archivo | Contenido |
 |---|---|
 | `zap.html` | Reporte de ZAP para leer en el navegador |
-| `zap.json` | Reporte de ZAP para el motor; el conversor a SARIF lo tomará de aquí |
+| `zap.json` | Reporte de ZAP en bruto; de aquí sale `security/sarif/zap.sarif` |
 | `nuclei.log` | Ejecución de Nuclei: plantillas, peticiones y resultado |
 | `nuclei.jsonl` | Coincidencias de Nuclei (vacío si no hay) |
 | `nuclei.sarif` | Se publica en GitHub Security; Nuclei solo lo crea si hay coincidencias |
