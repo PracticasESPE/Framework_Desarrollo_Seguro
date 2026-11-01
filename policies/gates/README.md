@@ -24,7 +24,8 @@ La entrada la arma el motor con los hallazgos ya normalizados por el lector SARI
   "bloqueantes": [{"regla": "gate1.severidad", "motivo": "Hallazgo alta de semgrep oss: ... en archivo:42", "huella": "..."}],
   "advertencias": [{"regla": "gate1.aviso", "motivo": "...", "huella": "..."}],
   "conteo": {"critica": 0, "alta": 1, "media": 0, "baja": 0, "info": 0},
-  "justificacion": "Gate 1 rechazado: 1 bloqueante(s)"
+  "criterios": [{"regla": "gate1.severidad", "cumple": false, "detalle": "Sin hallazgos críticos o altos"}],
+  "justificacion": "Gate 1 rechazado: incumple 1 de 4 criterios (gate1.severidad)"
 }
 ```
 
@@ -49,10 +50,11 @@ La entrada la arma el motor con los hallazgos ya normalizados por el lector SARI
 
 ## Justificación de cada decisión
 
-El Gate 3 devuelve además `criterios`: la lista de todas sus reglas con `cumple` (verdadero o
-falso) y una descripción. Así no solo un rechazo, también una aprobación queda justificada
-regla por regla, y la `justificacion` nombra los criterios incumplidos, por ejemplo
-"Gate 3 rechazado: incumple 2 de 5 criterios (gate3.dast, gate3.sbom)".
+Los tres gates devuelven además `criterios`: la lista de todas sus reglas con `cumple`
+(verdadero o falso) y una descripción. Así no solo un rechazo, también una aprobación queda
+justificada regla por regla, y la `justificacion` nombra los criterios incumplidos, por ejemplo
+"Gate 3 rechazado: incumple 2 de 5 criterios (gate3.dast, gate3.sbom)". Las funciones
+`comun.cumple` y `comun.criterios_incumplidos` arman esa lista igual en los tres gates.
 
 Los hallazgos medios y bajos no bloquean: quedan en `advertencias`. Ante un dato que falta, las
 políticas fallan de forma segura (directriz `sbd.fallo.001`): sin dato no hay aprobación.
@@ -65,3 +67,35 @@ opa eval -d policies/gates -i entrada.json "data.gates.gate3.decision"
 ```
 
 El paso "Políticas OPA (opa test)" del workflow ejecuta las pruebas en cada pull request.
+
+## Decisiones desde el motor y registro en Neo4j
+
+El motor arma la entrada a partir de los artefactos del pipeline (`salida/security/sarif/`,
+`salida/openapi/usuarios.json`, `salida/sbom/sbom.json` y `salida/pruebas/jest.json`), pide la
+decisión a OPA (`orchestrator/gates/decision.py`) y la guarda en `salida/gates/gateN.json`:
+
+```bash
+uv run framework gates decidir --gate 1 --compilacion-ok   # termina con código 1 si se rechaza
+uv run framework gates listar                               # decisiones de la última ejecución
+```
+
+Con Neo4j configurado, cada decisión queda en el grafo como un nodo `ResultadoGate` enlazado a
+su ejecución y a las reglas que la justifican. Los tres gates de un mismo pipeline comparten
+ejecución (la de la fase 4 o la que crea el primer gate):
+
+```
+(:Ejecucion)-[:TIENE_RESULTADO]->(:ResultadoGate)-[:BASADA_EN {cumple, detalle}]->(:Regla)
+(:ResultadoGate)-[:BLOQUEADO_POR {regla}]->(:Hallazgo)
+```
+
+Consulta para ver las decisiones con sus criterios en Neo4j Browser:
+
+```cypher
+MATCH p = (e:Ejecucion)-[:TIENE_RESULTADO]->(r:ResultadoGate)-[:BASADA_EN]->(g:Regla)
+WHERE e.id = $ejecucion
+RETURN p
+```
+
+`tests/datos/gates/` tiene un pipeline de ejemplo completo: el Gate 1 se rechaza por un secreto
+y hallazgos altos, el Gate 2 se aprueba con una advertencia y el Gate 3 se rechaza por una
+inyección SQL que encuentra ZAP.

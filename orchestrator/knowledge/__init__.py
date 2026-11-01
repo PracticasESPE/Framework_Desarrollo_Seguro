@@ -14,7 +14,9 @@ from orchestrator.knowledge.registro import (
     existe_ejecucion,
     finalizar_ejecucion,
     listar_hallazgos,
+    listar_resultados_gate,
     registrar_hallazgos,
+    registrar_resultado_gate,
     ultima_ejecucion,
 )
 
@@ -25,7 +27,9 @@ __all__ = [
     "existe_ejecucion",
     "finalizar_ejecucion",
     "listar_hallazgos",
+    "listar_resultados_gate",
     "registrar_hallazgos",
+    "registrar_resultado_gate",
     "ultima_ejecucion",
     "conectar",
     "estado_esquema",

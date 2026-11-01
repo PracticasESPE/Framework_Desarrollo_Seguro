@@ -188,8 +188,14 @@ escanear_nuclei() {
     echo "::error::Nuclei abandonó el objetivo: el escaneo está incompleto y no cuenta como limpio"
     return 3
   fi
-  # Nuclei solo crea el SARIF cuando hay coincidencias.
-  if [ -s "$DIR_DAST/nuclei.sarif" ]; then cp "$DIR_DAST/nuclei.sarif" "$SARIF/"; fi
+  # Nuclei solo crea el SARIF cuando hay coincidencias. Si el escaneo terminó limpio se deja
+  # un SARIF sin resultados: la decisión OPA trata un SARIF ausente como herramienta caída.
+  if [ -s "$DIR_DAST/nuclei.sarif" ]; then
+    cp "$DIR_DAST/nuclei.sarif" "$SARIF/"
+  else
+    printf '%s\n' '{"version":"2.1.0","runs":[{"tool":{"driver":{"name":"Nuclei"}},"results":[]}]}' \
+      > "$SARIF/nuclei.sarif"
+  fi
   graves=$(node -e "
     const fs = require('fs');
     const ruta = process.argv[1];

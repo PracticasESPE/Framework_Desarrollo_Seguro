@@ -102,37 +102,33 @@ motivo_pruebas := sprintf("Fallaron %d de %d pruebas de la fase 9", [input.prueb
 	input.pruebas.fallidas != 0
 }
 
-sin_bloqueantes_de(regla) if not regla in {b.regla | some b in bloqueantes}
-
-sin_bloqueantes_de(regla) := false if regla in {b.regla | some b in bloqueantes}
-
 # --- Justificación de la decisión ------------------------------------------------------------
 
 # Cada regla evaluada, haya bloqueado o no: así se justifica tanto un rechazo como una aprobación.
 criterios := [
 	{
 		"regla": "gate3.dast",
-		"cumple": sin_bloqueantes_de("gate3.dast"),
+		"cumple": comun.cumple("gate3.dast", bloqueantes),
 		"detalle": "Sin vulnerabilidades críticas o altas en el análisis dinámico (ZAP y Nuclei)",
 	},
 	{
 		"regla": "gate3.imagen",
-		"cumple": sin_bloqueantes_de("gate3.imagen"),
+		"cumple": comun.cumple("gate3.imagen", bloqueantes),
 		"detalle": "Sin vulnerabilidades críticas o altas en las imágenes de contenedor (Trivy image)",
 	},
 	{
 		"regla": "gate3.sbom",
-		"cumple": sin_bloqueantes_de("gate3.sbom"),
+		"cumple": comun.cumple("gate3.sbom", bloqueantes),
 		"detalle": "SBOM en CycloneDX generado (Syft)",
 	},
 	{
 		"regla": "gate3.pruebas",
-		"cumple": sin_bloqueantes_de("gate3.pruebas"),
+		"cumple": comun.cumple("gate3.pruebas", bloqueantes),
 		"detalle": "Todas las pruebas de la fase 9 pasan",
 	},
 	{
 		"regla": "gate3.herramienta_caida",
-		"cumple": sin_bloqueantes_de("gate3.herramienta_caida"),
+		"cumple": comun.cumple("gate3.herramienta_caida", bloqueantes),
 		"detalle": "Todas las herramientas del gate terminaron",
 	},
 ]
@@ -147,7 +143,7 @@ justificacion := sprintf(
 	[count(incumplidos), count(criterios), concat(", ", sort(incumplidos))],
 ) if not aprobado
 
-incumplidos := {c.regla | some c in criterios; not c.cumple}
+incumplidos := comun.criterios_incumplidos(criterios)
 
 decision := {
 	"gate": 3,

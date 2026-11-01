@@ -1,0 +1,116 @@
+{
+  "$schema": "https://docs.oasis-open.org/sarif/sarif/v2.1.0/os/schemas/sarif-schema-2.1.0.json",
+  "version": "2.1.0",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "Trivy",
+          "fullName": "Trivy Vulnerability Scanner",
+          "informationUri": "https://github.com/aquasecurity/trivy",
+          "rules": [
+            {
+              "id": "CVE-2026-10001",
+              "name": "LanguageSpecificPackageVulnerability",
+              "shortDescription": { "text": "Ejecución remota de código en paquete-ejemplo" },
+              "defaultConfiguration": { "level": "error" },
+              "helpUri": "https://avd.aquasec.com/nvd/cve-2026-10001",
+              "properties": {
+                "precision": "very-high",
+                "security-severity": "9.8",
+                "tags": ["vulnerability", "security", "CRITICAL"]
+              }
+            },
+            {
+              "id": "CVE-2026-10002",
+              "name": "LanguageSpecificPackageVulnerability",
+              "shortDescription": { "text": "Denegación de servicio por expresión regular" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": {
+                "security-severity": "7.5",
+                "tags": ["vulnerability", "security", "HIGH"]
+              }
+            },
+            {
+              "id": "CVE-2026-10003",
+              "name": "LanguageSpecificPackageVulnerability",
+              "shortDescription": { "text": "Exposición de información en mensajes de error" },
+              "defaultConfiguration": { "level": "warning" },
+              "properties": {
+                "security-severity": "5.3",
+                "tags": ["vulnerability", "security", "MEDIUM"]
+              }
+            },
+            {
+              "id": "CVE-2026-10004",
+              "name": "LanguageSpecificPackageVulnerability",
+              "shortDescription": { "text": "Validación incompleta de entrada" },
+              "defaultConfiguration": { "level": "note" },
+              "properties": {
+                "security-severity": "2.1",
+                "tags": ["vulnerability", "security", "LOW"]
+              }
+            }
+          ]
+        }
+      },
+      "results": [
+        {
+          "ruleId": "CVE-2026-10001",
+          "ruleIndex": 0,
+          "level": "error",
+          "message": { "text": "Package: paquete-ejemplo\nInstalled Version: 1.2.0\nVulnerability CVE-2026-10001\nSeverity: CRITICAL\nFixed Version: 1.2.4" },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": { "uri": "services/usuarios/package-lock.json", "uriBaseId": "ROOTPATH" },
+                "region": { "startLine": 1204, "endLine": 1210 }
+              }
+            }
+          ]
+        },
+        {
+          "ruleIndex": 1,
+          "level": "error",
+          "message": { "text": "Package: regex-lento\nInstalled Version: 0.4.1\nVulnerability CVE-2026-10002\nSeverity: HIGH\nFixed Version: 0.4.3" },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": { "uri": "services/usuarios/package-lock.json", "uriBaseId": "ROOTPATH" },
+                "region": { "startLine": 2310, "endLine": 2316 }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "CVE-2026-10003",
+          "ruleIndex": 2,
+          "level": "warning",
+          "message": { "text": "Package: errores-verbosos\nInstalled Version: 3.0.0\nVulnerability CVE-2026-10003\nSeverity: MEDIUM\nFixed Version: 3.0.2" },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": { "uri": "services/usuarios/package-lock.json", "uriBaseId": "ROOTPATH" },
+                "region": { "startLine": 3120, "endLine": 3126 }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "CVE-2026-10004",
+          "ruleIndex": 3,
+          "level": "note",
+          "message": { "text": "Package: validador-min\nInstalled Version: 0.9.0\nVulnerability CVE-2026-10004\nSeverity: LOW\nFixed Version: 0.9.1" },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": { "uri": "services/usuarios/package-lock.json", "uriBaseId": "ROOTPATH" },
+                "region": { "startLine": 4001, "endLine": 4007 }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

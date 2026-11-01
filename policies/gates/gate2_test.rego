@@ -85,3 +85,15 @@ test_conteo_por_severidad if {
 	d.conteo.alta == 1
 	d.conteo.media == 2
 }
+
+test_la_aprobacion_queda_justificada_por_criterios if {
+	d := gate2.decision with input as limpio
+	count(d.criterios) == 5
+	every c in d.criterios { c.cumple }
+}
+
+test_el_rechazo_nombra_los_criterios_incumplidos if {
+	entrada := object.union(con_hallazgos([hallazgo("conftest", "alta", "x")]), {"contrato_ok": false})
+	d := gate2.decision with input as entrada
+	d.justificacion == "Gate 2 rechazado: incumple 2 de 5 criterios (gate2.contrato, gate2.politica_compose)"
+}

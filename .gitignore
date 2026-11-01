@@ -30,7 +30,9 @@ salida/
 salida_proyecto/
 *.sarif
 !tests/datos/sarif/*.sarif
+!tests/datos/gates/security/sarif/*.sarif
 sbom.json
+!tests/datos/gates/sbom/sbom.json
 
 # Datos locales de contenedores
 neo4j_data/

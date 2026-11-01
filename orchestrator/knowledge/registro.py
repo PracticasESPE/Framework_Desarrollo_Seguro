@@ -183,3 +183,93 @@ def listar_hallazgos(
     """Hallazgos de una ejecución, de la severidad más grave a la más leve."""
     resultado = _ejecutar(driver, _LISTAR_HALLAZGOS, base_datos, ejecucion_id=ejecucion_id)
     return [registro.data() for registro in resultado.records]
+
+
+# --- Decisiones de los Security Gates (OPA) ----------------------------------------------------
+#
+#   (:Ejecucion)-[:TIENE_RESULTADO]->(:ResultadoGate {ejecucion_id, id: "gate1", gate, aprobado})
+#   (:ResultadoGate)-[:BASADA_EN {cumple, detalle, motivos}]->(:Regla {id: "gate1.severidad"})
+#   (:ResultadoGate)-[:BLOQUEADO_POR {regla}]->(:Hallazgo)
+
+_REGISTRAR_RESULTADO_GATE = """
+MATCH (e:Ejecucion {id: $ejecucion_id})
+MERGE (r:ResultadoGate {ejecucion_id: $ejecucion_id, id: $id})
+SET r.gate = $gate,
+    r.fase = $fase,
+    r.aprobado = $aprobado,
+    r.justificacion = $justificacion,
+    r.bloqueantes = $total_bloqueantes,
+    r.advertencias = $total_advertencias,
+    r.critica = $conteo.critica, r.alta = $conteo.alta, r.media = $conteo.media,
+    r.baja = $conteo.baja, r.info = $conteo.info,
+    r.fecha = $fecha,
+    r.version_conocimiento = $version
+MERGE (e)-[:TIENE_RESULTADO]->(r)
+WITH r
+CALL (r) {
+    UNWIND $criterios AS c
+    MERGE (g:Regla {id: c.regla})
+      ON CREATE SET g.lenguaje = 'rego', g.paquete = $paquete
+    MERGE (r)-[b:BASADA_EN]->(g)
+    SET b.cumple = c.cumple, b.detalle = c.detalle, b.motivos = c.motivos
+}
+WITH r
+UNWIND $bloqueos AS bloqueo
+MATCH (h:Hallazgo {ejecucion_id: $ejecucion_id, huella: bloqueo.huella})
+MERGE (r)-[x:BLOQUEADO_POR]->(h)
+SET x.regla = bloqueo.regla
+"""
+
+_LISTAR_RESULTADOS_GATE = """
+MATCH (:Ejecucion {id: $ejecucion_id})-[:TIENE_RESULTADO]->(r:ResultadoGate)
+OPTIONAL MATCH (r)-[b:BASADA_EN]->(g:Regla)
+WITH r, collect({regla: g.id, cumple: b.cumple}) AS criterios
+OPTIONAL MATCH (r)-[:BLOQUEADO_POR]->(h:Hallazgo)
+RETURN r.gate AS gate, r.aprobado AS aprobado, r.justificacion AS justificacion,
+       r.bloqueantes AS bloqueantes, r.advertencias AS advertencias,
+       criterios, count(DISTINCT h) AS hallazgos_bloqueantes
+ORDER BY gate
+"""
+
+
+def registrar_resultado_gate(
+    driver: Any,
+    ejecucion_id: str,
+    decision: Any,
+    base_datos: str = "neo4j",
+    version: str | None = None,
+) -> None:
+    """Guarda la decisión de un gate enlazada a su ejecución, sus reglas y sus hallazgos."""
+    if not existe_ejecucion(driver, ejecucion_id, base_datos):
+        raise ErrorGrafo(f"No existe la ejecución {ejecucion_id}")
+    motivos: dict[str, list[str]] = {}
+    for bloqueante in decision.bloqueantes:
+        motivos.setdefault(bloqueante.regla, []).append(bloqueante.motivo)
+    _ejecutar(
+        driver,
+        _REGISTRAR_RESULTADO_GATE,
+        base_datos,
+        ejecucion_id=ejecucion_id,
+        id=f"gate{decision.gate}",
+        gate=decision.gate,
+        fase={1: 4, 2: 8, 3: 11}[decision.gate],
+        aprobado=decision.aprobado,
+        justificacion=decision.justificacion,
+        total_bloqueantes=len(decision.bloqueantes),
+        total_advertencias=len(decision.advertencias),
+        conteo={s: decision.conteo.get(s, 0) for s in ("critica", "alta", "media", "baja", "info")},
+        fecha=datetime.now(UTC),
+        version=version if version is not None else version_conocimiento(),
+        paquete=f"gates.gate{decision.gate}",
+        criterios=[
+            {**c.model_dump(), "motivos": motivos.get(c.regla, [])} for c in decision.criterios
+        ],
+        bloqueos=[{"huella": b.huella, "regla": b.regla} for b in decision.bloqueantes if b.huella],
+    )
+
+
+def listar_resultados_gate(
+    driver: Any, ejecucion_id: str, base_datos: str = "neo4j"
+) -> list[dict[str, Any]]:
+    resultado = _ejecutar(driver, _LISTAR_RESULTADOS_GATE, base_datos, ejecucion_id=ejecucion_id)
+    return [registro.data() for registro in resultado.records]

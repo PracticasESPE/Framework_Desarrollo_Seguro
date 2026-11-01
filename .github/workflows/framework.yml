@@ -117,6 +117,7 @@ jobs:
           uv run python -m orchestrator.notify.cli omitir "Fase 2: Arquitectura"
 
       - name: "Fase 3: Generación y compilación del servicio"
+        id: fase3
         working-directory: services/usuarios
         env:
           DATABASE_URL: postgresql://ci:ci@localhost:5432/ci
@@ -155,6 +156,15 @@ jobs:
           uv run framework run --fase 4 --grafo
           --descripcion "CI ${{ github.event_name }} ${{ github.ref_name }} ${{ github.sha }}"
 
+      # P1: OPA decide cada gate con las políticas de policies/gates y deja la decisión, sus
+      # criterios y los hallazgos que la bloquean en Neo4j (nodos ResultadoGate), en la misma
+      # ejecución que la fase 4. Si OPA rechaza, el paso falla y la cadena se detiene.
+      - name: "Decisión OPA: Gate 1"
+        if: ${{ !cancelled() && hashFiles('salida/security/sarif/*.sarif') != '' }}
+        run: >-
+          uv run framework gates decidir --gate 1 --grafo
+          ${{ steps.fase3.outcome == 'success' && '--compilacion-ok' || '' }}
+
       - name: Hallazgos visibles en Neo4j
         if: ${{ !cancelled() && hashFiles('salida/hallazgos/fase4.json') != '' }}
         run: |
@@ -191,10 +201,20 @@ jobs:
         run: |
           uv run python -m orchestrator.notify.cli ejecutar "Fase 8: Security Gate 2" -- bash scripts/gate2.sh
 
+      - name: "Decisión OPA: Gate 2"
+        if: >-
+          ${{ !cancelled() && hashFiles('salida/security/sarif/spectral.sarif',
+          'salida/security/sarif/conftest.sarif') != '' }}
+        run: uv run framework gates decidir --gate 2 --grafo
+
+      # El resumen en JSON (salida/pruebas/jest.json) alimenta el criterio de pruebas del Gate 3.
       - name: "Fase 9: Pruebas automatizadas"
         working-directory: services/usuarios
         run: |
-          uv run python -m orchestrator.notify.cli ejecutar "Fase 9: Pruebas" -- npm run test:cov
+          uv run python -m orchestrator.notify.cli ejecutar "Fase 9: Pruebas" -- bash -ec '
+            mkdir -p ../../salida/pruebas
+            npm run test:cov -- --json --outputFile=../../salida/pruebas/jest.json
+          '
 
       - name: "Fase 10: Contenerización"
         run: |
@@ -205,6 +225,16 @@ jobs:
       - name: "Fase 11: DAST y Security Gate 3"
         run: |
           uv run python -m orchestrator.notify.cli ejecutar "Fase 11: DAST y Security Gate 3" -- bash scripts/gate3.sh
+
+      - name: "Decisión OPA: Gate 3"
+        if: >-
+          ${{ !cancelled() && hashFiles('salida/security/sarif/trivy-image.sarif',
+          'salida/security/sarif/zap.sarif', 'salida/security/sarif/nuclei.sarif') != '' }}
+        run: uv run framework gates decidir --gate 3 --grafo
+
+      - name: Decisiones de los gates en Neo4j
+        if: ${{ !cancelled() && hashFiles('salida/gates/gate*.json') != '' }}
+        run: uv run framework gates listar
 
       - name: "Publicar SARIF: Semgrep"
         if: always() && hashFiles('salida/security/sarif/semgrep.sarif') != ''
@@ -289,6 +319,7 @@ jobs:
             salida/dast/
             salida/hallazgos/
             salida/pruebas/
+            salida/gates/
           if-no-files-found: ignore
           retention-days: 14
 
