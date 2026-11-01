@@ -26,6 +26,7 @@ framework = "orchestrator.cli:app"
 [dependency-groups]
 dev = [
     "httpx>=0.27",
+    "psycopg[binary]>=3.3.6",
     "pytest>=8.3",
     "pytest-cov>=7.1.0",
     "ruff>=0.8",
