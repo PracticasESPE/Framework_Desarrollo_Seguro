@@ -1,0 +1,5 @@
+{
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.6",
+  "components": [{"type": "library", "name": "@nestjs/core", "version": "11.0.1"}]
+}

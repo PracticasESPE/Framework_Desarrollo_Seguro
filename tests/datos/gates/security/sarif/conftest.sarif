@@ -1,0 +1,16 @@
+{
+  "version": "2.1.0",
+  "runs": [
+    {
+      "tool": { "driver": { "name": "conftest", "rules": [{ "id": "integracion.compose.warn" }] } },
+      "results": [
+        {
+          "ruleId": "integracion.compose.warn",
+          "level": "warning",
+          "message": { "text": "[neo4j] sin healthcheck: el orquestador no sabe si el servicio está listo" },
+          "locations": [{ "physicalLocation": { "artifactLocation": { "uri": "docker-compose.dev.yml" } } }]
+        }
+      ]
+    }
+  ]
+}

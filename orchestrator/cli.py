@@ -529,5 +529,190 @@ def conocimiento_consultar(
             typer.echo(f"    - {e.id}: {e.nombre}")
 
 
+gates_app = typer.Typer(
+    help="Decisiones de los Security Gates con OPA (policies/gates).", no_args_is_help=True
+)
+app.add_typer(gates_app, name="gates")
+
+
+def _ejecucion_del_pipeline(salida: Path) -> str | None:
+    """Ejecución de Neo4j de este mismo pipeline: la de la fase 4 o la del primer gate decidido."""
+    import json
+
+    for archivo in (salida / "hallazgos" / "fase4.json", salida / "gates" / "ejecucion.json"):
+        try:
+            ejecucion_id = json.loads(archivo.read_text(encoding="utf-8")).get("ejecucion_id")
+        except (OSError, ValueError, AttributeError):
+            continue
+        if ejecucion_id:
+            return ejecucion_id
+    return None
+
+
+def _guardar_ejecucion_del_pipeline(salida: Path, ejecucion_id: str) -> None:
+    """Deja la ejecución creada para que los demás gates del pipeline se registren en ella."""
+    import json
+
+    archivo = salida / "gates" / "ejecucion.json"
+    archivo.parent.mkdir(parents=True, exist_ok=True)
+    archivo.write_text(json.dumps({"ejecucion_id": ejecucion_id}), encoding="utf-8")
+
+
+@gates_app.command("decidir")
+def gates_decidir(
+    gate: Annotated[int, typer.Option("--gate", min=1, max=3, help="Gate a decidir (1, 2 o 3).")],
+    sarif: Annotated[
+        Path | None, typer.Option("--sarif", help="Carpeta con los SARIF de los gates.")
+    ] = None,
+    compilacion_ok: Annotated[
+        bool,
+        typer.Option("--compilacion-ok", help="Gate 1: el código compiló (fase 3 correcta)."),
+    ] = False,
+    grafo: Annotated[
+        bool | None,
+        typer.Option(
+            "--grafo/--sin-grafo",
+            help="Registrar la decisión en Neo4j. Por defecto, solo si NEO4J_PASSWORD existe.",
+        ),
+    ] = None,
+    ejecucion: Annotated[
+        str | None,
+        typer.Option(
+            "--ejecucion", help="Ejecución de Neo4j; por defecto la de la fase 4 o una nueva."
+        ),
+    ] = None,
+    bloquear: Annotated[
+        bool,
+        typer.Option(
+            "--bloquear/--no-bloquear", help="Terminar con código 1 si el gate se rechaza."
+        ),
+    ] = True,
+    carpeta_salida: Annotated[
+        Path | None,
+        typer.Option(
+            "--salida", help="Carpeta de resultados del pipeline; por defecto la configurada."
+        ),
+    ] = None,
+) -> None:
+    """Pide a OPA la decisión de un gate, la muestra, la guarda y la registra en Neo4j."""
+    import json
+
+    from orchestrator.gates.decision import (
+        FASE_DEL_GATE,
+        ErrorDecision,
+        construir_entrada,
+        evaluar,
+        resumen_markdown,
+    )
+    from orchestrator.gates.fase4 import publicar_resumen_en_actions
+
+    config = obtener_configuracion()
+    salida = carpeta_salida or config.directorio_salida
+    entrada = construir_entrada(gate, salida, sarif, compilacion_ok)
+    try:
+        decision = evaluar(entrada)
+    except ErrorDecision as error:
+        typer.echo(f"Error: {error}", err=True)
+        raise typer.Exit(1) from error
+
+    destino = config.directorio_salida / "gates" / f"gate{gate}.json"
+    destino.parent.mkdir(parents=True, exist_ok=True)
+    destino.write_text(
+        json.dumps(
+            {"entrada": entrada.datos, "decision": decision.model_dump()},
+            indent=2,
+            ensure_ascii=False,
+        ),
+        encoding="utf-8",
+    )
+
+    estado = "APROBADO" if decision.aprobado else "RECHAZADO"
+    typer.echo(f"Gate {gate}: {estado}")
+    typer.echo(f"  {decision.justificacion}")
+    for criterio in decision.criterios:
+        marca = "cumple   " if criterio.cumple else "NO cumple"
+        typer.echo(f"  [{marca}] {criterio.regla}: {criterio.detalle}")
+    for bloqueante in decision.bloqueantes:
+        typer.echo(f"  Bloqueante {bloqueante.regla}: {bloqueante.motivo}")
+    if decision.advertencias:
+        typer.echo(f"  Advertencias (no bloquean): {len(decision.advertencias)}")
+    typer.echo(f"  Decisión guardada en {destino.as_posix()}")
+
+    usar_grafo = grafo if grafo is not None else config.neo4j_password is not None
+    if usar_grafo:
+        from orchestrator.knowledge import (
+            ErrorGrafo,
+            conectar,
+            crear_ejecucion,
+            registrar_hallazgos,
+            registrar_resultado_gate,
+        )
+
+        try:
+            driver = conectar(config)
+            try:
+                db = config.neo4j_database
+                ejecucion_id = ejecucion or _ejecucion_del_pipeline(config.directorio_salida)
+                if ejecucion_id is None:
+                    ejecucion_id = crear_ejecucion(
+                        driver, documento="Decisión de gates", base_datos=db
+                    )
+                    _guardar_ejecucion_del_pipeline(config.directorio_salida, ejecucion_id)
+                registrar_hallazgos(
+                    driver, ejecucion_id, entrada.hallazgos, fase=FASE_DEL_GATE[gate], base_datos=db
+                )
+                registrar_resultado_gate(driver, ejecucion_id, decision, base_datos=db)
+            finally:
+                driver.close()
+        except ErrorGrafo as error:
+            typer.echo(f"  Sin registro en Neo4j: {error}", err=True)
+        else:
+            typer.echo(f"  Registrada en Neo4j, ejecución {ejecucion_id}")
+
+    publicar_resumen_en_actions(resumen_markdown(decision))
+    if bloquear and not decision.aprobado:
+        raise typer.Exit(1)
+
+
+@gates_app.command("listar")
+def gates_listar(
+    ejecucion: Annotated[
+        str | None,
+        typer.Option("--ejecucion", help="Ejecución a consultar; por defecto la más reciente."),
+    ] = None,
+) -> None:
+    """Muestra las decisiones de los gates registradas en Neo4j para una ejecución."""
+    from orchestrator.knowledge import ErrorGrafo, conectar, listar_resultados_gate
+    from orchestrator.knowledge.registro import ultima_ejecucion
+
+    config = obtener_configuracion()
+    try:
+        driver = conectar(config)
+        try:
+            db = config.neo4j_database
+            ejecucion_id = ejecucion or _ejecucion_del_pipeline(config.directorio_salida)
+            ejecucion_id = ejecucion_id or ultima_ejecucion(driver, db)
+            if ejecucion_id is None:
+                typer.echo("No hay ejecuciones registradas en Neo4j.")
+                return
+            resultados = listar_resultados_gate(driver, ejecucion_id, db)
+        finally:
+            driver.close()
+    except ErrorGrafo as error:
+        typer.echo(str(error), err=True)
+        raise typer.Exit(1) from error
+
+    typer.echo(f"Ejecución: {ejecucion_id} ({len(resultados)} decisiones de gates)")
+    for r in resultados:
+        estado = "aprobado" if r["aprobado"] else "rechazado"
+        cumplidos = sum(1 for c in r["criterios"] if c["cumple"])
+        typer.echo(
+            f"  Gate {r['gate']}: {estado} | criterios {cumplidos}/{len(r['criterios'])} "
+            f"| bloqueantes {r['bloqueantes']} "
+            f"| hallazgos que bloquean {r['hallazgos_bloqueantes']}"
+        )
+        typer.echo(f"    {r['justificacion']}")
+
+
 if __name__ == "__main__":
     app()

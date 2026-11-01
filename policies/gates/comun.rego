@@ -30,3 +30,11 @@ conteo(hallazgos) := {s: n |
 
 # Una herramienta que no terminó impide aprobar: sin su resultado no se sabe si hay problemas.
 herramientas_caidas(herramientas) := {t.nombre | some t in herramientas; t.estado == "error"}
+
+# true si ningún bloqueante viene de la regla indicada.
+cumple(regla, bloqueantes) if not regla in {b.regla | some b in bloqueantes}
+
+cumple(regla, bloqueantes) := false if regla in {b.regla | some b in bloqueantes}
+
+# Texto de la justificación de un rechazo: cuántos criterios falla y cuáles.
+criterios_incumplidos(criterios) := {c.regla | some c in criterios; not c.cumple}

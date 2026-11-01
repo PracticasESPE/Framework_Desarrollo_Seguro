@@ -81,15 +81,49 @@ advertencias contains a if {
 	}
 }
 
+criterios := [
+	{
+		"regla": "gate2.contrato",
+		"cumple": comun.cumple("gate2.contrato", bloqueantes),
+		"detalle": "Se generó el contrato OpenAPI del servicio",
+	},
+	{
+		"regla": "gate2.contrato_api",
+		"cumple": comun.cumple("gate2.contrato_api", bloqueantes),
+		"detalle": "El contrato OpenAPI cumple las reglas OWASP API Top 10 y las propias (Spectral)",
+	},
+	{
+		"regla": "gate2.politica_compose",
+		"cumple": comun.cumple("gate2.politica_compose", bloqueantes),
+		"detalle": "La configuración de despliegue cumple las políticas de integración (Conftest)",
+	},
+	{
+		"regla": "gate2.severidad",
+		"cumple": comun.cumple("gate2.severidad", bloqueantes),
+		"detalle": "Sin hallazgos críticos o altos de otras herramientas de integración",
+	},
+	{
+		"regla": "gate2.herramienta_caida",
+		"cumple": comun.cumple("gate2.herramienta_caida", bloqueantes),
+		"detalle": "Todas las herramientas del gate terminaron",
+	},
+]
+
 justificacion := "Gate 2 aprobado: el contrato OpenAPI y la configuración de despliegue cumplen las políticas" if aprobado
 
-justificacion := sprintf("Gate 2 rechazado: %d bloqueante(s)", [count(bloqueantes)]) if not aprobado
+justificacion := sprintf(
+	"Gate 2 rechazado: incumple %d de %d criterios (%s)",
+	[count(incumplidos), count(criterios), concat(", ", sort(incumplidos))],
+) if not aprobado
+
+incumplidos := comun.criterios_incumplidos(criterios)
 
 decision := {
 	"gate": 2,
 	"aprobado": aprobado,
 	"bloqueantes": bloqueantes,
 	"advertencias": advertencias,
+	"criterios": criterios,
 	"conteo": comun.conteo(input.hallazgos),
 	"justificacion": justificacion,
 }

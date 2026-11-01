@@ -84,7 +84,7 @@ test_varios_bloqueantes_se_cuentan_en_la_justificacion if {
 	entrada := object.union(con_hallazgos([hallazgo("trivy", "alta")]), {"compilacion_ok": false})
 	d := gate1.decision with input as entrada
 	reglas(d) == {"gate1.severidad", "gate1.compilacion"}
-	d.justificacion == "Gate 1 rechazado: 2 bloqueante(s)"
+	d.justificacion == "Gate 1 rechazado: incumple 2 de 4 criterios (gate1.compilacion, gate1.severidad)"
 }
 
 test_hallazgo_sin_ubicacion if {
@@ -97,4 +97,16 @@ test_hallazgo_sin_ubicacion if {
 test_conteo_incluye_todas_las_severidades if {
 	d := gate1.decision with input as limpio
 	d.conteo == {"critica": 0, "alta": 0, "media": 0, "baja": 0, "info": 0}
+}
+
+test_la_aprobacion_queda_justificada_por_criterios if {
+	d := gate1.decision with input as limpio
+	count(d.criterios) == 4
+	every c in d.criterios { c.cumple }
+}
+
+test_el_criterio_incumplido_queda_marcado if {
+	d := gate1.decision with input as con_hallazgos([hallazgo("gitleaks", "baja")])
+	incumplidos := {c.regla | some c in d.criterios; not c.cumple}
+	incumplidos == {"gate1.secreto"}
 }

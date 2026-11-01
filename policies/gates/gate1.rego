@@ -66,15 +66,45 @@ advertencias contains a if {
 	}
 }
 
+# Cada regla evaluada, haya bloqueado o no: justifica tanto un rechazo como una aprobación.
+criterios := [
+	{
+		"regla": "gate1.severidad",
+		"cumple": comun.cumple("gate1.severidad", bloqueantes),
+		"detalle": "Sin hallazgos críticos o altos en el análisis estático",
+	},
+	{
+		"regla": "gate1.secreto",
+		"cumple": comun.cumple("gate1.secreto", bloqueantes),
+		"detalle": "Sin secretos expuestos en el repositorio (Gitleaks)",
+	},
+	{
+		"regla": "gate1.compilacion",
+		"cumple": comun.cumple("gate1.compilacion", bloqueantes),
+		"detalle": "El código compila (tsc --noEmit)",
+	},
+	{
+		"regla": "gate1.herramienta_caida",
+		"cumple": comun.cumple("gate1.herramienta_caida", bloqueantes),
+		"detalle": "Todas las herramientas del gate terminaron",
+	},
+]
+
 justificacion := "Gate 1 aprobado: sin hallazgos críticos o altos, sin secretos expuestos y el código compila" if aprobado
 
-justificacion := sprintf("Gate 1 rechazado: %d bloqueante(s)", [count(bloqueantes)]) if not aprobado
+justificacion := sprintf(
+	"Gate 1 rechazado: incumple %d de %d criterios (%s)",
+	[count(incumplidos), count(criterios), concat(", ", sort(incumplidos))],
+) if not aprobado
+
+incumplidos := comun.criterios_incumplidos(criterios)
 
 decision := {
 	"gate": 1,
 	"aprobado": aprobado,
 	"bloqueantes": bloqueantes,
 	"advertencias": advertencias,
+	"criterios": criterios,
 	"conteo": comun.conteo(input.hallazgos),
 	"justificacion": justificacion,
 }
