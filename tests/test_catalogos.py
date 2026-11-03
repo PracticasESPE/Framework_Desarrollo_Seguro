@@ -165,3 +165,21 @@ def test_id_repetido_dentro_del_catalogo(tmp_path):
     repetido = CWE + "  - id: CWE-20\n    nombre: Otra\n    descripcion: Repetida\n"
     errores = _errores(_base(tmp_path, **{"vulnerabilidades/cwe.yaml": repetido}))
     assert "id repetido 'CWE-20'" in errores[0]
+
+
+def test_las_reglas_semgrep_propias_citan_cwe_del_catalogo():
+    """Cada CWE de semgrep_rules debe estar en el catálogo para enlazar sus hallazgos al grafo."""
+    import re
+
+    import yaml
+
+    raiz = Path(__file__).resolve().parent.parent
+    reglas = yaml.safe_load((raiz / "semgrep_rules" / "nestjs-seguridad.yaml").read_text("utf-8"))
+    citadas = {
+        re.match(r"CWE-\d+", cwe).group(0)
+        for regla in reglas["rules"]
+        for cwe in regla["metadata"]["cwe"]
+    }
+    catalogo = {d.id for d in cargar_base_conocimiento().debilidades}
+    assert citadas, "Las reglas propias deben declarar su CWE"
+    assert citadas <= catalogo, f"CWE fuera del catálogo: {sorted(citadas - catalogo)}"

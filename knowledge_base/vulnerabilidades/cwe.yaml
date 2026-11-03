@@ -43,6 +43,9 @@ debilidades:
   - id: CWE-285
     nombre: Improper Authorization
     descripcion: No se comprueba, o se comprueba mal, si el actor tiene permiso para la acción o el recurso
+  - id: CWE-295
+    nombre: Improper Certificate Validation
+    descripcion: No se valida, o se valida mal, el certificado TLS del otro extremo, lo que permite suplantarlo
   - id: CWE-306
     nombre: Missing Authentication for Critical Function
     descripcion: Una función crítica puede usarse sin autenticarse
@@ -55,6 +58,9 @@ debilidades:
   - id: CWE-319
     nombre: Cleartext Transmission of Sensitive Information
     descripcion: Información sensible viaja por la red sin cifrar
+  - id: CWE-327
+    nombre: Use of a Broken or Risky Cryptographic Algorithm
+    descripcion: Se usa un algoritmo criptográfico roto o débil (por ejemplo, MD5 o SHA-1) que no protege los datos
   - id: CWE-345
     nombre: Insufficient Verification of Data Authenticity
     descripcion: No se verifica bien el origen o la integridad de los datos
@@ -82,6 +88,9 @@ debilidades:
   - id: CWE-602
     nombre: Client-Side Enforcement of Server-Side Security
     descripcion: Un control de seguridad que debería estar en el servidor se aplica solo en el cliente
+  - id: CWE-613
+    nombre: Insufficient Session Expiration
+    descripcion: Una sesión o un token siguen siendo válidos después de vencer o de cerrar la sesión
   - id: CWE-636
     nombre: Not Failing Securely ('Failing Open')
     descripcion: Ante un fallo, el sistema queda en un estado permisivo en lugar de denegar
@@ -97,6 +106,9 @@ debilidades:
   - id: CWE-668
     nombre: Exposure of Resource to Wrong Sphere
     descripcion: Un recurso queda accesible para actores que no deberían alcanzarlo
+  - id: CWE-693
+    nombre: Protection Mechanism Failure
+    descripcion: Falta o está mal aplicado un mecanismo de protección, como las cabeceras de seguridad HTTP
   - id: CWE-755
     nombre: Improper Handling of Exceptional Conditions
     descripcion: Las condiciones excepcionales no se manejan, o se manejan mal
@@ -115,6 +127,9 @@ debilidades:
   - id: CWE-915
     nombre: Improperly Controlled Modification of Dynamically-Determined Object Attributes
     descripcion: El usuario puede modificar atributos de un objeto que no debería (asignación masiva)
+  - id: CWE-916
+    nombre: Use of Password Hash With Insufficient Computational Effort
+    descripcion: Las contraseñas se guardan con un hash rápido que permite romperlas por fuerza bruta
   - id: CWE-918
     nombre: Server-Side Request Forgery (SSRF)
     descripcion: El servidor hace peticiones a direcciones elegidas por el usuario sin validarlas

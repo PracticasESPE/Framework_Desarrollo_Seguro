@@ -22,6 +22,18 @@ controles:
     descripcion: Contraseñas, credenciales de bases de datos y claves de API se gestionan de forma segura y no están en el código fuente
     niveles: [2, 3]
     cwe: [CWE-798]
+  - id: ASVS-V2.4.1
+    capitulo: V2 Autenticación
+    seccion: Almacenamiento de credenciales
+    descripcion: Las contraseñas se guardan con sal y una función de hash para contraseñas aprobada y lenta, resistente a ataques sin conexión
+    niveles: [2, 3]
+    cwe: [CWE-916]
+  - id: ASVS-V3.3.1
+    capitulo: V3 Gestión de sesiones
+    seccion: Cierre de sesión y expiración
+    descripcion: Al cerrar la sesión o al expirar, el token de sesión queda invalidado y no se puede reutilizar
+    niveles: [1, 2, 3]
+    cwe: [CWE-613]
   - id: ASVS-V3.5.3
     capitulo: V3 Gestión de sesiones
     seccion: Sesiones basadas en tokens
@@ -52,6 +64,12 @@ controles:
     descripcion: Los datos y las API sensibles están protegidos contra referencias directas inseguras a objetos (acceder a recursos ajenos cambiando un identificador)
     niveles: [1, 2, 3]
     cwe: [CWE-639]
+  - id: ASVS-V5.1.2
+    capitulo: V5 Validación, saneamiento y codificación
+    seccion: Validación de entrada
+    descripcion: El framework protege contra la asignación masiva de parámetros, o la aplicación marca los campos que no se pueden asignar
+    niveles: [1, 2, 3]
+    cwe: [CWE-915]
   - id: ASVS-V5.1.3
     capitulo: V5 Validación, saneamiento y codificación
     seccion: Validación de entrada
@@ -76,6 +94,12 @@ controles:
     descripcion: Se usa una solución de gestión de secretos (por ejemplo, un almacén de claves) para crear, guardar y controlar el acceso a los secretos
     niveles: [2, 3]
     cwe: [CWE-798]
+  - id: ASVS-V6.2.2
+    capitulo: V6 Criptografía almacenada
+    seccion: Algoritmos
+    descripcion: Se usan algoritmos, modos y bibliotecas criptográficas probados en la industria o aprobados, no implementaciones propias
+    niveles: [2, 3]
+    cwe: [CWE-327]
   - id: ASVS-V7.4.1
     capitulo: V7 Manejo de errores y registro
     seccion: Manejo de errores
@@ -88,6 +112,12 @@ controles:
     descripcion: Toda conexión de clientes usa TLS y no recurre a comunicaciones inseguras o sin cifrar
     niveles: [1, 2, 3]
     cwe: [CWE-319]
+  - id: ASVS-V9.2.1
+    capitulo: V9 Comunicaciones
+    seccion: Seguridad de las comunicaciones del servidor
+    descripcion: Las conexiones desde y hacia el servidor usan certificados TLS de confianza y se rechazan los no válidos
+    niveles: [2, 3]
+    cwe: [CWE-295]
   - id: ASVS-V11.1.1
     capitulo: V11 Lógica de negocio
     seccion: Seguridad de la lógica de negocio

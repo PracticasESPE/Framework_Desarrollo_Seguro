@@ -15,7 +15,9 @@ con pgvector, y se mide la latencia media, la mediana y el percentil 95 de tres 
 
 - **Mismos datos**: 86 elementos de conocimiento, 108 relaciones y 86 fragmentos con embeddings de
   384 dimensiones del modelo `paraphrase-multilingual-MiniLM-L12-v2`. Los vectores se calculan una
-  sola vez y se cargan iguales en las dos bases.
+  sola vez y se cargan iguales en las dos bases. Son los datos de la medición del 28/10; la
+  revisión de la base v1 del 30/10 la llevó a 96 elementos y 113 relaciones (ver el informe del
+  sprint 2), y una nueva ejecución del script mide la base vigente.
 - **Mismo tipo de índice vectorial**: HNSW con similitud coseno en las dos.
 - **Parámetros que varían**: la trazabilidad recorre los 10 riesgos, los controles las 42 CWE y la
   búsqueda vectorial 10 preguntas distintas.
