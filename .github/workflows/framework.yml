@@ -158,10 +158,12 @@ jobs:
 
       # P1: OPA decide cada gate con las políticas de policies/gates y deja la decisión, sus
       # criterios y los hallazgos que la bloquean en Neo4j (nodos ResultadoGate), en la misma
-      # ejecución que la fase 4. Si OPA rechaza, el paso falla y la cadena se detiene.
+      # ejecución que la fase 4. Si OPA rechaza, el paso falla, Telegram y el resumen muestran el
+      # gate como rechazado y la cadena se detiene.
       - name: "Decisión OPA: Gate 1"
         if: ${{ !cancelled() && hashFiles('salida/security/sarif/*.sarif') != '' }}
         run: >-
+          uv run python -m orchestrator.notify.cli decision "Fase 4: Security Gate 1" --
           uv run framework gates decidir --gate 1 --grafo
           ${{ steps.fase3.outcome == 'success' && '--compilacion-ok' || '' }}
 
@@ -205,7 +207,9 @@ jobs:
         if: >-
           ${{ !cancelled() && hashFiles('salida/security/sarif/spectral.sarif',
           'salida/security/sarif/conftest.sarif') != '' }}
-        run: uv run framework gates decidir --gate 2 --grafo
+        run: >-
+          uv run python -m orchestrator.notify.cli decision "Fase 8: Security Gate 2" --
+          uv run framework gates decidir --gate 2 --grafo
 
       # El resumen en JSON (salida/pruebas/jest.json) alimenta el criterio de pruebas del Gate 3.
       - name: "Fase 9: Pruebas automatizadas"
@@ -230,7 +234,9 @@ jobs:
         if: >-
           ${{ !cancelled() && hashFiles('salida/security/sarif/trivy-image.sarif',
           'salida/security/sarif/zap.sarif', 'salida/security/sarif/nuclei.sarif') != '' }}
-        run: uv run framework gates decidir --gate 3 --grafo
+        run: >-
+          uv run python -m orchestrator.notify.cli decision "Fase 11: DAST y Security Gate 3" --
+          uv run framework gates decidir --gate 3 --grafo
 
       - name: Decisiones de los gates en Neo4j
         if: ${{ !cancelled() && hashFiles('salida/gates/gate*.json') != '' }}

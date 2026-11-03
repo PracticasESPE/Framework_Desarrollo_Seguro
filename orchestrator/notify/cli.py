@@ -2,6 +2,7 @@
 
   python -m orchestrator.notify.cli inicio
   python -m orchestrator.notify.cli ejecutar "Fase 4: Security Gate 1" -- bash scripts/gate1.sh
+  python -m orchestrator.notify.cli decision "Fase 4: Security Gate 1" -- framework gates decidir
   python -m orchestrator.notify.cli omitir "Fase 1: Requisitos"
   python -m orchestrator.notify.cli fin
   python -m orchestrator.notify.cli fallo
@@ -99,17 +100,32 @@ def inicio() -> int:
     return 0
 
 
+def _correr(comando: list[str]) -> int:
+    entorno = {k: v for k, v in os.environ.items() if k not in _SECRETOS}
+    try:
+        return subprocess.call(comando, env=entorno)
+    except OSError as error:  # comando inexistente o sin permisos
+        print(f"No se pudo ejecutar {comando[0]!r}: {error}", file=sys.stderr)
+        return 127
+
+
 def ejecutar(fase: str, comando: list[str]) -> int:
     """Marca la fase en curso, ejecuta el comando y devuelve su código de salida."""
     p = _cargar()
     _marcar(p, fase, "ejecutando")
-    entorno = {k: v for k, v in os.environ.items() if k not in _SECRETOS}
-    try:
-        codigo = subprocess.call(comando, env=entorno)
-    except OSError as error:  # comando inexistente o sin permisos
-        print(f"No se pudo ejecutar {comando[0]!r}: {error}", file=sys.stderr)
-        codigo = 127
+    codigo = _correr(comando)
     _marcar(p, fase, "ok" if codigo == 0 else "fallo")
+    return codigo
+
+
+def decision(fase: str, comando: list[str]) -> int:
+    """Ejecuta la decisión de OPA de un gate: un rechazo deja la fase en fallo.
+
+    Una aprobación no cambia la fase: OPA no devuelve al verde un gate que su script ya rechazó.
+    """
+    codigo = _correr(comando)
+    if codigo != 0:
+        _marcar(_cargar(), fase, "fallo")
     return codigo
 
 
@@ -191,12 +207,13 @@ def main(argv: list[str]) -> int:
         print(__doc__)
         return 0
     orden = argv[0]
-    if orden == "ejecutar":
+    con_comando = {"ejecutar": ejecutar, "decision": decision}
+    if orden in con_comando:
         if "--" not in argv or len(argv) < 4:
-            print('Uso: ejecutar "Nombre de fase" -- comando args...')
+            print(f'Uso: {orden} "Nombre de fase" -- comando args...')
             return 2
         i = argv.index("--")
-        return ejecutar(argv[1], argv[i + 1 :])
+        return con_comando[orden](argv[1], argv[i + 1 :])
     if orden == "omitir":
         if len(argv) != 2:
             print('Uso: omitir "Nombre de fase"')

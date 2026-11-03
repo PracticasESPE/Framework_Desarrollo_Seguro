@@ -64,7 +64,10 @@ def test_ejecutar_con_comando_inexistente_falla_sin_romper(telegram_falso):
     assert "❌ Fase 1" in ediciones[-1][1]
 
 
-def test_el_comando_no_recibe_las_credenciales_de_telegram(telegram_falso, monkeypatch, tmp_path):
+@pytest.mark.parametrize("orden", ["ejecutar", "decision"])
+def test_el_comando_no_recibe_las_credenciales_de_telegram(
+    telegram_falso, monkeypatch, tmp_path, orden
+):
     monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "123:secreto")
     monkeypatch.setenv("TELEGRAM_CHAT_ID", "-100")
     salida = tmp_path / "entorno.txt"
@@ -72,7 +75,7 @@ def test_el_comando_no_recibe_las_credenciales_de_telegram(telegram_falso, monke
         "import os, sys; open(sys.argv[1], 'w').write("
         "os.environ.get('TELEGRAM_BOT_TOKEN', '') + os.environ.get('TELEGRAM_CHAT_ID', ''))"
     )
-    cli.main(["ejecutar", "Fase 1: Requisitos", "--", sys.executable, "-c", codigo, str(salida)])
+    cli.main([orden, "Fase 1: Requisitos", "--", sys.executable, "-c", codigo, str(salida)])
     assert salida.read_text() == ""
 
 
@@ -139,6 +142,41 @@ def test_fallo_dice_que_gate_detuvo_la_cadena(telegram_falso):
     assert "⏳" not in ediciones[-1][1]
     fases = json.loads(estado.read_text(encoding="utf-8"))["fases"]
     assert fases["Fase 11: DAST y Security Gate 3"] == "no_ejecutada"
+
+
+def test_rechazo_de_opa_tras_un_script_aprobado_detiene_el_gate(telegram_falso):
+    """Sin esto Telegram y el resumen darían por aprobado un gate que OPA rechazó."""
+    envios, ediciones, _ = telegram_falso
+    cli.main(["inicio"])
+    cli.main(["ejecutar", "Fase 4: Security Gate 1", "--", sys.executable, "-c", "pass"])
+
+    rechazo = [sys.executable, "-c", "raise SystemExit(1)"]
+    assert cli.main(["decision", "Fase 4: Security Gate 1", "--", *rechazo]) == 1
+    assert "❌ Fase 4" in ediciones[-1][1]
+
+    cli.main(["fallo"])
+    assert envios[-1].splitlines()[:2] == [
+        "❌ Pipeline detenido en Fase 4: Security Gate 1",
+        "❌ Gate 1 · 🚫 Gate 2 · 🚫 Gate 3",
+    ]
+
+
+def test_aprobacion_de_opa_no_devuelve_al_verde_un_gate_rechazado(telegram_falso):
+    _, _, estado = telegram_falso
+    cli.main(["inicio"])
+    rechazo = [sys.executable, "-c", "raise SystemExit(1)"]
+    cli.main(["ejecutar", "Fase 4: Security Gate 1", "--", *rechazo])
+
+    aprobacion = [sys.executable, "-c", "pass"]
+    assert cli.main(["decision", "Fase 4: Security Gate 1", "--", *aprobacion]) == 0
+
+    fases = json.loads(estado.read_text(encoding="utf-8"))["fases"]
+    assert fases["Fase 4: Security Gate 1"] == "fallo"
+
+
+def test_decision_sin_estado_devuelve_el_codigo_del_comando(telegram_falso):
+    rechazo = [sys.executable, "-c", "raise SystemExit(1)"]
+    assert cli.main(["decision", "Fase 4: Security Gate 1", "--", *rechazo]) == 1
 
 
 def test_fallo_antes_de_las_fases_no_culpa_a_un_gate(telegram_falso):
@@ -215,6 +253,7 @@ def test_el_resumen_no_impide_el_aviso_si_no_se_puede_escribir(
 
 def test_uso_incorrecto():
     assert cli.main(["ejecutar", "Fase 1"]) == 2
+    assert cli.main(["decision", "Fase 4: Security Gate 1"]) == 2
     assert cli.main(["omitir"]) == 2
     assert cli.main(["desconocida"]) == 2
 
@@ -222,7 +261,7 @@ def test_uso_incorrecto():
 def test_las_fases_del_workflow_coinciden_con_el_notificador():
     """Un nombre distinto en el workflow crearía una fila nueva en el mensaje de Telegram."""
     texto = WORKFLOW.read_text(encoding="utf-8")
-    usadas = re.findall(r'notify\.cli (?:ejecutar|omitir) "([^"]+)"', texto)
+    usadas = re.findall(r'notify\.cli (?:ejecutar|omitir|decision) "([^"]+)"', texto)
     assert sorted(set(usadas)) == sorted(cli.FASES)
     assert "notify.cli inicio" in texto and "notify.cli fin" in texto
     assert "notify.cli fallo" in texto
@@ -252,6 +291,13 @@ def test_ningun_paso_de_fase_se_salta_la_cadena():
     assert len(pasos) == len(cli.FASES)
     for paso in pasos:
         assert "if" not in paso and "continue-on-error" not in paso, paso["name"]
+
+
+def test_cada_decision_de_opa_pasa_por_el_notificador():
+    """Un paso de decisión fuera del notificador volvería a dejar el gate en verde en Telegram."""
+    pasos = {p["name"]: p.get("run", "") for p in _pasos_del_workflow()}
+    for gate, fase in cli.GATES.items():
+        assert f'notify.cli decision "{fase}"' in pasos[f"Decisión OPA: {gate}"]
 
 
 def test_cada_final_de_la_cadena_tiene_su_aviso():
