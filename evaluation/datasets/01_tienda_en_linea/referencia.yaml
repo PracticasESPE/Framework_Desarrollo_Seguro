@@ -1,0 +1,381 @@
+# Respuesta esperada del documento de requisitos 1 (tienda en línea).
+# Solo la usa la evaluación: el framework recibe requisitos.{pdf,docx,txt,md} y nunca este archivo.
+# Cada "texto" es literal del documento, para medir qué requisitos encuentra la fase 1.
+# Etiquetas: vocabulario de ../vocabulario.yaml. Controles, riesgos y patrones: knowledge_base/.
+documento: 01_tienda_en_linea
+titulo: Tienda en línea
+version: "1.0"
+complejidad: baja
+
+servicios:
+  - nombre: usuarios
+    responsabilidad: Registro, identidad, perfil y baja de los clientes y del personal
+  - nombre: catalogo
+    responsabilidad: Productos, categorías, fotos, búsqueda y disponibilidad
+  - nombre: pedidos
+    responsabilidad: Carrito, pedidos, estados, reserva y devolución de stock, reportes de ventas
+  - nombre: pagos
+    responsabilidad: Integración con la pasarela externa y confirmación de cada pago
+  - nombre: notificaciones
+    responsabilidad: Correos al cliente a partir de los eventos de pedidos y pagos
+
+# Orientativo: una propuesta razonable, no la única válida. Sirve para comparar la fase 2.
+patrones:
+  - patron: api_gateway
+    motivo: Un único punto de entrada y límite de peticiones por cliente (10.1 y 10.2)
+  - patron: database_per_service
+    motivo: Catálogo, pedidos y pagos crecen por separado con sus propios datos (10.5)
+  - patron: event_driven
+    motivo: Los correos y el stock reaccionan a eventos de pedidos y pagos (5.4 y 7.1)
+  - patron: saga
+    motivo: Pedido, stock y pago se coordinan y se compensan si el pago no llega (6.3)
+  - patron: circuit_breaker
+    motivo: La caída de un servicio, o de la pasarela, no detiene a los demás (10.5)
+
+requisitos:
+  - id: RF-01
+    ubicacion: "3.1"
+    texto: El cliente debe poder registrarse con su correo electrónico y una contraseña, y la cuenta solo se activa cuando confirma el correo desde el enlace que recibe.
+    tipo: funcional
+    actor: visitante
+    entidades: [Cliente]
+    servicio: usuarios
+    etiquetas: [autenticacion, validacion_entrada]
+    controles_asvs: [ASVS-V5.1.3]
+    riesgos_api: [API2:2023]
+
+  - id: RF-02
+    ubicacion: "3.2"
+    texto: Para entrar a su cuenta, el cliente usa su correo y su contraseña; después de cinco intentos fallidos seguidos, la cuenta queda bloqueada durante quince minutos.
+    tipo: funcional
+    actor: cliente
+    entidades: [Cliente]
+    servicio: usuarios
+    etiquetas: [autenticacion, limite_peticiones]
+    controles_asvs: [ASVS-V11.1.4]
+    riesgos_api: [API2:2023]
+
+  - id: RF-03
+    ubicacion: "3.3"
+    texto: El cliente puede consultar y cambiar su nombre, su teléfono y sus direcciones de envío, pero no puede cambiar por su cuenta el tipo de usuario que tiene.
+    tipo: funcional
+    actor: cliente
+    entidades: [Cliente, Direccion]
+    servicio: usuarios
+    etiquetas: [autorizacion, control_acceso_recursos, validacion_entrada]
+    controles_asvs: [ASVS-V5.1.2, ASVS-V4.1.3]
+    riesgos_api: [API3:2023]
+
+  - id: RF-04
+    ubicacion: "3.4"
+    texto: Cuando el cliente cierra la sesión, su acceso deja de servir de inmediato y debe volver a identificarse para seguir comprando.
+    tipo: funcional
+    actor: cliente
+    entidades: [Sesion]
+    servicio: usuarios
+    etiquetas: [autenticacion]
+    controles_asvs: [ASVS-V3.3.1]
+    riesgos_api: [API2:2023]
+
+  - id: RNF-01
+    ubicacion: "3.5"
+    texto: Las contraseñas nunca se guardan tal como las escribe el cliente ni aparecen en ningún registro del sistema.
+    tipo: no_funcional
+    actor: sistema
+    entidades: [Cliente]
+    servicio: usuarios
+    etiquetas: [hash_password]
+    controles_asvs: [ASVS-V2.4.1, ASVS-V6.2.2]
+    riesgos_api: []
+    nota: Requisito no funcional dentro de una sección de requisitos funcionales.
+
+  - id: RF-05
+    ubicacion: "4.1"
+    texto: Cualquier visitante puede buscar productos por nombre o por categoría, y los resultados se muestran por páginas de como máximo 50 productos.
+    tipo: funcional
+    actor: visitante
+    entidades: [Producto, Categoria]
+    servicio: catalogo
+    etiquetas: [validacion_entrada, limite_peticiones]
+    controles_asvs: [ASVS-V5.3.4, ASVS-V11.1.4]
+    riesgos_api: [API4:2023]
+
+  - id: RF-06
+    ubicacion: "4.2"
+    texto: Cada producto muestra su nombre, su descripción, su precio, sus fotos y si quedan unidades disponibles.
+    tipo: funcional
+    actor: visitante
+    entidades: [Producto]
+    servicio: catalogo
+    etiquetas: []
+    controles_asvs: []
+    riesgos_api: []
+
+  - id: RF-07
+    ubicacion: "4.3"
+    texto: El administrador crea, modifica y retira productos del catálogo, y puede subir hasta cinco fotos por producto en formato JPG o PNG de no más de 2 MB cada una.
+    tipo: funcional
+    actor: administrador
+    entidades: [Producto, Foto]
+    servicio: catalogo
+    etiquetas: [autorizacion, validacion_entrada]
+    controles_asvs: [ASVS-V4.1.3, ASVS-V5.1.3]
+    riesgos_api: [API5:2023, API4:2023]
+
+  - id: RF-08
+    ubicacion: "4.4"
+    texto: Un producto retirado deja de aparecer en el catálogo, pero se conserva en los pedidos que ya lo incluían.
+    tipo: funcional
+    actor: sistema
+    entidades: [Producto, Pedido]
+    servicio: catalogo
+    etiquetas: []
+    controles_asvs: []
+    riesgos_api: []
+
+  - id: RF-09
+    ubicacion: "5.1"
+    texto: El cliente agrega productos a su carrito y elige la cantidad de cada uno, entre 1 y 10 unidades por producto.
+    tipo: funcional
+    actor: cliente
+    entidades: [Carrito, Producto]
+    servicio: pedidos
+    etiquetas: [validacion_entrada]
+    controles_asvs: [ASVS-V5.1.4]
+    riesgos_api: []
+
+  - id: RF-10
+    ubicacion: "5.2"
+    texto: Al confirmar el pedido, el precio de cada producto y el total se calculan con los precios del catálogo, sin aceptar los importes que envíe el navegador.
+    tipo: funcional
+    actor: cliente
+    entidades: [Pedido, Producto]
+    servicio: pedidos
+    etiquetas: [validacion_entrada]
+    controles_asvs: [ASVS-V5.1.2, ASVS-V4.1.1]
+    riesgos_api: [API3:2023]
+
+  - id: RF-11
+    ubicacion: "5.3"
+    texto: Si mientras el cliente confirma su pedido otro cliente compra las últimas unidades de un producto, el pedido no se acepta y se le indica qué productos ya no están disponibles.
+    tipo: funcional
+    actor: sistema
+    entidades: [Pedido, Producto]
+    servicio: pedidos
+    etiquetas: []
+    controles_asvs: [ASVS-V11.1.6]
+    riesgos_api: [API6:2023]
+    nota: Condición de carrera entre la comprobación del stock y su descuento.
+
+  - id: RF-12
+    ubicacion: "5.4"
+    texto: Al aceptarse un pedido, sus unidades se descuentan del stock disponible.
+    tipo: funcional
+    actor: sistema
+    entidades: [Pedido, Producto]
+    servicio: pedidos
+    etiquetas: []
+    controles_asvs: []
+    riesgos_api: []
+
+  - id: RF-13
+    ubicacion: "5.5"
+    texto: El cliente ve la lista de sus pedidos con el estado y el detalle de cada uno, y nunca puede ver los pedidos de otro cliente.
+    tipo: funcional
+    actor: cliente
+    entidades: [Pedido]
+    servicio: pedidos
+    etiquetas: [autorizacion, control_acceso_recursos]
+    controles_asvs: [ASVS-V4.2.1, ASVS-V4.1.1]
+    riesgos_api: [API1:2023]
+
+  - id: RF-14
+    ubicacion: "6.1"
+    texto: El pago con tarjeta se hace en una pasarela de pagos externa, y la tienda nunca recibe ni guarda el número de la tarjeta ni su código de seguridad.
+    tipo: funcional
+    actor: cliente
+    entidades: [Pago]
+    servicio: pagos
+    etiquetas: []
+    controles_asvs: []
+    riesgos_api: []
+    nota: >-
+      Minimización de datos de tarjeta. La base de conocimiento v1 no tiene controles de
+      protección de datos (ASVS V8): es un hueco conocido, no un error de la referencia.
+
+  - id: RF-15
+    ubicacion: "6.2"
+    texto: La pasarela avisa a la tienda del resultado de cada pago, y la tienda solo acepta los avisos que demuestren venir de la pasarela; con un aviso válido de pago aprobado, el pedido pasa a «pagado».
+    tipo: funcional
+    actor: pasarela
+    entidades: [Pago, Pedido]
+    servicio: pagos
+    etiquetas: [autenticacion, validacion_entrada]
+    controles_asvs: [ASVS-V5.1.3, ASVS-V9.2.1]
+    riesgos_api: [API10:2023]
+
+  - id: RF-16
+    ubicacion: "6.3"
+    texto: Un pedido que no se paga en 30 minutos se cancela solo y sus unidades vuelven al stock disponible.
+    tipo: funcional
+    actor: sistema
+    entidades: [Pedido, Producto]
+    servicio: pedidos
+    etiquetas: []
+    controles_asvs: []
+    riesgos_api: []
+
+  - id: RF-17
+    ubicacion: "7.1"
+    texto: El cliente recibe un correo cuando su pedido se acepta, cuando se paga y cada vez que cambia de estado.
+    tipo: funcional
+    actor: sistema
+    entidades: [Pedido, Notificacion]
+    servicio: notificaciones
+    etiquetas: []
+    controles_asvs: []
+    riesgos_api: []
+
+  - id: RF-18
+    ubicacion: "8.1"
+    texto: "El administrador cambia el estado de los pedidos pagados siguiendo siempre el mismo orden: en preparación, enviado y entregado."
+    tipo: funcional
+    actor: administrador
+    entidades: [Pedido]
+    servicio: pedidos
+    etiquetas: [autorizacion]
+    controles_asvs: [ASVS-V4.1.3, ASVS-V11.1.1]
+    riesgos_api: [API5:2023]
+
+  - id: RF-19
+    ubicacion: "8.2"
+    texto: El administrador obtiene un reporte de las ventas entre dos fechas, con un rango máximo de un año.
+    tipo: funcional
+    actor: administrador
+    entidades: [Pedido]
+    servicio: pedidos
+    etiquetas: [autorizacion, limite_peticiones]
+    controles_asvs: [ASVS-V4.1.3, ASVS-V11.1.4]
+    riesgos_api: [API5:2023, API4:2023]
+
+  - id: RF-20
+    ubicacion: "8.3"
+    texto: Queda constancia de cada acción de un administrador sobre productos y pedidos, con quién la hizo, qué cambió y cuándo; esa constancia no se puede modificar y solo la consultan los administradores.
+    tipo: funcional
+    actor: sistema
+    entidades: [RegistroAuditoria]
+    servicio: transversal
+    etiquetas: [auditoria, autorizacion]
+    controles_asvs: [ASVS-V4.1.3]
+    riesgos_api: []
+    nota: La base de conocimiento v1 no tiene los controles de registro de ASVS V7.1 a V7.3.
+
+  - id: RF-21
+    ubicacion: "8.4"
+    texto: Solo el personal de la empresa puede ser administrador, y ninguna función de administración está disponible para los clientes.
+    tipo: funcional
+    actor: sistema
+    entidades: [Usuario]
+    servicio: usuarios
+    etiquetas: [autorizacion]
+    controles_asvs: [ASVS-V4.1.3, ASVS-V13.1.4, ASVS-V1.4.1]
+    riesgos_api: [API5:2023]
+
+  - id: RF-22
+    ubicacion: "9, primera historia"
+    texto: Como cliente, quiero cancelar un pedido mientras todavía no se haya enviado, para no pagar algo que ya no necesito.
+    tipo: funcional
+    actor: cliente
+    entidades: [Pedido]
+    servicio: pedidos
+    etiquetas: [autorizacion, control_acceso_recursos]
+    controles_asvs: [ASVS-V4.2.1, ASVS-V11.1.1]
+    riesgos_api: [API1:2023]
+    nota: Requisito escrito como historia de usuario.
+
+  - id: RF-23
+    ubicacion: "9, segunda historia"
+    texto: Como cliente, quiero eliminar mi cuenta y mis datos personales, salvo los que la ley obligue a conservar de mis compras, para dejar de figurar como cliente de la tienda.
+    tipo: funcional
+    actor: cliente
+    entidades: [Cliente]
+    servicio: usuarios
+    etiquetas: [autorizacion, control_acceso_recursos]
+    controles_asvs: [ASVS-V4.2.1]
+    riesgos_api: [API1:2023]
+    nota: Requisito escrito como historia de usuario. Sin control de protección de datos (ASVS V8) en la base v1.
+
+  - id: RNF-02
+    ubicacion: "10.1"
+    texto: Toda la comunicación con la tienda debe viajar cifrada, y los clientes deben entrar siempre por una única dirección.
+    tipo: no_funcional
+    actor: sistema
+    entidades: []
+    servicio: transversal
+    etiquetas: [cifrado_transito, punto_unico_acceso]
+    controles_asvs: [ASVS-V9.1.1, ASVS-V14.4.5, ASVS-V1.14.1]
+    riesgos_api: [API8:2023]
+
+  - id: RNF-03
+    ubicacion: "10.2"
+    texto: Un mismo cliente o una misma dirección IP no puede hacer más de 100 peticiones por minuto; si las supera, la tienda le pide que espere.
+    tipo: no_funcional
+    actor: sistema
+    entidades: []
+    servicio: transversal
+    etiquetas: [limite_peticiones]
+    controles_asvs: [ASVS-V11.1.4]
+    riesgos_api: [API4:2023]
+
+  - id: RNF-04
+    ubicacion: "10.3"
+    texto: Cuando algo falla, el cliente ve un mensaje claro y sin detalles técnicos internos.
+    tipo: no_funcional
+    actor: sistema
+    entidades: []
+    servicio: transversal
+    etiquetas: []
+    controles_asvs: [ASVS-V7.4.1, ASVS-V14.3.2]
+    riesgos_api: [API8:2023]
+
+  - id: RNF-05
+    ubicacion: "10.4"
+    texto: La búsqueda en el catálogo debe responder en menos de un segundo con 200 clientes conectados a la vez.
+    tipo: no_funcional
+    actor: sistema
+    entidades: [Producto]
+    servicio: catalogo
+    etiquetas: []
+    controles_asvs: []
+    riesgos_api: []
+
+  - id: RNF-06
+    ubicacion: "10.5"
+    texto: El catálogo, los pedidos y los pagos deben poder actualizarse y crecer por separado, cada uno con sus propios datos, sin que la caída de uno detenga a los demás.
+    tipo: no_funcional
+    actor: sistema
+    entidades: []
+    servicio: transversal
+    etiquetas: []
+    controles_asvs: []
+    riesgos_api: []
+    nota: Origen de los patrones database_per_service y circuit_breaker.
+
+  - id: RNF-07
+    ubicacion: "10.6"
+    texto: Las claves de la pasarela de pagos y de las bases de datos no pueden estar escritas en el código.
+    tipo: no_funcional
+    actor: sistema
+    entidades: []
+    servicio: transversal
+    etiquetas: []
+    controles_asvs: [ASVS-V2.10.4, ASVS-V6.4.1]
+    riesgos_api: []
+    nota: El vocabulario de etiquetas no tiene una para secretos; queda cubierto por los controles.
+
+# Frases que no deben convertirse en requisitos: miden los falsos positivos de la fase 1.
+fuera_de_alcance:
+  - Una aplicación móvil propia.
+  - Vender productos de otros vendedores.
+  - Envíos internacionales ni cobros en monedas distintas del dólar.
+  - Recomendaciones de productos personalizadas para cada cliente.
