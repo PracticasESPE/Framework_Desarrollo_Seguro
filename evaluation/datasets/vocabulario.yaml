@@ -1,0 +1,16 @@
+# Vocabulario común de la respuesta esperada de todos los documentos del dataset.
+# Las etiquetas son las de la comparación de LLM del sprint 1 (evaluation/comparacion_llm).
+# Si la clasificación de la fase 1 fija otro vocabulario, se actualizan aquí y en las referencias.
+tipos: [funcional, no_funcional]
+etiquetas:
+  - autenticacion
+  - autorizacion
+  - control_acceso_recursos
+  - validacion_entrada
+  - hash_password
+  - cifrado_transito
+  - punto_unico_acceso
+  - limite_peticiones
+  - auditoria
+# Servicio para los requisitos que no pertenecen a uno solo (gateway, registro, configuración).
+servicio_transversal: transversal
