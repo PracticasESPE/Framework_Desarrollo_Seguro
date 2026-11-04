@@ -1,0 +1,658 @@
+% Informe del sprint 2 del framework de desarrollo seguro.
+% Compilar con XeLaTeX (dos pasadas para el índice):
+%   latexmk -xelatex informe_sprint2.tex
+\documentclass[11pt,a4paper]{report}
+
+% ---------- Idioma y tipografía ----------
+\usepackage{fontspec}
+\usepackage[spanish,es-noshorthands,es-tabla]{babel}
+\setmonofont{Latin Modern Mono}[Scale=0.95]
+
+% ---------- Página ----------
+\usepackage[a4paper,top=2.6cm,bottom=2.6cm,left=2.5cm,right=2.5cm,headheight=14pt]{geometry}
+\usepackage{xcolor}
+\usepackage{titlesec}
+\usepackage{fancyhdr}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{colortbl}
+\usepackage{enumitem}
+\usepackage{caption}
+\usepackage{float}
+\usepackage[most]{tcolorbox}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,fit,backgrounds}
+\usepackage[htt]{hyphenat}  % permite cortar los nombres largos en \texttt
+\usepackage{xurl}
+\usepackage[hidelinks]{hyperref}
+
+% ---------- Colores (los mismos del plan técnico v2) ----------
+\definecolor{azulfw}{HTML}{2A64A8}
+\definecolor{azulclaro}{HTML}{E4EEF9}
+\definecolor{verdefw}{HTML}{3E6B12}
+\definecolor{verdeclaro}{HTML}{EAF1E1}
+\definecolor{ocrefw}{HTML}{8A4E0B}
+\definecolor{ocreclaro}{HTML}{FCF0DF}
+\definecolor{rojofw}{HTML}{A33A3A}
+\definecolor{rojoclaro}{HTML}{F8E3E3}
+\definecolor{grisfw}{HTML}{6B6B6B}
+
+% ---------- Títulos ----------
+\titleformat{\chapter}[hang]{\huge\bfseries\color{azulfw}}{\thechapter.}{0.5em}{}
+\titlespacing*{\chapter}{0pt}{0pt}{1.2em}
+\titleformat{\section}{\Large\bfseries\color{azulfw}}{\thesection}{0.6em}{}
+\titleformat{\subsection}{\large\bfseries}{\thesubsection}{0.6em}{}
+\addto\captionsspanish{\renewcommand{\contentsname}{\color{azulfw}Índice}}
+
+% ---------- Encabezado y pie ----------
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small\color{grisfw}Framework de desarrollo seguro guiado por conocimiento}
+\fancyhead[R]{\small\color{grisfw}Informe del sprint 2}
+\fancyfoot[C]{\small\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+\fancypagestyle{plain}{\fancyhf{}\fancyfoot[C]{\small\thepage}\renewcommand{\headrulewidth}{0pt}}
+
+% ---------- Tablas ----------
+\renewcommand{\arraystretch}{1.25}
+\newcolumntype{L}{>{\raggedright\arraybackslash}X}
+\newcolumntype{P}[1]{>{\raggedright\arraybackslash}p{#1}}
+\captionsetup{font=small,labelsep=colon}
+\setlist{itemsep=0.25em,topsep=0.4em}
+
+% ---------- Recuadros ----------
+\newtcolorbox{cajaverde}[1]{enhanced,colback=verdeclaro,colframe=verdefw,
+  coltitle=white,fonttitle=\bfseries,title={#1},arc=1.5mm,boxrule=0.6pt,
+  left=2mm,right=2mm,top=1mm,bottom=1mm}
+\newtcolorbox{cajaazul}[1]{enhanced,colback=azulclaro,colframe=azulfw,
+  coltitle=white,fonttitle=\bfseries,title={#1},arc=1.5mm,boxrule=0.6pt,
+  left=2mm,right=2mm,top=1mm,bottom=1mm}
+\newtcolorbox{cajaocre}[1]{enhanced,colback=ocreclaro,colframe=ocrefw,
+  coltitle=white,fonttitle=\bfseries,title={#1},arc=1.5mm,boxrule=0.6pt,
+  left=2mm,right=2mm,top=1mm,bottom=1mm}
+
+\newcommand{\pr}[1]{\href{https://github.com/PracticasESPE/Framework_Desarrollo_Seguro/pull/#1}{\##1}}
+\newcommand{\run}[1]{\href{https://github.com/PracticasESPE/Framework_Desarrollo_Seguro/actions/runs/#1}{#1}}
+\newcommand{\filasprint}[1]{\rowcolor{azulclaro}\multicolumn{5}{l}{\bfseries #1}\\}
+
+\hypersetup{pdftitle={Informe del sprint 2},pdfauthor={Marcelo Acuña Gamboa, Abner Arboleda}}
+
+\begin{document}
+
+% ======================================================================
+% PORTADA
+% ======================================================================
+\begin{titlepage}
+\centering
+\vspace*{4.2cm}
+{\color{azulfw}\rule{\textwidth}{0.8pt}}\par\vspace{0.9cm}
+{\fontsize{24}{30}\selectfont\bfseries Framework de desarrollo seguro\\
+basado en métodos computacionales\\ guiados por conocimiento\par}
+\vspace{0.9cm}{\color{azulfw}\rule{\textwidth}{0.8pt}}\par
+\vspace{1.1cm}
+{\Large Informe del sprint 2\par}
+\vspace{0.3cm}
+{\large Conocimiento, OPA y Telegram: walking skeleton con los tres Security Gates\par}
+\vspace{0.3cm}
+{\normalsize 19 al 30 de octubre de 2026\par}
+\vspace{2.2cm}
+{\normalsize
+\begin{tabular}{rl}
+Marcelo Acuña Gamboa & Participante 1: motor e IA\\
+Abner Arboleda & Participante 2: plataforma y seguridad\\
+\end{tabular}\par}
+\vfill
+{\normalsize Universidad de las Fuerzas Armadas – ESPE \quad$\bullet$\quad Ingeniería de Software\par}
+\vspace{0.4cm}
+{\normalsize Versión 1.0 \quad$\bullet$\quad 1 de noviembre de 2026\par}
+\end{titlepage}
+
+\tableofcontents
+
+% ======================================================================
+\chapter{Resumen del sprint}
+% ======================================================================
+
+\section{Objetivo e hito}
+
+El sprint 2 completa el walking skeleton del principio P3 (\emph{primero de punta a punta,
+después inteligente}). Su objetivo era construir la base de conocimiento v1 en Neo4j con
+GraphRAG, escribir las políticas OPA de los tres Security Gates, levantar las versiones iniciales
+de los Gates 2 y 3 sobre el servicio de referencia, avisar del progreso por Telegram y comparar
+Neo4j con PostgreSQL + pgvector.
+
+\begin{cajaazul}{Hito de control del 30 de octubre de 2026}
+\emph{Walking skeleton completo (tres gates) con avisos en Telegram.} Es el primer hito
+importante del proyecto: no se empieza el sprint 3 sin haberlo cumplido.
+\end{cajaazul}
+
+\begin{cajaverde}{Resultado: hito cumplido}
+El 30/10/2026 la ejecución \run{41135849778} de GitHub Actions sobre \texttt{dev} recorrió las
+fases 3 a 11 con los tres gates encadenados (\pr{174}) y Telegram informó de cada fase. El
+01/11/2026 se integraron las decisiones de OPA (\pr{176}): en la ejecución \run{41341510212} los
+tres gates fueron aprobados por las políticas Rego, con 4 de 4, 5 de 5 y 5 de 5 criterios
+cumplidos. Cada decisión quedó registrada en Neo4j como un nodo \texttt{ResultadoGate}, junto con
+las reglas que la justifican. Se puede pasar al sprint 3.
+\end{cajaverde}
+
+\section{Indicadores}
+
+\begin{table}[H]
+\centering
+\caption{Indicadores del sprint 2, medidos en la ejecución \run{41341510212} sobre \texttt{dev} y en local al cierre.}
+\begin{tabularx}{\textwidth}{@{}P{6.2cm}L@{}}
+\toprule
+\textbf{Indicador} & \textbf{Valor}\\
+\midrule
+Días y horas del sprint & 10 días, 80 horas de equipo (40 por integrante)\\
+Pull requests fusionados en \texttt{dev} & 21 (\pr{157} a \pr{177}; 10 de Marcelo y 11 de Abner), todos con revisión del otro integrante, más el de este informe\\
+Duración del pipeline completo & 10 min 50 s (Gate 1: 40 s; Gate 2: 7 s; Gate 3 con DAST: 5 min 20 s)\\
+Decisión OPA de los gates & 3 de 3 aprobados: Gate 1 con 4/4 criterios, Gate 2 con 5/5, Gate 3 con 5/5\\
+Base de conocimiento v1 & 6 patrones, 6 directrices, 27 controles ASVS, 47 CWE y 10 riesgos OWASP API; 113 relaciones\\
+Fragmentos para GraphRAG & 96 con embeddings de 384 dimensiones en el índice vectorial \texttt{fragmento\_embedding}\\
+Pruebas de políticas Rego & 64 en verde (36 de los gates con 100\,\% de cobertura y 28 de integración)\\
+Pruebas del motor (pytest) & 248 en verde, incluidas las de integración con Neo4j; 92\,\% de cobertura de \texttt{orchestrator/}\\
+Pruebas del servicio (Jest) & 42 en verde, 94,7\,\% de cobertura de sentencias\\
+DAST sobre el servicio en marcha & ZAP: 115 reglas sin fallo y 4 avisos de severidad baja; Nuclei: 0 coincidencias\\
+Imagen y SBOM & Trivy image: 0 vulnerabilidades altas o críticas; SBOM CycloneDX 1.7 con 1866 componentes\\
+Alertas abiertas en GitHub Security & 47, todas de severidad advertencia o baja (ninguna bloquea un gate)\\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+% ======================================================================
+\chapter{Trabajo realizado}
+% ======================================================================
+
+\section{Cumplimiento del cronograma}
+
+La tabla compara el cronograma diario del plan con lo entregado. La columna PR indica el pull
+request con el que cada tarea entró en \texttt{dev}.
+
+{\small
+\begin{longtable}{@{}P{1.55cm}P{4.6cm}P{4.6cm}P{1.6cm}P{1.6cm}@{}}
+\caption{Tareas del sprint 2 por integrante y pull request asociado.}\\
+\toprule
+\textbf{Fecha} & \textbf{Marcelo (motor e IA)} & \textbf{Abner (plataforma y seguridad)} & \textbf{PR Marcelo} & \textbf{PR Abner}\\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Fecha} & \textbf{Marcelo (motor e IA)} & \textbf{Abner (plataforma y seguridad)} & \textbf{PR Marcelo} & \textbf{PR Abner}\\
+\midrule
+\endhead
+\filasprint{Sprint 2: Conocimiento, OPA y Telegram}
+19/10 lun & Patrones de microservicios y directrices Secure by Design en YAML, con validador. & Notificador de Telegram: bot y mensaje de progreso editable. & \pr{157}, \pr{158} & \pr{157}\\
+20/10 mar & Controles OWASP ASVS y catálogos CWE y OWASP API Top 10. & Avisos en cada fase del workflow y aviso de fallo. & \pr{160} & \pr{159}\\
+21/10 mié & Cargador YAML → Neo4j (nodos y relaciones). & Gate 2 inicial: Spectral con reglas OWASP API. & \pr{162} & \pr{161}\\
+22/10 jue & Fragmentos con embeddings e índice vectorial. & Conftest con políticas Rego para Docker Compose. & \pr{165} & \pr{163}\\
+23/10 vie & Consulta GraphRAG (vectores + relaciones). & Realm de Keycloak y guard JWT en el servicio. & \pr{166} & \pr{164}\\
+26/10 lun & Políticas Rego de los Gates 1 y 2 con \texttt{opa test}. & Gate 3 inicial: Trivy image y SBOM con Syft. & \pr{168} & \pr{171}\\
+27/10 mar & Política Rego del Gate 3 con justificación. & ZAP y Nuclei autenticados con límite de tiempo. & \pr{169} & \pr{172}\\
+28/10 mié & Benchmark Neo4j frente a PostgreSQL + pgvector. & Conversor de resultados de ZAP a SARIF. & \pr{170} & \pr{173}\\
+29/10 jue & Decisiones OPA de los tres gates en el motor y en Neo4j. & Gates 1--3 encadenados con avisos en Telegram. & \pr{176} & \pr{174}\\
+30/10 vie & Revisión de la base de conocimiento v1 e informe del sprint 2. & Demostración del skeleton completo y planificación del sprint 3. & este PR & \pr{177}\\
+\bottomrule
+\end{longtable}}
+
+Las tareas de plataforma entraron en su fecha o con un día de diferencia. Las de políticas del
+motor se retrasaron: \pr{168} se fusionó el 29/10, y \pr{169}, \pr{170} y \pr{176} el 01/11. La
+causa fue la cadena de ramas: la del Gate 3 se creó sobre la de los Gates 1 y 2 antes de que esta
+se fusionara, y al fusionarla con \emph{squash} el PR del Gate 3 quedó en conflicto (ver el
+capítulo~\ref{cap:incidencias}). El retraso no afectó al hito, que dependía del encadenamiento de
+los gates (\pr{174}).
+
+\section{Motor e IA}
+
+\subsection{Base de conocimiento v1}
+La base de conocimiento (principio P5) está escrita en YAML dentro de \texttt{knowledge\_base/},
+se revisa por pull request y un validador comprueba su estructura y sus referencias cruzadas
+antes de cargarla. Cada elemento cita su fuente: OWASP ASVS 4.0.3, MITRE CWE y OWASP API Security
+Top 10 (2023).
+
+\begin{table}[H]
+\centering
+\caption{Contenido de la base de conocimiento v1 tras la revisión del 30/10.}
+\begin{tabularx}{\textwidth}{@{}P{3.6cm}P{1.4cm}L@{}}
+\toprule
+\textbf{Tipo} & \textbf{Cantidad} & \textbf{Relaciones en el grafo}\\
+\midrule
+Patrones de microservicios & 6 & \texttt{MITIGA} CWE; los controles \texttt{SE\_IMPLEMENTA\_CON} el patrón\\
+Directrices Secure by Design & 6 & \texttt{MITIGA} CWE; los controles \texttt{SE\_IMPLEMENTA\_CON} la directriz\\
+Controles OWASP ASVS 4.0.3 & 27 & \texttt{CUBRE} CWE y \texttt{PREVIENE} riesgos de API\\
+Debilidades CWE & 47 & Destino de las relaciones anteriores y de los hallazgos\\
+Riesgos OWASP API Top 10 & 10 & \texttt{INCLUYE} CWE\\
+Fragmentos & 96 & \texttt{DESCRIBE} el elemento del que salen; embedding de 384 dimensiones\\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{Carga, embeddings y GraphRAG}
+\begin{itemize}
+\item \textbf{Cargador} (\pr{162}): \texttt{framework conocimiento cargar} valida la base y la
+escribe en Neo4j con \texttt{MERGE}, de modo que cargarla dos veces no duplica nada.
+\item \textbf{Fragmentos e índice vectorial} (\pr{165}): cada elemento se convierte en un
+fragmento de texto con su embedding (\texttt{paraphrase-multilingual-MiniLM-L12-v2}, 384
+dimensiones, multilingüe) y se indexa con un índice HNSW por similitud de coseno. Los fragmentos
+llevan la versión del contenido y del modelo, y los de versiones anteriores se retiran.
+\item \textbf{GraphRAG} (\pr{166}): \texttt{framework conocimiento consultar} busca los fragmentos
+más parecidos a la pregunta y, desde ellos, recorre el grafo para traer el conocimiento conectado:
+CWE, patrones, directrices, controles y riesgos de API. Así el LLM recibe contexto verificable y
+trazable, no solo texto parecido.
+\end{itemize}
+
+\subsection{Políticas OPA de los Security Gates}
+Las políticas de \texttt{policies/gates/} deciden si cada gate se aprueba (principio P1: el LLM
+propone, las reglas deciden). Son deterministas, tienen pruebas con \texttt{opa test} y fallan de
+forma segura: si falta un dato, el gate no se aprueba. Cada decisión devuelve la lista completa de
+criterios con \texttt{cumple} y su descripción, de modo que también una aprobación queda
+justificada regla por regla.
+
+\begin{table}[H]
+\centering
+\caption{Criterios de las políticas Rego de cada gate.}
+\begin{tabularx}{\textwidth}{@{}P{1.2cm}L@{}}
+\toprule
+\textbf{Gate} & \textbf{Criterios (todos deben cumplirse)}\\
+\midrule
+1 & Sin hallazgos críticos o altos; sin secretos (Gitleaks); el código compila; ninguna herramienta caída.\\
+2 & Contrato OpenAPI generado; sin errores de Spectral; sin \texttt{deny} de Conftest en el Docker Compose; sin otros hallazgos críticos o altos; ninguna herramienta caída.\\
+3 & Sin vulnerabilidades críticas o altas en el DAST (ZAP, Nuclei); ni en la imagen (Trivy image); SBOM generado; todas las pruebas de la fase 9 en verde; ninguna herramienta caída.\\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{Decisiones de los gates en el motor y en Neo4j}
+\texttt{framework gates decidir} (\pr{176}) arma la entrada de OPA a partir de los artefactos del
+pipeline (SARIF, contrato OpenAPI, SBOM y resultado de Jest), pide la decisión, la guarda en
+\texttt{salida/gates/} y la registra en el grafo. Los tres gates de un mismo pipeline comparten
+una ejecución:
+
+\begin{center}
+\small\ttfamily
+(:Ejecucion)-[:TIENE\_RESULTADO]->(:ResultadoGate)-[:BASADA\_EN \{cumple, detalle\}]->(:Regla)\\
+(:ResultadoGate)-[:BLOQUEADO\_POR \{regla\}]->(:Hallazgo)
+\end{center}
+
+En el workflow, un paso \emph{Decisión OPA} sigue a cada gate y detiene la cadena si OPA rechaza.
+Un pipeline de ejemplo en \texttt{tests/datos/gates/} prueba los tres resultados posibles: el
+Gate 1 se rechaza por un secreto y hallazgos altos, el Gate 2 se aprueba con una advertencia y el
+Gate 3 se rechaza por una inyección SQL que encuentra ZAP.
+
+\subsection{Benchmark de bases de datos}
+La prueba comparativa (\pr{170}, \texttt{evaluation/benchmark\_bd/}) cargó los mismos datos en
+Neo4j y en PostgreSQL con pgvector y midió 300 veces tres consultas típicas del motor.
+
+\begin{table}[H]
+\centering
+\caption{Latencia media vista desde el motor (ms), 28/10/2026.}
+\begin{tabularx}{\textwidth}{@{}LP{2.0cm}P{2.2cm}P{2.6cm}@{}}
+\toprule
+\textbf{Consulta} & \textbf{Neo4j} & \textbf{PostgreSQL} & \textbf{Resultados iguales}\\
+\midrule
+Trazabilidad a 3 saltos (riesgo → CWE → control) & 10,2 & 1,3 & 10 de 10 riesgos\\
+Controles que protegen frente a una CWE & 6,1 & 1,8 & 42 de 42 CWE\\
+5 fragmentos más parecidos (vectorial) & 7,9 & 1,5 & 88\,\% del top 5\\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\begin{cajaazul}{Decisión: se mantiene Neo4j}
+PostgreSQL fue entre 3 y 8 veces más rápido, pero las dos bases responden en milisegundos y la
+latencia del pipeline la dominan las herramientas y el LLM (segundos o minutos). Neo4j se mantiene
+porque el modelo del framework es un grafo de trazabilidad (requisito → decisión → hallazgo →
+regla) que se consulta con recorridos de longitud variable, y porque reúne el grafo y el índice
+vectorial en un solo servicio. La comparación queda como anexo para la defensa de la decisión.
+\end{cajaazul}
+
+\section{Plataforma y seguridad}
+
+\subsection{Avisos en Telegram}
+El notificador (\pr{157}, \pr{159}, \pr{174}) mantiene un único mensaje de progreso que se edita
+en cada fase y envía un mensaje nuevo al terminar, para que Telegram avise del resultado. Si la
+cadena se detiene, indica en qué gate se detuvo, marca las fases no ejecutadas y también cubre la
+cancelación. El token del bot nunca llega a los comandos que ejecuta el workflow.
+
+\subsection{Security Gate 2: integración}
+\begin{itemize}
+\item \textbf{Spectral} (\pr{161}): revisa el contrato OpenAPI del servicio con el conjunto de
+reglas OWASP API Security y 4 reglas propias (prefijo \texttt{/api}, sin secretos en la query, sin
+campos sensibles en las respuestas y versión semántica), que se autoprueban en cada ejecución con
+un contrato correcto y otro incorrecto.
+\item \textbf{Conftest} (\pr{163}): 11 reglas \texttt{deny} y 4 \texttt{warn} en Rego sobre el
+Docker Compose. Bloquean, entre otros, contenedores privilegiados, red del host, puertos abiertos
+a toda la red, imágenes \texttt{latest}, valores escritos en las variables de entorno y bases de
+datos compartidas entre servicios (patrón \emph{Database per Service}).
+\item \textbf{Keycloak} (\pr{164}): realm \texttt{framework} y guard JWT en el servicio de
+referencia; las rutas responden 401 sin token y 200 con un token válido.
+\end{itemize}
+
+\subsection{Security Gate 3: sistema en marcha}
+\begin{itemize}
+\item \textbf{Imagen y SBOM} (\pr{171}): Trivy image sobre una imagen final \emph{distroless} y
+SBOM en CycloneDX generado con Syft y validado.
+\item \textbf{DAST} (\pr{172}): ZAP con la política completa y Nuclei atacan el servicio, con un
+token de Keycloak, en un entorno desechable (\texttt{docker-compose.dast.yml}) y con límite de
+tiempo. ZAP encontró un error 500 al enviar un byte nulo en el nombre; se corrigió en la
+validación del DTO, con pruebas.
+\item \textbf{Conversor ZAP → SARIF} (\pr{173}): lleva los resultados de ZAP al formato común, a la
+pestaña Security y a la decisión de OPA.
+\end{itemize}
+
+% ======================================================================
+\chapter{Revisión de la base de conocimiento v1}
+% ======================================================================
+
+La revisión del 30/10 comprobó la base en tres niveles: la estructura de los YAML con el
+validador, la coherencia del grafo cargado con diez consultas Cypher de solo lectura y la calidad
+de las respuestas con consultas GraphRAG de prueba.
+
+\section{Resultado de las comprobaciones}
+
+\begin{table}[H]
+\centering
+\caption{Comprobaciones de la base cargada en Neo4j, antes y después de las correcciones.}
+\begin{tabularx}{\textwidth}{@{}LP{2.6cm}P{2.6cm}@{}}
+\toprule
+\textbf{Comprobación} & \textbf{Antes} & \textbf{Después}\\
+\midrule
+Validador de los YAML (estructura y referencias) & válida & válida\\
+Nodos de conocimiento sin ninguna relación & 0 & 0\\
+Elementos sin fragmento para GraphRAG & 3 CWE & 0\\
+Fragmentos sin embedding o con otra dimensión & 0 & 0\\
+CWE citadas por hallazgos que no están en el catálogo & 3 & 0\\
+CWE de las reglas Semgrep propias fuera del catálogo & 3 de 8 & 0 de 8\\
+CWE con al menos una mitigación (control, directriz o patrón) & 33 de 42 & 38 de 47\\
+Riesgos OWASP API con al menos un control & 9 de 10 & 9 de 10\\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{Hallazgos y correcciones}
+
+\begin{itemize}
+\item \textbf{Reglas propias sin respaldo en el catálogo.} Las reglas Semgrep
+\texttt{tls-verificacion-desactivada}, \texttt{hash-criptografico-debil} y
+\texttt{jwt-ignora-expiracion} citan CWE-295, CWE-327 y CWE-613, que no existían en el catálogo.
+Sus hallazgos quedaban en el grafo sin descripción ni controles. Se añadieron esas tres CWE y los
+controles ASVS 4.0.3 que las cubren según el CSV oficial: V9.2.1, V6.2.2 y V3.3.1. Una prueba
+nueva (\texttt{tests/test\_catalogos.py}) falla si una regla propia cita una CWE que no está en el
+catálogo.
+\item \textbf{CWE que solo llegaban por los hallazgos.} Semgrep reportó CWE-916 (hash de
+contraseñas débil) y ZAP reportó CWE-693 (falta un mecanismo de protección, como la cabecera CSP).
+Se añadieron al catálogo, y CWE-916 quedó cubierta por el control V2.4.1.
+\item \textbf{Asignación masiva sin control.} CWE-915, que detecta la regla
+\texttt{nestjs-validationpipe-sin-whitelist}, no tenía ningún control. Se añadió ASVS V5.1.2.
+\item \textbf{Archivo sobrante.} Se eliminó \texttt{knowledge\_base/patrones/.gitkeep}, que ya no
+hacía falta.
+\end{itemize}
+
+Tras las correcciones, la consulta GraphRAG \emph{``guardar contraseñas con hash MD5''} devuelve
+CWE-916 y el control V2.4.1, que antes no existían en la base.
+
+\section{Brechas que quedan para la versión 2}
+
+\begin{itemize}
+\item Nueve CWE no tienen ninguna mitigación: CWE-204, 213, 307, 444, 693, 799, 918, 942 y 1059.
+CWE-942 (CORS permisivo) la detecta la regla propia \texttt{nestjs-cors-abierto}, pero ASVS 4.0.3
+asocia su control de CORS (V14.5.3) a CWE-346, así que no se inventó el vínculo.
+\item El riesgo API9:2023 (gestión de inventario de API) no tiene ningún control.
+\item API6:2023 no tiene CWE porque OWASP no publica ninguna para ese riesgo; es correcto y se
+mantiene así.
+\item Las reglas Semgrep propias todavía no son nodos del grafo. El sprint 1 lo dejó previsto y
+conviene hacerlo antes del sprint 4, cuando el Gate 1 se aplique a código generado.
+\item El benchmark del 28/10 se midió con la base anterior a esta revisión (86 elementos). Los
+cambios no alteran sus conclusiones.
+\end{itemize}
+
+% ======================================================================
+\chapter{Estado del pipeline al cierre}
+% ======================================================================
+
+\section{Walking skeleton con los tres gates}
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+  font=\sffamily\footnotesize,
+  caja/.style={draw=azulfw,fill=azulclaro,rounded corners=2pt,align=center,minimum height=1.05cm,text width=2.1cm},
+  gate/.style={draw=ocrefw,fill=ocreclaro,rounded corners=2pt,align=center,minimum height=1.05cm,text width=2.1cm},
+  opa/.style={draw=verdefw,fill=verdeclaro,rounded corners=2pt,align=center,minimum height=0.8cm,text width=2.1cm},
+  fin/.style={draw=verdefw,fill=verdeclaro,rounded corners=2pt,align=center,minimum height=1.05cm,text width=3.0cm},
+  flecha/.style={-{Stealth[length=2.2mm]},thick,color=grisfw},
+  node distance=0.5cm and 0.45cm]
+\node[caja] (f3) {Fase 3\\compilación};
+\node[gate,right=of f3] (g1) {Fase 4: Gate 1\\SAST, secretos,\\dependencias};
+\node[gate,right=of g1] (g2) {Fase 8: Gate 2\\Spectral y\\Conftest};
+\node[caja,right=of g2] (f910) {Fases 9 y 10\\Jest e imagen\\\emph{distroless}};
+\node[gate,right=of f910] (g3) {Fase 11: Gate 3\\Trivy, SBOM,\\ZAP y Nuclei};
+\node[opa,below=of g1] (o1) {Decisión OPA};
+\node[opa,below=of g2] (o2) {Decisión OPA};
+\node[opa,below=of g3] (o3) {Decisión OPA};
+\node[fin,below=1.3cm of o2] (neo) {Neo4j: Ejecucion →\\ResultadoGate → Regla};
+\node[fin,left=1.2cm of neo] (tg) {Telegram: progreso\\y resultado final};
+\node[fin,right=1.2cm of neo] (sec) {GitHub Security:\\10 SARIF};
+\draw[flecha] (f3) -- (g1);
+\draw[flecha] (g1) -- (g2);
+\draw[flecha] (g2) -- (f910);
+\draw[flecha] (f910) -- (g3);
+\draw[flecha] (g1) -- (o1);
+\draw[flecha] (g2) -- (o2);
+\draw[flecha] (g3) -- (o3);
+\draw[flecha] (o1) |- (neo);
+\draw[flecha] (o2) -- (neo);
+\draw[flecha] (o3) |- (neo);
+\end{tikzpicture}
+\caption{Recorrido del walking skeleton en cada ejecución de GitHub Actions. Si una decisión de
+OPA rechaza un gate, la cadena se detiene y Telegram indica dónde.}
+\end{figure}
+
+\section{Fases del pipeline}
+
+\begin{table}[H]
+\centering
+\caption{Estado de cada fase del workflow al cierre del sprint 2 (ejecución \run{41341510212}).}
+\begin{tabularx}{\textwidth}{@{}P{0.9cm}P{4.0cm}P{2.6cm}L@{}}
+\toprule
+\textbf{Fase} & \textbf{Nombre} & \textbf{Estado} & \textbf{Detalle}\\
+\midrule
+1--2 & Requisitos y arquitectura & Pendiente & Sprint 3.\\
+3 & Generación y compilación & Versión inicial & Compila el servicio de referencia (57 s).\\
+4 & Security Gate 1 & Con decisión OPA & 8 comprobaciones, 5 SARIF, registro en Neo4j (40 s).\\
+5--6 & Refinamiento iterativo & Pendiente & Sprint 5.\\
+7 & Integración & Parcial & Keycloak con guard JWT; Traefik y RabbitMQ en el sprint 5.\\
+8 & Security Gate 2 & Con decisión OPA & Spectral y Conftest sobre el servicio de referencia (7 s).\\
+9 & Pruebas automatizadas & Versión inicial & 42 pruebas Jest con cobertura (4 s).\\
+10 & Contenerización & Versión inicial & Imagen \emph{distroless} sin root (1 min 14 s).\\
+11 & DAST y Security Gate 3 & Con decisión OPA & Trivy image, Syft, ZAP y Nuclei autenticados (5 min 20 s).\\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{Alertas abiertas en GitHub Security}
+
+Las 47 alertas abiertas en \texttt{dev} son de severidad advertencia o baja, por lo que las
+políticas las tratan como advertencias y no bloquean ningún gate. Quedan como deuda técnica del
+servicio de referencia:
+
+\begin{table}[H]
+\centering
+\caption{Alertas abiertas en \texttt{dev} al 01/11/2026.}
+\begin{tabularx}{\textwidth}{@{}P{2.2cm}P{1.4cm}L@{}}
+\toprule
+\textbf{Herramienta} & \textbf{Alertas} & \textbf{Reglas principales}\\
+\midrule
+Spectral & 25 & Falta limitación de peticiones y respuesta 429 (API4); falta definir las respuestas 500 y de validación (API8)\\
+Conftest & 14 & Avisos sobre los Compose de desarrollo y DAST: sin \emph{healthcheck}, sin \texttt{no-new-privileges}, imágenes sin digest y Keycloak en modo \texttt{start-dev}\\
+ZAP & 8 & Cabecera \texttt{X-Powered-By}, \texttt{X-Content-Type-Options} y \texttt{Cross-Origin-Resource-Policy}\\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+% ======================================================================
+\chapter{Incidencias y lecciones aprendidas}\label{cap:incidencias}
+% ======================================================================
+
+Como en el sprint 1, ninguna incidencia se resolvió relajando un gate.
+
+{\small
+\begin{longtable}{@{}P{3.3cm}P{4.5cm}P{5.0cm}P{1.2cm}@{}}
+\caption{Incidencias del sprint 2 y su corrección.}\\
+\toprule
+\textbf{Incidencia} & \textbf{Causa} & \textbf{Corrección} & \textbf{PR}\\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Incidencia} & \textbf{Causa} & \textbf{Corrección} & \textbf{PR}\\
+\midrule
+\endhead
+Gate 1 en rojo el 24/10 & Vulnerabilidades altas publicadas en \texttt{body-parser}, \texttt{multer} (servicio) y \texttt{pillow} (motor). & Actualización a las versiones corregidas en \texttt{package-lock.json} y \texttt{uv.lock}. & \pr{167}\\
+Gate 1 en rojo el 01/11 & Cuatro CVE altas nuevas en \texttt{pyasn1} 0.6.4, dependencia indirecta del cliente de Gemini. & \texttt{pyasn1} 0.6.5; Trivy sin hallazgos sobre el nuevo \texttt{uv.lock}. & \pr{175}\\
+Error 500 hallado por ZAP & Un byte nulo en el nombre llegaba hasta PostgreSQL, que lo rechaza. & El DTO rechaza caracteres de control; pruebas con byte nulo, salto de línea y DEL. & \pr{172}\\
+PR del Gate 3 en conflicto & La rama se creó sobre la de los Gates 1 y 2 antes de fusionarla; el \emph{squash} cambió el identificador de ese commit. & Se reaplicó solo el commit propio sobre \texttt{dev} (\texttt{git rebase -{}-onto}). & \pr{169}\\
+Gate 3 rechazado con un escaneo limpio & Nuclei no crea su SARIF cuando no encuentra nada y OPA lo trata como herramienta caída. & \texttt{gate3.sh} deja un SARIF sin resultados cuando el escaneo termina limpio. & \pr{176}\\
+Cada gate creaba su propia ejecución & Sin fase 4 previa, no quedaba registro de la ejecución creada. & El primer gate guarda su ejecución en \texttt{salida/gates/ejecucion.json} y los demás la reutilizan. & \pr{176}\\
+Docker Desktop no arranca (local) & El \emph{secrets engine} no podía abrir su socket en \texttt{\%LOCALAPPDATA\%}. & Se renombró la carpeta del \emph{secrets engine} y se reinició Docker, sin restablecer los datos de fábrica. & --\\
+Versión de Python distinta en local & Sin \texttt{.python-version}, uv eligió CPython 3.15 en una copia nueva del repositorio. & Se fijará 3.12 con \texttt{.python-version} en un PR propio. & pendiente\\
+\bottomrule
+\end{longtable}}
+
+\begin{cajaocre}{Lecciones principales}
+\begin{itemize}[leftmargin=1.2em]
+\item \textbf{Las dependencias cambian sin tocar el código.} Dos veces el Gate 1 pasó a rojo por
+CVE publicadas durante el sprint. Es el comportamiento esperado del gate, y obliga a reservar
+tiempo para actualizar dependencias en cada sprint.
+\item \textbf{Ramas cortas y desde \texttt{dev}.} Encadenar ramas sin fusionar, con fusión por
+\emph{squash}, produce conflictos artificiales. Cada tarea debe partir de \texttt{dev}
+actualizado y fusionarse antes de empezar la siguiente que dependa de ella.
+\item \textbf{Ausencia de dato frente a dato vacío.} Con el fallo seguro de OPA, una herramienta
+que no deja evidencia de un escaneo limpio provoca un rechazo. Cada herramienta debe dejar siempre
+su SARIF, aunque esté vacío.
+\end{itemize}
+\end{cajaocre}
+
+% ======================================================================
+\chapter{Seguridad del propio framework}
+% ======================================================================
+
+Controles del capítulo 10 del plan añadidos en el sprint 2, además de los del sprint 1:
+
+\begin{table}[H]
+\centering
+\caption{Controles del capítulo 10 implementados en el sprint 2.}
+\begin{tabularx}{\textwidth}{@{}P{4.2cm}L@{}}
+\toprule
+\textbf{Riesgo} & \textbf{Control activo}\\
+\midrule
+Decisiones de seguridad delegadas al LLM & Las aprueba o rechaza OPA con políticas versionadas y probadas (64 pruebas Rego en CI); el LLM no interviene.\\
+Decisiones sin trazabilidad & Cada decisión queda en Neo4j con su ejecución, sus criterios y los hallazgos que la bloquean.\\
+Manipulación del conocimiento & La base es YAML revisado por PR; el validador y las pruebas comprueban sus referencias, incluidas las CWE de las reglas propias.\\
+Fragmentos desactualizados en GraphRAG & Cada fragmento lleva la versión del contenido y del modelo; los de versiones anteriores se retiran al recargar.\\
+Credenciales de Telegram & Token y chat en GitHub Secrets; los comandos que ejecuta el workflow no los reciben.\\
+DAST sobre servicios reales & ZAP y Nuclei atacan un entorno desechable en una red aislada, con límite de tiempo.\\
+Imagen del servicio & Imagen final \emph{distroless}, sin shell ni gestor de paquetes, con SBOM verificable.\\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+% ======================================================================
+\chapter{Planificación del sprint 3}
+% ======================================================================
+
+\section{Objetivo}
+
+\begin{cajaazul}{Sprint 3: fases 1 y 2 (4 al 13 de noviembre de 2026)}
+Del documento de requisitos al modelo estructurado, la arquitectura validada por OPA, los ADR y el
+diagrama C4. Dataset de evaluación y primera versión del dashboard. Son 8 días y 64 horas de
+equipo. El siguiente hito de control es el del 27 de noviembre: el framework genera
+microservicios desde un documento de requisitos y les aplica el Security Gate 1.
+\end{cajaazul}
+
+{\small
+\begin{longtable}{@{}P{1.55cm}P{5.6cm}P{5.6cm}@{}}
+\caption{Cronograma del sprint 3 por integrante.}\\
+\toprule
+\textbf{Fecha} & \textbf{Marcelo (motor e IA)} & \textbf{Abner (plataforma y seguridad)}\\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Fecha} & \textbf{Marcelo (motor e IA)} & \textbf{Abner (plataforma y seguridad)}\\
+\midrule
+\endhead
+04/11 mié & Docling: extracción de PDF, DOCX y TXT. & Dataset: documento de requisitos 1 (tienda en línea).\\
+05/11 jue & Normalización del texto y esquema Pydantic \texttt{Requisito}. & Documentos 2 y 3 (gestión académica y citas médicas).\\
+06/11 vie & Clasificación RF/RNF y etiquetas de seguridad con LLM. & Dashboard React + Vite: estructura y carga del documento.\\
+09/11 lun & Requisitos guardados como nodos en Neo4j. & Dashboard: progreso por fase con Server-Sent Events.\\
+10/11 mar & Propuesta de arquitectura con LLM (contextos y servicios). & API del motor: endpoints de ejecución y estado.\\
+11/11 mié & OPA: reglas arquitectónicas e inferencia de patrones. & Generación de ADR en Markdown.\\
+12/11 jue & Ciclo LLM ↔ OPA (máximo 3 intentos) y nodos \texttt{Decision}. & Diagrama C4 en Mermaid.\\
+\rowcolor{azulclaro} 13/11 vie & \multicolumn{2}{P{11.6cm}}{Ambos: fases 1--2 con los 3 documentos, revisión de ADR y diagramas, demostración e informe del sprint 3.}\\
+\bottomrule
+\end{longtable}}
+
+\section{Dependencias y preparación}
+
+La planificación detallada, con las issues de cada tarea, los riesgos y los pendientes del sprint
+2, está en \texttt{docs/sprints/sprint3-planificacion.md} (\pr{177}).
+
+\begin{itemize}
+\item \textbf{GraphRAG en la fase 2.} La propuesta de arquitectura (10/11) es el primer uso real
+de GraphRAG: el LLM recibirá los patrones, directrices y controles conectados a los requisitos.
+Las brechas del capítulo 3 deben cerrarse antes o quedar documentadas en el ADR.
+\item \textbf{OPA para la arquitectura (11/11)} reutiliza el patrón de los gates: entrada armada
+por el motor, criterios con \texttt{cumple} y registro en Neo4j (nodos \texttt{Decision} enlazados
+a \texttt{Regla}, como \texttt{ResultadoGate}).
+\item \textbf{Dataset (04--05/11).} Los tres documentos de requisitos son también la entrada de
+los experimentos DSR, así que deben quedar versionados y sin cambios después del sprint 3.
+\item \textbf{Dashboard y API (06--10/11).} La API del motor debe exponer el estado de las fases
+antes de que el dashboard lo consuma; conviene acordar el formato de los eventos el 06/11.
+\item \textbf{Deuda heredada.} Fijar Python 3.12 con \texttt{.python-version}, revisar las 47
+alertas de severidad advertencia o baja y añadir las reglas Semgrep propias al grafo.
+\end{itemize}
+
+\appendix
+% ======================================================================
+\chapter{Evidencias}
+% ======================================================================
+
+\begin{table}[H]
+\centering
+\caption{Dónde comprobar cada resultado del sprint.}
+\begin{tabularx}{\textwidth}{@{}P{4.0cm}>{\raggedright\arraybackslash\small}X@{}}
+\toprule
+\textbf{Evidencia} & \textbf{Ubicación}\\
+\midrule
+Ejecución del hito (30/10) & \url{https://github.com/PracticasESPE/Framework_Desarrollo_Seguro/actions/runs/41135849778}\\
+Ejecución con decisiones OPA & \url{https://github.com/PracticasESPE/Framework_Desarrollo_Seguro/actions/runs/41341510212}\\
+Pestaña Security (SARIF) & \url{https://github.com/PracticasESPE/Framework_Desarrollo_Seguro/security/code-scanning}\\
+Base de conocimiento & \texttt{knowledge\_base/}\\
+Cargador, embeddings y GraphRAG & \texttt{orchestrator/knowledge/}\\
+Políticas de los gates & \texttt{policies/gates/} (con su README)\\
+Decisiones de los gates & \texttt{orchestrator/gates/decision.py} y \texttt{tests/datos/gates/}\\
+Benchmark de bases de datos & \texttt{evaluation/benchmark\_bd/resultados.md}\\
+Gate 2 & \texttt{scripts/gate2.sh}, \texttt{spectral/}, \texttt{policies/integracion/}\\
+Gate 3 y DAST & \texttt{scripts/gate3.sh}, \texttt{dast/}, \texttt{docker-compose.dast.yml}\\
+Keycloak & \texttt{keycloak/realm-framework.json}\\
+Notificador de Telegram & \texttt{orchestrator/notify/}\\
+Guía de la demostración del hito & \texttt{docs/sprints/sprint2-demostracion.md} (\pr{177})\\
+Planificación detallada del sprint 3 & \texttt{docs/sprints/sprint3-planificacion.md} (\pr{177})\\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section*{Cómo reproducir la base de conocimiento y las decisiones en local}
+Con Neo4j en marcha (\texttt{docker start fw-neo4j}) y OPA instalado, desde la raíz del
+repositorio:
+
+\begin{tcolorbox}[colback=white,colframe=grisfw,boxrule=0.4pt,arc=1mm,left=2mm]
+\small\ttfamily
+uv run framework conocimiento validar\\
+uv run framework conocimiento embeddings\\
+uv run framework conocimiento consultar "guardar contraseñas con hash MD5"\\
+opa test policies/ -v\\
+uv run framework gates decidir -{}-gate 1 -{}-salida tests/datos/gates -{}-compilacion-ok -{}-no-bloquear\\
+uv run framework gates listar
+\end{tcolorbox}
+
+\end{document}
