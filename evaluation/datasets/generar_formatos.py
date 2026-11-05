@@ -179,6 +179,10 @@ def escribir_pdf(bloques: list[tuple], titulo: str, destino: Path) -> None:
                 pdf.ln(2)
             case ("parrafo", texto):
                 pdf.set_font("Helvetica", size=11)
+                # Tampoco se parte un párrafo: algunos requisitos están en prosa.
+                lineas = pdf.multi_cell(0, 6, texto, dry_run=True, output="LINES")
+                if pdf.will_page_break(len(lineas) * 6):
+                    pdf.add_page()
                 pdf.multi_cell(0, 6, texto, new_x="LMARGIN", new_y="NEXT")
                 pdf.ln(3)
             case ("lista", numerada, elementos):
