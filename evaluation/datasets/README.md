@@ -6,9 +6,9 @@ del ciclo DSR (plan técnico, 11.3.1). Cada documento se ejecuta tres veces con 
 
 | Carpeta | Dominio | Complejidad | Estado |
 |---|---|---|---|
-| `01_tienda_en_linea/` | Tienda en línea | Baja | Listo (04/11/2026) |
-| `02_gestion_academica/` | Gestión académica | Media | Pendiente (05/11, #47) |
-| `03_citas_medicas/` | Citas médicas | Alta | Pendiente (05/11, #47) |
+| `01_tienda_en_linea/` | Tienda en línea | Baja | Listo (04/11/2026, #45) |
+| `02_gestion_academica/` | Gestión académica | Media | Listo (05/11/2026, #47) |
+| `03_citas_medicas/` | Citas médicas | Alta | Listo (05/11/2026, #47) |
 
 ## Estructura de cada documento
 
@@ -47,22 +47,53 @@ y el servicio `transversal`.
 | `servicio`, `servicios`, `patrones` | Comparación de la propuesta arquitectónica de la fase 2 |
 | `fuera_de_alcance` | Falsos positivos de la fase 1 |
 
-## Documento 1: tienda en línea
+## Los tres documentos
 
-Una pequeña empresa de artesanías que hoy vende por redes sociales abre su tienda en línea. Tiene
-tres tipos de usuario: visitante, cliente y administrador.
+| | 1. Tienda en línea | 2. Gestión académica | 3. Citas médicas |
+|---|---|---|---|
+| Requisitos (funcionales / no funcionales) | 30 (23 / 7) | 38 (28 / 10) | 43 (31 / 12) |
+| Historias de usuario | 2 | 4 | 3 |
+| No funcionales dentro de secciones funcionales | 1 | 2 | 4 |
+| Requisitos con etiquetas de seguridad / sin ellas | 19 / 11 | 25 / 13 | 28 / 15 |
+| Controles ASVS usados | 23 | 20 | 19 |
+| Riesgos del OWASP API Top 10 | 8 | 9 | 8 |
+| Servicios / patrones orientativos | 5 / 5 | 6 / 4 | 6 / 6 |
+| Frases fuera del alcance | 4 | 4 | 4 |
 
-- **Requisitos:** 30, de los que 23 son funcionales y 7 no funcionales. Dos están escritos como
-  historias de usuario y uno no funcional (RNF-01) está dentro de una sección funcional.
-- **Seguridad:** 19 requisitos llevan etiquetas de seguridad y 11 ninguna, para medir también los
-  falsos positivos. Usan 23 controles ASVS y 8 de los 10 riesgos del OWASP API Top 10.
-- **Arquitectura orientativa:** cinco servicios (usuarios, catálogo, pedidos, pagos y
-  notificaciones) y cinco patrones (`api_gateway`, `database_per_service`, `event_driven`, `saga` y
-  `circuit_breaker`).
-- **Fuera del alcance:** 4 frases.
-- **Huecos conocidos de la base de conocimiento v1:** no tiene controles de protección de datos
-  (ASVS V8) ni de registro (ASVS V7.1 a V7.3). Los requisitos afectados (RF-14, RF-20 y RF-23) lo
-  indican en su `nota`.
+Entre los tres suman 111 requisitos y cubren los 10 riesgos del OWASP API Top 10. Los requisitos
+sin etiquetas sirven para medir también los falsos positivos de la clasificación.
+
+La complejidad crece en los perfiles, en las integraciones y en lo que hay que deducir:
+
+- **Tienda en línea.** Una pequeña empresa de artesanías abre su tienda: visitante, cliente y
+  administrador, pago con una pasarela externa y control del stock.
+- **Gestión académica.** Un instituto con 1.200 estudiantes y cinco perfiles. Añade una matriz de
+  permisos en una tabla, una carga masiva desde CSV, el doble factor para el personal, la consulta
+  automática de la biblioteca con su versionado (API9) y la vista previa de enlaces externos
+  (SSRF, API7).
+- **Citas médicas.** Una red de tres clínicas con datos de salud. Añade el acceso de un padre a las
+  citas de sus hijos, el acceso de urgencia a cualquier historia con aviso a la dirección, el
+  registro de quién consulta cada historia, el laboratorio y la pasarela externos, recordatorios
+  sin datos de salud y aplicaciones distintas para pacientes y personal (patrón `bff`).
+
+Algunos requisitos esconden un control que el documento no nombra, como un código de verificación
+que no se debe poder adivinar o una vista previa que descarga direcciones ajenas. Su `nota` lo
+indica: la fase 2 debe inferirlo.
+
+## Huecos de la base de conocimiento v1
+
+La referencia solo puede citar controles que existen en `knowledge_base/`. Cuando un requisito
+necesita uno que falta, su `controles_asvs` queda incompleto y su `nota` lo dice. Son candidatos para
+la siguiente revisión de la base:
+
+| Falta en la base v1 | Requisitos afectados |
+|---|---|
+| ASVS V8, protección de datos | Doc. 1: RF-14 y RF-23 · Doc. 2: RNF-07 · Doc. 3: RNF-02, RF-22, RNF-04, RF-31 y RNF-12 |
+| ASVS V7.1 a V7.3, registro de seguridad | Doc. 1: RF-20 · Doc. 2: RF-17 · Doc. 3: RF-15 y RF-17 |
+| ASVS V2.7 y V2.8, doble factor | Doc. 2: RF-04 · Doc. 3: RF-05 |
+| ASVS V2.3, contraseñas iniciales | Doc. 2: RF-03 |
+| ASVS V6.1, cifrado de datos guardados | Doc. 3: RNF-02 |
+| CWE-1236, inyección de fórmulas en hojas de cálculo | Doc. 2: RF-27 |
 
 ## Regenerar los formatos
 

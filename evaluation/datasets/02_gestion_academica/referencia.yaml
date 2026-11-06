@@ -1,0 +1,483 @@
+# Respuesta esperada del documento de requisitos 2 (gestión académica).
+# Solo la usa la evaluación: el framework recibe requisitos.{pdf,docx,txt,md} y nunca este archivo.
+# Cada "texto" es literal del documento, para medir qué requisitos encuentra la fase 1.
+# Etiquetas: vocabulario de ../vocabulario.yaml. Controles, riesgos y patrones: knowledge_base/.
+documento: 02_gestion_academica
+titulo: Gestión académica
+version: "1.0"
+complejidad: media
+
+servicios:
+  - nombre: usuarios
+    responsabilidad: Cuentas, perfiles, doble factor, sesiones y registro de estudiantes
+  - nombre: oferta
+    responsabilidad: Asignaturas, paralelos, horarios, cupos y requisitos previos de cada periodo
+  - nombre: matriculas
+    responsabilidad: Matrícula, cupos, confirmación del pago, anulaciones y consulta de la biblioteca
+  - nombre: calificaciones
+    responsabilidad: Asistencia, notas, aprobación de cambios, cierre del periodo y reportes
+  - nombre: certificados
+    responsabilidad: Emisión de certificados en PDF y su verificación pública
+  - nombre: notificaciones
+    responsabilidad: Correos y recordatorios a partir de los eventos de matrícula y calificaciones
+
+# Orientativo: una propuesta razonable, no la única válida. Sirve para comparar la fase 2.
+patrones:
+  - patron: api_gateway
+    motivo: Única dirección de entrada y límite de peticiones por persona o equipo (11.1 y 11.3)
+  - patron: database_per_service
+    motivo: Matrícula, calificaciones y certificados se actualizan por separado (11.4)
+  - patron: event_driven
+    motivo: Los avisos reaccionan a la publicación de notas y a la confirmación de la matrícula (9.1)
+  - patron: circuit_breaker
+    motivo: Un fallo en los certificados no impide matricularse ni registrar notas (11.4)
+
+requisitos:
+  - id: RF-01
+    ubicacion: "2, tabla de permisos"
+    texto: "Cada perfil solo puede hacer lo que indica la siguiente tabla, y cualquier otra acción le está prohibida."
+    tipo: funcional
+    actor: sistema
+    entidades: [Usuario]
+    servicio: transversal
+    etiquetas: [autorizacion]
+    controles_asvs: [ASVS-V4.1.3, ASVS-V1.4.1, ASVS-V13.1.4]
+    riesgos_api: [API5:2023]
+    nota: El detalle de los permisos está en una tabla; la fase 1 debe leerla para entender el requisito.
+
+  - id: RF-02
+    ubicacion: "3.1"
+    texto: "Las cuentas de estudiantes y docentes las crea la secretaría, y nadie puede registrarse por su cuenta."
+    tipo: funcional
+    actor: secretaria
+    entidades: [Usuario]
+    servicio: usuarios
+    etiquetas: [autenticacion, autorizacion]
+    controles_asvs: [ASVS-V4.1.3]
+    riesgos_api: [API5:2023]
+
+  - id: RF-03
+    ubicacion: "3.2"
+    texto: "La primera vez que una persona entra al sistema, debe cambiar la contraseña temporal que recibió por correo."
+    tipo: funcional
+    actor: estudiante
+    entidades: [Usuario]
+    servicio: usuarios
+    etiquetas: [autenticacion]
+    controles_asvs: []
+    riesgos_api: [API2:2023]
+    nota: La base de conocimiento v1 no tiene los controles de contraseñas iniciales de ASVS V2.3.
+
+  - id: RF-04
+    ubicacion: "3.3"
+    texto: "Los docentes, la secretaría y la coordinación entran con su contraseña y además con un código de un solo uso que les da una aplicación de autenticación en el móvil."
+    tipo: funcional
+    actor: docente
+    entidades: [Usuario]
+    servicio: usuarios
+    etiquetas: [autenticacion]
+    controles_asvs: []
+    riesgos_api: [API2:2023]
+    nota: Doble factor. La base de conocimiento v1 no tiene los controles de ASVS V2.7 y V2.8.
+
+  - id: RNF-01
+    ubicacion: "3.4"
+    texto: "Si una sesión pasa 15 minutos sin actividad, se cierra sola, porque muchos equipos del instituto son compartidos."
+    tipo: no_funcional
+    actor: sistema
+    entidades: [Sesion]
+    servicio: usuarios
+    etiquetas: [autenticacion]
+    controles_asvs: [ASVS-V3.3.1]
+    riesgos_api: [API2:2023]
+    nota: Requisito no funcional dentro de una sección de requisitos funcionales.
+
+  - id: RNF-02
+    ubicacion: "3.5"
+    texto: "Las contraseñas tienen al menos 12 caracteres y nunca se guardan tal como se escriben."
+    tipo: no_funcional
+    actor: sistema
+    entidades: [Usuario]
+    servicio: usuarios
+    etiquetas: [hash_password, validacion_entrada]
+    controles_asvs: [ASVS-V2.4.1, ASVS-V6.2.2]
+    riesgos_api: []
+    nota: Requisito no funcional dentro de una sección de requisitos funcionales.
+
+  - id: RF-05
+    ubicacion: "4.1"
+    texto: "La secretaría registra a los estudiantes uno a uno o en bloque desde un archivo CSV de hasta 2.000 filas, y si alguna fila tiene datos inválidos el sistema rechaza el archivo completo e indica cuáles son."
+    tipo: funcional
+    actor: secretaria
+    entidades: [Estudiante]
+    servicio: usuarios
+    etiquetas: [autorizacion, validacion_entrada]
+    controles_asvs: [ASVS-V4.1.3, ASVS-V5.1.3, ASVS-V5.1.4]
+    riesgos_api: [API4:2023]
+
+  - id: RF-06
+    ubicacion: "4.2"
+    texto: "La coordinación define en cada periodo las asignaturas que se ofrecen, con sus paralelos, horarios, docentes y número de cupos."
+    tipo: funcional
+    actor: coordinacion
+    entidades: [Asignatura, Paralelo, Periodo]
+    servicio: oferta
+    etiquetas: [autorizacion]
+    controles_asvs: [ASVS-V4.1.3]
+    riesgos_api: [API5:2023]
+
+  - id: RF-07
+    ubicacion: "4.3"
+    texto: "Una asignatura puede exigir haber aprobado otras antes, y esos requisitos previos los define la coordinación."
+    tipo: funcional
+    actor: coordinacion
+    entidades: [Asignatura]
+    servicio: oferta
+    etiquetas: []
+    controles_asvs: []
+    riesgos_api: []
+
+  - id: RF-08
+    ubicacion: "4.4"
+    texto: "El estudiante consulta la oferta del periodo con los horarios y los cupos que quedan en cada paralelo."
+    tipo: funcional
+    actor: estudiante
+    entidades: [Paralelo, Periodo]
+    servicio: oferta
+    etiquetas: []
+    controles_asvs: []
+    riesgos_api: []
+
+  - id: RF-09
+    ubicacion: "5.1"
+    texto: "El estudiante se matricula en línea, y solo entre las fechas de matrícula que fija la coordinación para cada periodo."
+    tipo: funcional
+    actor: estudiante
+    entidades: [Matricula, Periodo]
+    servicio: matriculas
+    etiquetas: []
+    controles_asvs: [ASVS-V11.1.1]
+    riesgos_api: [API6:2023]
+
+  - id: RF-10
+    ubicacion: "5.2"
+    texto: "El sistema no deja matricular una asignatura si el estudiante no aprobó sus requisitos previos o si su horario choca con otra asignatura ya elegida."
+    tipo: funcional
+    actor: sistema
+    entidades: [Matricula, Asignatura]
+    servicio: matriculas
+    etiquetas: [validacion_entrada]
+    controles_asvs: [ASVS-V4.1.1]
+    riesgos_api: []
+
+  - id: RF-11
+    ubicacion: "5.3"
+    texto: "Los cupos se asignan por orden de llegada, y dos estudiantes nunca pueden quedarse a la vez con el último cupo de un paralelo."
+    tipo: funcional
+    actor: sistema
+    entidades: [Matricula, Paralelo]
+    servicio: matriculas
+    etiquetas: []
+    controles_asvs: [ASVS-V11.1.6]
+    riesgos_api: [API6:2023]
+    nota: Condición de carrera entre la comprobación del cupo y su asignación.
+
+  - id: RF-12
+    ubicacion: "5.4"
+    texto: "Para evitar programas que reserven cupos de forma automática, cada estudiante puede hacer como máximo 20 cambios en su matrícula por día."
+    tipo: funcional
+    actor: estudiante
+    entidades: [Matricula]
+    servicio: matriculas
+    etiquetas: [limite_peticiones]
+    controles_asvs: [ASVS-V11.1.4]
+    riesgos_api: [API6:2023]
+
+  - id: RF-13
+    ubicacion: "5.5"
+    texto: "La matrícula queda confirmada cuando la secretaría verifica el pago del arancel, que el estudiante hace en el banco fuera del sistema."
+    tipo: funcional
+    actor: secretaria
+    entidades: [Matricula]
+    servicio: matriculas
+    etiquetas: [autorizacion]
+    controles_asvs: [ASVS-V11.1.1, ASVS-V4.1.3]
+    riesgos_api: [API5:2023]
+
+  - id: RF-14
+    ubicacion: "6.1"
+    texto: "El docente registra la asistencia de cada clase, y solo en los paralelos que tiene asignados."
+    tipo: funcional
+    actor: docente
+    entidades: [Asistencia, Paralelo]
+    servicio: calificaciones
+    etiquetas: [autorizacion, control_acceso_recursos]
+    controles_asvs: [ASVS-V4.2.1, ASVS-V13.1.4]
+    riesgos_api: [API1:2023]
+
+  - id: RF-15
+    ubicacion: "6.2"
+    texto: "El docente registra tres notas parciales por estudiante, cada una entre 0 y 10 con dos decimales, y el sistema calcula el promedio final."
+    tipo: funcional
+    actor: docente
+    entidades: [Calificacion]
+    servicio: calificaciones
+    etiquetas: [validacion_entrada]
+    controles_asvs: [ASVS-V5.1.4]
+    riesgos_api: []
+
+  - id: RF-16
+    ubicacion: "6.3"
+    texto: "Las notas se publican a los estudiantes cuando el docente las da por terminadas; una vez publicadas, el docente solo puede cambiarlas con la aprobación de la coordinación y explicando el motivo."
+    tipo: funcional
+    actor: docente
+    entidades: [Calificacion]
+    servicio: calificaciones
+    etiquetas: [autorizacion, auditoria]
+    controles_asvs: [ASVS-V11.1.1, ASVS-V4.1.3]
+    riesgos_api: [API5:2023]
+
+  - id: RF-17
+    ubicacion: "6.4"
+    texto: "Cada cambio de una nota guarda el valor anterior, el nuevo, quién lo hizo, quién lo aprobó y cuándo, y ese historial no se puede borrar."
+    tipo: funcional
+    actor: sistema
+    entidades: [Calificacion, RegistroAuditoria]
+    servicio: calificaciones
+    etiquetas: [auditoria]
+    controles_asvs: []
+    riesgos_api: []
+    nota: La base de conocimiento v1 no tiene los controles de registro de ASVS V7.1 a V7.3.
+
+  - id: RF-18
+    ubicacion: "6.5"
+    texto: "El estudiante consulta solo sus propias notas y su asistencia, nunca las de sus compañeros."
+    tipo: funcional
+    actor: estudiante
+    entidades: [Calificacion, Asistencia]
+    servicio: calificaciones
+    etiquetas: [autorizacion, control_acceso_recursos]
+    controles_asvs: [ASVS-V4.2.1]
+    riesgos_api: [API1:2023]
+
+  - id: RF-19
+    ubicacion: "6.6"
+    texto: "Al cerrar el periodo, la coordinación bloquea todas las notas y ya nadie puede modificarlas."
+    tipo: funcional
+    actor: coordinacion
+    entidades: [Calificacion, Periodo]
+    servicio: calificaciones
+    etiquetas: [autorizacion]
+    controles_asvs: [ASVS-V11.1.1, ASVS-V4.1.3]
+    riesgos_api: [API5:2023]
+
+  - id: RF-20
+    ubicacion: "7.1"
+    texto: "El estudiante pide en línea certificados de matrícula y de notas, y los recibe en PDF en menos de un día hábil."
+    tipo: funcional
+    actor: estudiante
+    entidades: [Certificado]
+    servicio: certificados
+    etiquetas: []
+    controles_asvs: []
+    riesgos_api: []
+
+  - id: RF-21
+    ubicacion: "7.2"
+    texto: "Cada certificado lleva un código con el que cualquier empresa puede comprobar en la web del instituto que es auténtico, sin ver más datos que los del propio certificado."
+    tipo: funcional
+    actor: visitante
+    entidades: [Certificado]
+    servicio: certificados
+    etiquetas: [control_acceso_recursos, limite_peticiones]
+    controles_asvs: [ASVS-V4.2.1, ASVS-V11.1.4]
+    riesgos_api: [API1:2023, API4:2023]
+    nota: >-
+      Consulta pública: el código no debe poderse adivinar ni probar de forma masiva. El documento
+      no lo dice; la fase 2 debe inferirlo.
+
+  - id: RF-22
+    ubicacion: "8.1"
+    texto: "El sistema de la biblioteca del instituto consulta de forma automática si una persona está matriculada en el periodo actual, solo recibe como respuesta sí o no, y ningún otro sistema puede hacer esa consulta."
+    tipo: funcional
+    actor: biblioteca
+    entidades: [Matricula]
+    servicio: matriculas
+    etiquetas: [autenticacion, autorizacion]
+    controles_asvs: [ASVS-V2.10.4, ASVS-V4.1.3]
+    riesgos_api: [API2:2023, API3:2023]
+    nota: Integración entre sistemas con autenticación de servicio y exposición mínima de datos.
+
+  - id: RF-23
+    ubicacion: "9.1"
+    texto: "El estudiante recibe un correo cuando se publican sus notas y cuando su matrícula queda confirmada."
+    tipo: funcional
+    actor: sistema
+    entidades: [Notificacion]
+    servicio: notificaciones
+    etiquetas: []
+    controles_asvs: []
+    riesgos_api: []
+
+  - id: RF-24
+    ubicacion: "9.2"
+    texto: "Los docentes reciben un recordatorio tres días antes de que cierre el plazo para registrar las notas."
+    tipo: funcional
+    actor: sistema
+    entidades: [Notificacion, Periodo]
+    servicio: notificaciones
+    etiquetas: []
+    controles_asvs: []
+    riesgos_api: []
+
+  - id: RF-25
+    ubicacion: "10, primera historia"
+    texto: "Como estudiante, quiero anular una asignatura hasta la cuarta semana de clases, para no reprobarla si no puedo seguirla."
+    tipo: funcional
+    actor: estudiante
+    entidades: [Matricula]
+    servicio: matriculas
+    etiquetas: [autorizacion, control_acceso_recursos]
+    controles_asvs: [ASVS-V4.2.1, ASVS-V11.1.1]
+    riesgos_api: [API1:2023]
+    nota: Requisito escrito como historia de usuario.
+
+  - id: RF-26
+    ubicacion: "10, segunda historia"
+    texto: "Como coordinador, quiero un reporte del porcentaje de aprobados por asignatura y por docente, para detectar a tiempo las asignaturas con problemas."
+    tipo: funcional
+    actor: coordinacion
+    entidades: [Calificacion]
+    servicio: calificaciones
+    etiquetas: [autorizacion]
+    controles_asvs: [ASVS-V4.1.3]
+    riesgos_api: [API5:2023]
+    nota: Requisito escrito como historia de usuario.
+
+  - id: RF-27
+    ubicacion: "10, tercera historia"
+    texto: "Como docente, quiero descargar en una hoja de cálculo la lista de mis estudiantes con sus notas, para poder trabajar sin conexión."
+    tipo: funcional
+    actor: docente
+    entidades: [Calificacion]
+    servicio: calificaciones
+    etiquetas: [autorizacion, control_acceso_recursos]
+    controles_asvs: [ASVS-V4.2.1]
+    riesgos_api: [API1:2023]
+    nota: >-
+      Requisito escrito como historia de usuario. La exportación a hoja de cálculo admite
+      inyección de fórmulas (CWE-1236), que la base de conocimiento v1 no recoge.
+
+  - id: RF-28
+    ubicacion: "10, cuarta historia"
+    texto: "Como docente, quiero añadir a mis cursos enlaces a materiales de otras páginas web y que el sistema muestre una vista previa de cada uno, para que los estudiantes sepan qué van a abrir."
+    tipo: funcional
+    actor: docente
+    entidades: [Material, Asignatura]
+    servicio: oferta
+    etiquetas: [validacion_entrada]
+    controles_asvs: [ASVS-V5.1.3]
+    riesgos_api: [API7:2023]
+    nota: >-
+      Requisito escrito como historia de usuario. Para la vista previa el servidor descarga una
+      dirección que elige el usuario: riesgo de SSRF. El documento no lo dice; la fase 2 debe
+      inferirlo.
+
+  - id: RNF-03
+    ubicacion: "11.1"
+    texto: "Todo el acceso al sistema debe viajar cifrado y pasar por una única dirección, tanto desde el campus como desde fuera."
+    tipo: no_funcional
+    actor: sistema
+    entidades: []
+    servicio: transversal
+    etiquetas: [cifrado_transito, punto_unico_acceso]
+    controles_asvs: [ASVS-V9.1.1, ASVS-V14.4.5, ASVS-V1.14.1]
+    riesgos_api: [API8:2023]
+
+  - id: RNF-04
+    ubicacion: "11.2"
+    texto: "Durante las dos semanas de matrícula, el sistema debe atender a 1.200 estudiantes conectados a la vez sin que una matrícula tarde más de tres segundos."
+    tipo: no_funcional
+    actor: sistema
+    entidades: [Matricula]
+    servicio: matriculas
+    etiquetas: []
+    controles_asvs: []
+    riesgos_api: []
+
+  - id: RNF-05
+    ubicacion: "11.3"
+    texto: "Ninguna persona ni ningún equipo puede hacer más de 60 peticiones por minuto."
+    tipo: no_funcional
+    actor: sistema
+    entidades: []
+    servicio: transversal
+    etiquetas: [limite_peticiones]
+    controles_asvs: [ASVS-V11.1.4]
+    riesgos_api: [API4:2023]
+
+  - id: RNF-06
+    ubicacion: "11.4"
+    texto: "La matrícula, las calificaciones y los certificados deben poder actualizarse por separado, y un fallo en los certificados no puede impedir matricularse ni registrar notas."
+    tipo: no_funcional
+    actor: sistema
+    entidades: []
+    servicio: transversal
+    etiquetas: []
+    controles_asvs: []
+    riesgos_api: []
+    nota: Origen de los patrones database_per_service y circuit_breaker.
+
+  - id: RNF-07
+    ubicacion: "11.5"
+    texto: "Las notas y los datos personales se respaldan cada día y se pueden recuperar tal como estaban en cualquiera de los últimos 30 días."
+    tipo: no_funcional
+    actor: sistema
+    entidades: [Calificacion, Estudiante]
+    servicio: transversal
+    etiquetas: []
+    controles_asvs: []
+    riesgos_api: []
+    nota: La base de conocimiento v1 no tiene controles de respaldo ni de protección de datos (ASVS V8).
+
+  - id: RNF-08
+    ubicacion: "11.6"
+    texto: "Los mensajes de error no muestran detalles internos del sistema."
+    tipo: no_funcional
+    actor: sistema
+    entidades: []
+    servicio: transversal
+    etiquetas: []
+    controles_asvs: [ASVS-V7.4.1, ASVS-V14.3.2]
+    riesgos_api: [API8:2023]
+
+  - id: RNF-09
+    ubicacion: "11.7"
+    texto: "Las claves de las bases de datos y la que usa la biblioteca no pueden estar escritas en el código."
+    tipo: no_funcional
+    actor: sistema
+    entidades: []
+    servicio: transversal
+    etiquetas: []
+    controles_asvs: [ASVS-V2.10.4, ASVS-V6.4.1]
+    riesgos_api: []
+    nota: El vocabulario de etiquetas no tiene una para secretos; queda cubierto por los controles.
+
+  - id: RNF-10
+    ubicacion: "11.8"
+    texto: "Cada versión de la consulta que usa la biblioteca está documentada, y una versión antigua solo se retira después de avisar con un mes de anticipación."
+    tipo: no_funcional
+    actor: sistema
+    entidades: []
+    servicio: matriculas
+    etiquetas: []
+    controles_asvs: []
+    riesgos_api: [API9:2023]
+    nota: Inventario y versionado de la API que consume un sistema externo.
+
+# Frases que no deben convertirse en requisitos: miden los falsos positivos de la fase 1.
+fuera_de_alcance:
+  - Clases virtuales ni un aula en línea.
+  - Pagar el arancel dentro del sistema.
+  - La nómina de los docentes.
+  - Una aplicación móvil propia.

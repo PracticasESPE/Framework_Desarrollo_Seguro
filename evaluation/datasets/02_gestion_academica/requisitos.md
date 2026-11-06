@@ -1,0 +1,104 @@
+# Gestión académica: documento de requisitos
+
+Versión 1.0, noviembre de 2026.
+
+## 1. Contexto
+
+Un instituto tecnológico privado, con unos 1.200 estudiantes y 80 docentes, gestiona hoy la matrícula, las calificaciones y los certificados con hojas de cálculo y con un sistema antiguo que solo funciona dentro del campus. En cada periodo de matrícula se forman colas, hay estudiantes inscritos en dos asignaturas a la misma hora y los certificados tardan una semana porque la secretaría los prepara a mano.
+
+El instituto quiere un sistema en línea para estudiantes, docentes y personal administrativo, que se pueda usar desde cualquier lugar y que deje constancia de cada cambio en las notas. Tiene dos periodos académicos al año.
+
+## 2. Perfiles
+
+| Perfil | Quién es | Qué hace en el sistema |
+|---|---|---|
+| Estudiante | Persona matriculada en una carrera | Se matricula, consulta sus notas y pide certificados |
+| Docente | Profesor contratado por el instituto | Registra la asistencia y las notas de sus cursos |
+| Secretaría | Personal administrativo | Gestiona estudiantes, matrículas y certificados |
+| Coordinación | Coordinadores de cada carrera | Define la oferta, aprueba cambios de notas y cierra los periodos |
+| Administrador | Personal de sistemas | Gestiona las cuentas y los perfiles |
+
+Cada perfil solo puede hacer lo que indica la siguiente tabla, y cualquier otra acción le está prohibida.
+
+| Acción | Estudiante | Docente | Secretaría | Coordinación |
+|---|---|---|---|---|
+| Matricularse | Sí | No | No | No |
+| Registrar asistencia y notas | No | En sus cursos | No | No |
+| Cambiar una nota publicada | No | Con aprobación | No | Aprueba |
+| Emitir certificados | Los pide | No | Sí | No |
+| Cerrar un periodo | No | No | No | Sí |
+
+## 3. Cuentas y acceso
+
+1. Las cuentas de estudiantes y docentes las crea la secretaría, y nadie puede registrarse por su cuenta.
+2. La primera vez que una persona entra al sistema, debe cambiar la contraseña temporal que recibió por correo.
+3. Los docentes, la secretaría y la coordinación entran con su contraseña y además con un código de un solo uso que les da una aplicación de autenticación en el móvil.
+4. Si una sesión pasa 15 minutos sin actividad, se cierra sola, porque muchos equipos del instituto son compartidos.
+5. Las contraseñas tienen al menos 12 caracteres y nunca se guardan tal como se escriben.
+
+## 4. Estudiantes y oferta académica
+
+1. La secretaría registra a los estudiantes uno a uno o en bloque desde un archivo CSV de hasta 2.000 filas, y si alguna fila tiene datos inválidos el sistema rechaza el archivo completo e indica cuáles son.
+2. La coordinación define en cada periodo las asignaturas que se ofrecen, con sus paralelos, horarios, docentes y número de cupos.
+3. Una asignatura puede exigir haber aprobado otras antes, y esos requisitos previos los define la coordinación.
+4. El estudiante consulta la oferta del periodo con los horarios y los cupos que quedan en cada paralelo.
+
+## 5. Matrícula
+
+1. El estudiante se matricula en línea, y solo entre las fechas de matrícula que fija la coordinación para cada periodo.
+2. El sistema no deja matricular una asignatura si el estudiante no aprobó sus requisitos previos o si su horario choca con otra asignatura ya elegida.
+3. Los cupos se asignan por orden de llegada, y dos estudiantes nunca pueden quedarse a la vez con el último cupo de un paralelo.
+4. Para evitar programas que reserven cupos de forma automática, cada estudiante puede hacer como máximo 20 cambios en su matrícula por día.
+5. La matrícula queda confirmada cuando la secretaría verifica el pago del arancel, que el estudiante hace en el banco fuera del sistema.
+
+## 6. Asistencia y calificaciones
+
+1. El docente registra la asistencia de cada clase, y solo en los paralelos que tiene asignados.
+2. El docente registra tres notas parciales por estudiante, cada una entre 0 y 10 con dos decimales, y el sistema calcula el promedio final.
+3. Las notas se publican a los estudiantes cuando el docente las da por terminadas; una vez publicadas, el docente solo puede cambiarlas con la aprobación de la coordinación y explicando el motivo.
+4. Cada cambio de una nota guarda el valor anterior, el nuevo, quién lo hizo, quién lo aprobó y cuándo, y ese historial no se puede borrar.
+5. El estudiante consulta solo sus propias notas y su asistencia, nunca las de sus compañeros.
+6. Al cerrar el periodo, la coordinación bloquea todas las notas y ya nadie puede modificarlas.
+
+## 7. Certificados
+
+1. El estudiante pide en línea certificados de matrícula y de notas, y los recibe en PDF en menos de un día hábil.
+2. Cada certificado lleva un código con el que cualquier empresa puede comprobar en la web del instituto que es auténtico, sin ver más datos que los del propio certificado.
+
+## 8. Biblioteca
+
+1. El sistema de la biblioteca del instituto consulta de forma automática si una persona está matriculada en el periodo actual, solo recibe como respuesta sí o no, y ningún otro sistema puede hacer esa consulta.
+
+## 9. Avisos
+
+1. El estudiante recibe un correo cuando se publican sus notas y cuando su matrícula queda confirmada.
+2. Los docentes reciben un recordatorio tres días antes de que cierre el plazo para registrar las notas.
+
+## 10. Historias de usuario
+
+En las entrevistas con estudiantes, docentes y coordinadores se recogieron además estas peticiones:
+
+- Como estudiante, quiero anular una asignatura hasta la cuarta semana de clases, para no reprobarla si no puedo seguirla.
+- Como coordinador, quiero un reporte del porcentaje de aprobados por asignatura y por docente, para detectar a tiempo las asignaturas con problemas.
+- Como docente, quiero descargar en una hoja de cálculo la lista de mis estudiantes con sus notas, para poder trabajar sin conexión.
+- Como docente, quiero añadir a mis cursos enlaces a materiales de otras páginas web y que el sistema muestre una vista previa de cada uno, para que los estudiantes sepan qué van a abrir.
+
+## 11. Condiciones generales
+
+1. Todo el acceso al sistema debe viajar cifrado y pasar por una única dirección, tanto desde el campus como desde fuera.
+2. Durante las dos semanas de matrícula, el sistema debe atender a 1.200 estudiantes conectados a la vez sin que una matrícula tarde más de tres segundos.
+3. Ninguna persona ni ningún equipo puede hacer más de 60 peticiones por minuto.
+4. La matrícula, las calificaciones y los certificados deben poder actualizarse por separado, y un fallo en los certificados no puede impedir matricularse ni registrar notas.
+5. Las notas y los datos personales se respaldan cada día y se pueden recuperar tal como estaban en cualquiera de los últimos 30 días.
+6. Los mensajes de error no muestran detalles internos del sistema.
+7. Las claves de las bases de datos y la que usa la biblioteca no pueden estar escritas en el código.
+8. Cada versión de la consulta que usa la biblioteca está documentada, y una versión antigua solo se retira después de avisar con un mes de anticipación.
+
+## 12. Fuera del alcance
+
+En esta primera versión el instituto no necesita lo siguiente:
+
+- Clases virtuales ni un aula en línea.
+- Pagar el arancel dentro del sistema.
+- La nómina de los docentes.
+- Una aplicación móvil propia.
