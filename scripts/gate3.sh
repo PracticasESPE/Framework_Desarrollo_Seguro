@@ -19,6 +19,7 @@ SBOM=salida/sbom/sbom.json
 DIR_IMAGEN=salida/imagen
 ARCHIVO_IMAGEN=$DIR_IMAGEN/imagen.tar
 CACHE=.trivy-cache
+EXCEPCIONES=.trivyignore.yaml
 PAUSA=${PAUSA:-15}
 TRIVY_IMG=aquasec/trivy:0.71.1
 SYFT_IMG=anchore/syft:v1.54.1
@@ -249,9 +250,13 @@ fi
 if [ -s "$ARCHIVO_IMAGEN" ]; then
   echo "=== 2/6 Trivy image: vulnerabilidades del sistema operativo y de las librerias ==="
   # --table-mode detailed: solo las tablas con hallazgos, sin una fila por cada librería limpia.
+  # $EXCEPCIONES: hallazgos aceptados con justificación y fecha de caducidad; --show-suppressed
+  # los deja a la vista en el log.
   ejecutar "Trivy image" "$HALLAZGO" trivy image --input "$ARCHIVO_IMAGEN" --scanners vuln \
-    --severity HIGH,CRITICAL --exit-code "$HALLAZGO" --timeout 10m --table-mode detailed
+    --severity HIGH,CRITICAL --exit-code "$HALLAZGO" --timeout 10m --table-mode detailed \
+    --ignorefile "$EXCEPCIONES" --show-suppressed
   reintentar trivy image --input "$ARCHIVO_IMAGEN" --scanners vuln --severity HIGH,CRITICAL \
+    --ignorefile "$EXCEPCIONES" \
     --timeout 10m --format sarif --output "$SARIF/trivy-image.sarif" >/dev/null \
     || echo "::warning::No se pudo generar trivy-image.sarif"
   contar_hallazgos
