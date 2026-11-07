@@ -1,14 +1,28 @@
-# Excepciones de Trivy image (Gate 3). Solo se acepta un hallazgo que no tenga corrección
-# publicada y que no se pueda alcanzar desde el servicio. Cada excepción se limita al paquete
-# afectado, explica por qué y caduca: al vencer, el hallazgo vuelve y el Gate 3 lo bloquea hasta
-# que alguien la revise. Trivy las sigue mostrando en el log como "Suppressed Vulnerabilities".
+# Excepciones de Trivy image (Gate 3). Solo se acepta un hallazgo cuya corrección todavía no
+# está en la imagen base y que no se pueda alcanzar desde el servicio. Cada excepción se limita al
+# paquete afectado, explica por qué y caduca: al vencer, el hallazgo vuelve y el Gate 3 lo bloquea
+# hasta que alguien la revise. Trivy las sigue mostrando en el log como "Suppressed Vulnerabilities".
+#
+# zlib1g (CVE-2026-76844 y CVE-2026-85091): Debian publicó la corrección en
+# 1:1.3.dfsg+really1.3.1-1+deb13u1, pero la imagen distroless nodejs22-debian13 aún trae la
+# version +b1. El Dockerfile usa la etiqueta, no un digest: en cuanto Google reconstruya la imagen,
+# el CI la descarga, Trivy deja de verlas y estas entradas se borran.
 vulnerabilities:
   - id: CVE-2026-76844
     purls:
       - pkg:deb/debian/zlib1g
     statement: >-
       Desbordamiento en gzwrite() de la zlib del sistema (1.2.11 a 1.3.2), en la imagen base
-      distroless nodejs22-debian13. Debian aun no publica la version corregida. El servicio no la
-      alcanza: Node.js usa su propia zlib y su propio OpenSSL compilados en el binario, no carga
-      libz.so, y su modulo zlib no usa la API gz*. Revisado el 06/11/2026 (Abner).
-    expired_at: 2026-12-06
+      distroless. El servicio no la alcanza: Node.js usa su propia zlib y su propio OpenSSL
+      compilados en el binario, no carga libz.so, y su modulo zlib no usa la API gz*. Revisado el
+      06/11/2026; corregida en Debian deb13u1, pendiente en distroless el 07/11/2026 (Abner).
+    expired_at: 2026-11-21
+  - id: CVE-2026-85091
+    purls:
+      - pkg:deb/debian/zlib1g
+    statement: >-
+      Desbordamiento en gz_vacate() de la zlib del sistema (1.3.1.2 a 1.3.2) al usar gzprintf()
+      tras una escritura bloqueada, en la imagen base distroless. Mismo caso que CVE-2026-76844:
+      Node.js no carga libz.so ni usa la API gz*. Corregida en Debian deb13u1, pendiente en
+      distroless. Revisado el 07/11/2026 (Abner).
+    expired_at: 2026-11-21
