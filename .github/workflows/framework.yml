@@ -341,3 +341,47 @@ jobs:
       - name: Aviso de cancelación (Telegram)
         if: cancelled()
         run: uv run python -m orchestrator.notify.cli cancelado
+
+  # El dashboard es la interfaz del propio framework, no parte de lo que genera. Por eso no entra
+  # en el Gate 1, cuyos SARIF alimentan la decisión de OPA y las métricas de cada ejecución, sino
+  # que se revisa aquí con las mismas herramientas. Trivy fs y Gitleaks del Gate 1 ya cubren su
+  # package-lock.json y su historial.
+  dashboard:
+    name: Dashboard (React + Vite)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: dashboard
+    steps:
+      - name: Descargar el repositorio
+        uses: actions/checkout@v6
+
+      - name: Preparar Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: dashboard/package-lock.json
+
+      - name: Instalar dependencias (sin scripts de instalación)
+        run: npm ci --ignore-scripts
+
+      - name: ESLint (eslint-plugin-security y reglas con tipos)
+        run: npm run lint
+
+      - name: Pruebas (Vitest)
+        run: npm test
+
+      - name: Compilación (tsc y Vite)
+        run: npm run build
+
+      - name: Semgrep (SAST)
+        working-directory: .
+        run: >-
+          docker run --rm -v "$PWD:/src" semgrep/semgrep:1.172.0
+          semgrep scan --config p/typescript --config p/react --metrics=off --error
+          --severity ERROR --severity WARNING
+          --exclude "*.test.ts" --exclude "*.test.tsx" dashboard/src
