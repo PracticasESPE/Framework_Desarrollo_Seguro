@@ -714,5 +714,99 @@ def gates_listar(
         typer.echo(f"    {r['justificacion']}")
 
 
+requisitos_app = typer.Typer(
+    help="Fase 1: documento de requisitos (extracción a Markdown).", no_args_is_help=True
+)
+app.add_typer(requisitos_app, name="requisitos")
+
+
+def _base_del_archivo(ruta: Path) -> str:
+    """Nombre seguro para los archivos de salida: solo letras, números, guiones y el formato."""
+    import re
+
+    raiz = re.sub(r"[^a-z0-9_-]+", "-", ruta.stem.lower()).strip("-") or "documento"
+    return f"{raiz[:60]}-{ruta.suffix.lower().lstrip('.')}"
+
+
+@requisitos_app.command("extraer")
+def requisitos_extraer(
+    ruta: Annotated[
+        Path | None,
+        typer.Argument(help="Documento de requisitos local (PDF, DOCX, TXT o MD)."),
+    ] = None,
+    documento: Annotated[
+        str | None,
+        typer.Option("--documento", help="Id de un documento cargado desde el dashboard o la API."),
+    ] = None,
+    destino: Annotated[
+        Path | None,
+        typer.Option("--destino", help="Carpeta de salida; por defecto salida/requisitos."),
+    ] = None,
+    vista_previa: Annotated[
+        int, typer.Option("--vista-previa", min=0, help="Líneas del Markdown que se muestran.")
+    ] = 12,
+) -> None:
+    """Extrae el documento de requisitos a Markdown con Docling y lo guarda con sus metadatos."""
+    import json
+    import re
+
+    from orchestrator.documentos import DocumentoCargado, ErrorDocumento
+    from orchestrator.ingest import extraer_markdown
+
+    config = obtener_configuracion()
+    if (ruta is None) == (documento is None):
+        typer.echo("Indica una ruta o un --documento, solo uno de los dos.", err=True)
+        raise typer.Exit(2)
+
+    nombre = None
+    if documento is not None:
+        # El id lo genera el servidor (uuid4 en hexadecimal); cualquier otra cosa podría ser una
+        # ruta, así que se rechaza antes de tocar el disco (CWE-22).
+        if not re.fullmatch(r"[0-9a-f]{32}", documento):
+            typer.echo("Id de documento no válido.", err=True)
+            raise typer.Exit(2)
+        carpeta = config.directorio_salida / "documentos"
+        try:
+            ficha = DocumentoCargado.model_validate_json(
+                (carpeta / f"{documento}.json").read_bytes()
+            )
+        except (OSError, ValueError) as error:
+            typer.echo(f"No existe el documento {documento}.", err=True)
+            raise typer.Exit(1) from error
+        ruta, nombre, base = carpeta / f"{documento}.{ficha.formato}", ficha.nombre, documento
+    else:
+        assert ruta is not None
+        if not ruta.is_file():
+            typer.echo(f"No existe el archivo {ruta}.", err=True)
+            raise typer.Exit(1)
+        base = _base_del_archivo(ruta)
+
+    try:
+        extraido = extraer_markdown(ruta, nombre)
+    except ErrorDocumento as error:
+        typer.echo(f"Error: {error}", err=True)
+        raise typer.Exit(1) from error
+
+    carpeta_salida = destino or config.directorio_salida / "requisitos"
+    carpeta_salida.mkdir(parents=True, exist_ok=True)
+    markdown = carpeta_salida / f"{base}.md"
+    markdown.write_text(extraido.markdown, encoding="utf-8")
+    metadatos = extraido.model_dump(exclude={"markdown"}) | {"markdown": markdown.name}
+    (carpeta_salida / f"{base}.json").write_text(
+        json.dumps(metadatos, indent=2, ensure_ascii=False), encoding="utf-8"
+    )
+
+    typer.echo(f"Documento: {extraido.nombre} ({extraido.formato})")
+    typer.echo(f"  Herramienta: {extraido.herramienta}")
+    typer.echo(f"  Texto extraído: {extraido.caracteres} caracteres, {extraido.lineas} líneas")
+    typer.echo(f"  Duración: {extraido.duracion_s} s")
+    typer.echo(f"  SHA-256 del original: {extraido.sha256}")
+    typer.echo(f"  Markdown guardado en {markdown.as_posix()}")
+    if vista_previa:
+        typer.echo("--- Vista previa ---")
+        for linea in extraido.markdown.splitlines()[:vista_previa]:
+            typer.echo(linea)
+
+
 if __name__ == "__main__":
     app()
