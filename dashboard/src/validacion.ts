@@ -2,6 +2,8 @@
 // Aquí solo sirven para avisar antes de subir: quien decide es siempre la API.
 export const TAMANO_MAXIMO = 10 * 1024 * 1024
 export const EXTENSIONES = ['.pdf', '.docx', '.txt', '.md']
+// Nombre con el que se envían los requisitos escritos en el dashboard.
+export const NOMBRE_ESCRITO = 'requisitos-escritos.md'
 
 export function extension(nombre: string): string {
   const punto = nombre.lastIndexOf('.')

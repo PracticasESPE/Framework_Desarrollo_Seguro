@@ -9,6 +9,9 @@ necesita servidor propio ni CORS. No forma parte de lo que genera el framework.
 - **Carga del documento de requisitos.** Se arrastra el archivo o se elige, y la API lo guarda en
   `salida/documentos/` con un nombre generado por el servidor. El dashboard muestra su nombre,
   formato, tamaño, SHA-256 e identificador.
+- **Escribir los requisitos.** En la pestaña «Escribir requisitos» se pueden escribir o pegar los
+  requisitos o historias de usuario. Se envían como `requisitos-escritos.md` por la misma ruta y con
+  las mismas validaciones que un archivo, así que para la fase 1 son un documento más.
 - **Documentos cargados.** Lista de lo subido, del más reciente al más antiguo.
 - **Fases del pipeline.** Las 11 fases que publica el motor en `/fases`, con los gates resaltados.
   El progreso en tiempo real con Server-Sent Events llega en #51.

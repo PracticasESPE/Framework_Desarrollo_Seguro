@@ -190,6 +190,15 @@ def test_cargar_documento(cliente: TestClient, carpeta: Path):
     assert [d["id"] for d in listado.json()] == [cuerpo["id"]]
 
 
+def test_cargar_requisitos_escritos_en_el_dashboard(cliente: TestClient, carpeta: Path):
+    texto = "1. El cliente se registra con su contraseña.\n- Como dueño, quiero ver las ventas."
+    respuesta = subir(cliente, "requisitos-escritos.md", texto.encode("utf-8"))
+    assert respuesta.status_code == 201
+    cuerpo = respuesta.json()
+    assert (cuerpo["nombre"], cuerpo["formato"]) == ("requisitos-escritos.md", "md")
+    assert (carpeta / f"{cuerpo['id']}.md").read_text(encoding="utf-8") == texto
+
+
 @pytest.mark.parametrize(
     ("nombre", "datos", "codigo"),
     [
