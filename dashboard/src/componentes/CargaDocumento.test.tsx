@@ -82,6 +82,56 @@ describe('CargaDocumento', () => {
     expect(onCargado).not.toHaveBeenCalled()
   })
 
+  it('envía los requisitos escritos como un documento Markdown', async () => {
+    const fetchSimulado = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValue(respuesta({ ...DOCUMENTO, nombre: 'requisitos-escritos.md' }, 201))
+    const { onCargado, usuario } = preparar()
+    const requisitos = '1. El cliente se registra con su correo.\n2. El administrador gestiona el catálogo.'
+
+    await usuario.click(screen.getByRole('tab', { name: 'Escribir requisitos' }))
+    const enviar = screen.getByRole('button', { name: 'Enviar requisitos' })
+    expect(enviar).toBeDisabled()
+    const area = screen.getByRole('textbox', { name: 'Requisitos o historias de usuario' })
+    await usuario.type(area, requisitos)
+    await usuario.click(enviar)
+
+    expect(await screen.findByText('Documento recibido')).toBeInTheDocument()
+    const [url, opciones] = fetchSimulado.mock.calls[0] ?? []
+    expect(url).toBe('/documentos?nombre=requisitos-escritos.md')
+    const cuerpo = opciones?.body
+    expect(cuerpo).toBeInstanceOf(File)
+    expect(await (cuerpo as File).text()).toBe(requisitos)
+    expect(onCargado).toHaveBeenCalledOnce()
+    expect(area).toHaveValue('')
+  })
+
+  it('no envía un texto vacío ni solo con espacios', async () => {
+    const fetchSimulado = vi.spyOn(globalThis, 'fetch')
+    const { usuario } = preparar()
+
+    await usuario.click(screen.getByRole('tab', { name: 'Escribir requisitos' }))
+    await usuario.type(screen.getByRole('textbox'), '   ')
+
+    expect(screen.getByRole('button', { name: 'Enviar requisitos' })).toBeDisabled()
+    expect(fetchSimulado).not.toHaveBeenCalled()
+  })
+
+  it('conserva el texto si la API lo rechaza', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      respuesta({ detail: 'El archivo de texto contiene datos binarios' }, 400),
+    )
+    const { usuario } = preparar()
+
+    await usuario.click(screen.getByRole('tab', { name: 'Escribir requisitos' }))
+    const area = screen.getByRole('textbox')
+    await usuario.type(area, 'requisito')
+    await usuario.click(screen.getByRole('button', { name: 'Enviar requisitos' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('datos binarios')
+    expect(area).toHaveValue('requisito')
+  })
+
   it('avisa si la API no responde', async () => {
     vi.spyOn(globalThis, 'fetch').mockRejectedValue(new TypeError('Failed to fetch'))
     const { entrada, usuario } = preparar()
