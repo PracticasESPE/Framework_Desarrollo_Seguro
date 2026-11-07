@@ -106,10 +106,21 @@ jobs:
       - name: Esquema de Neo4j (restricciones e índices)
         run: uv run framework grafo esquema
 
+      # Modelos de Docling para analizar el diseño de las páginas y las tablas (unos 500 MB, de
+      # Hugging Face). Se guardan por versión de uv.lock para no descargarlos en cada ejecución.
+      - name: Caché de los modelos de Docling
+        uses: actions/cache@v5
+        with:
+          path: ~/.cache/huggingface
+          key: docling-modelos-${{ hashFiles('uv.lock') }}
+          restore-keys: docling-modelos-
+
+      # Fase 1 inicial: extracción del documento de requisitos 1 a Markdown con Docling. El modelo
+      # de requisitos con LLM se añade en las tareas siguientes del sprint 3.
       - name: "Fase 1: Adquisición de requisitos"
-        run: |
-          echo "Pendiente - se implementa en el sprint 3 (Docling y modelo de requisitos)"
-          uv run python -m orchestrator.notify.cli omitir "Fase 1: Requisitos"
+        run: >-
+          uv run python -m orchestrator.notify.cli ejecutar "Fase 1: Requisitos" --
+          uv run framework requisitos extraer evaluation/datasets/01_tienda_en_linea/requisitos.pdf
 
       - name: "Fase 2: Análisis y propuesta arquitectónica"
         run: |
@@ -326,6 +337,7 @@ jobs:
             salida/hallazgos/
             salida/pruebas/
             salida/gates/
+            salida/requisitos/
           if-no-files-found: ignore
           retention-days: 14
 

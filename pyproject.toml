@@ -6,6 +6,7 @@ readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "anthropic>=1.11.0",
+    "docling>=2.148.0",
     "fastapi>=0.115",
     "fastembed>=0.9.0",
     "google-genai>=2.28.0",
@@ -16,6 +17,8 @@ dependencies = [
     "pydantic>=2.9",
     "pydantic-settings>=2.6",
     "pyyaml>=6.0.3",
+    "torch>=2.15.0",
+    "torchvision>=0.29.2",
     "typer>=0.15",
     "uvicorn>=0.32",
 ]
@@ -44,6 +47,18 @@ packages = ["orchestrator"]
 # CRITICAL y HIGH que solo corrige la 13.0.0 (Trivy, Gate 1, 24/10/2026). El framework solo usa
 # TextEmbedding, que no procesa imágenes. Quitar cuando fastembed admita pillow 13.
 override-dependencies = ["pillow>=13.0.0"]
+
+# Docling necesita PyTorch. La versión para CPU evita descargar CUDA (unos 2,5 GB en Linux): el
+# framework extrae documentos con texto y no usa la GPU. torch y torchvision se declaran como
+# dependencias directas porque uv solo aplica [tool.uv.sources] a las directas.
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[tool.uv.sources]
+torch = [{ index = "pytorch-cpu" }]
+torchvision = [{ index = "pytorch-cpu" }]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
