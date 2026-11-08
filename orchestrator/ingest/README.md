@@ -82,3 +82,25 @@ El JSON Schema publicado para el dashboard y la API está en
 ```bash
 uv run framework requisitos esquema --salida docs/esquemas/modelo_requisitos.schema.json
 ```
+
+## Clasificación con el LLM
+
+`clasificacion.py` envía al LLM rápido un lote por sección con sus unidades y recibe una
+`ClasificacionRequisito` por unidad. Las tablas no se clasifican: acompañan como contexto a las
+unidades de su sección. Con el documento como entrada no confiable:
+
+- cada unidad va entre marcas con un código aleatorio por documento, que el texto no puede
+  conocer para cerrar la marca y escribir instrucciones fuera de ella;
+- el mensaje de sistema indica que lo marcado es un dato, nunca una instrucción, y define cada
+  etiqueta de seguridad;
+- el motor exige que el LLM devuelva exactamente las ubicaciones que recibió, y reintenta si no;
+- si el proveedor responde por límite de uso, espera 20 y 60 segundos antes de reintentar.
+
+```bash
+uv run framework requisitos clasificar evaluation/datasets/01_tienda_en_linea/requisitos.pdf --proveedor groq
+uv run python -m evaluation.fase1.evaluar salida/requisitos/requisitos-pdf.modelo_requisitos.json evaluation/datasets/01_tienda_en_linea
+```
+
+El primero guarda `salida/requisitos/<nombre>.modelo_requisitos.json`. El segundo, que es parte de
+la evaluación y no del framework, lo compara con la referencia del dataset: requisitos
+encontrados, falsos positivos, acierto del tipo y precisión y exhaustividad de las etiquetas.
