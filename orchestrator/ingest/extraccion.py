@@ -6,6 +6,10 @@ las mismas reglas, porque esta función también se usa desde la CLI con archivo
 - PDF y DOCX se convierten con Docling, que conserva títulos, listas y tablas. El PDF se procesa
   sin OCR: los documentos de requisitos traen texto, y el OCR descargaría otro modelo y tardaría
   mucho más.
+- El PDF se lee con pypdfium2 y no con docling-parse, que es el lector por defecto. docling-parse
+  carga unos archivos de su paquete desde código C++ que, en Windows, no abre rutas con letras
+  fuera de ASCII: en `D:\\...\\Prácticas\\...` falla con «filename does not exists» aunque el
+  archivo exista. pypdfium2 recibe los bytes en memoria y conserva todas las frases del dataset.
 - TXT y Markdown se leen directamente: Docling no admite TXT, y un Markdown ya es el resultado.
 - Docling recibe los bytes ya validados, no la ruta, para que el archivo no cambie entre la
   validación y la conversión.
@@ -131,6 +135,7 @@ def _con_docling(datos: bytes, formato: Formato) -> str:
 @lru_cache(maxsize=1)
 def _conversor() -> DocumentConverter:
     """Conversor de Docling, creado una sola vez porque carga sus modelos al primer uso."""
+    from docling.backend.pypdfium2_backend import PyPdfiumDocumentBackend
     from docling.datamodel.base_models import InputFormat
     from docling.datamodel.pipeline_options import PdfPipelineOptions
     from docling.document_converter import DocumentConverter, PdfFormatOption
@@ -138,7 +143,8 @@ def _conversor() -> DocumentConverter:
     opciones = PdfPipelineOptions(
         do_ocr=False, do_table_structure=True, document_timeout=TIEMPO_MAXIMO_S
     )
+    pdf = PdfFormatOption(pipeline_options=opciones, backend=PyPdfiumDocumentBackend)
     return DocumentConverter(
         allowed_formats=[InputFormat.PDF, InputFormat.DOCX],
-        format_options={InputFormat.PDF: PdfFormatOption(pipeline_options=opciones)},
+        format_options={InputFormat.PDF: pdf},
     )
