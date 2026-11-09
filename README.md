@@ -103,6 +103,27 @@ uv run framework grafo esquema   # restricciones e índices de graph/ en Neo4j
 uv run pytest               # pruebas del motor
 ```
 
+### API del motor
+
+`uv run framework api` levanta la API en `127.0.0.1:8000`. Escucha solo en local porque todavía
+no tiene autenticación. También sirve el dashboard compilado ([dashboard/](dashboard/README.md)).
+La documentación interactiva está en `/docs`.
+
+| Método y ruta | Qué hace |
+|---|---|
+| `GET /salud`, `GET /fases`, `GET /configuracion` | Estado del motor, las 11 fases y la configuración sin secretos |
+| `POST /documentos?nombre=` | Carga el documento de requisitos (PDF, DOCX, TXT o MD, hasta 10 MB) como cuerpo binario |
+| `GET /documentos` | Documentos cargados |
+| `GET /documentos/{id}/requisitos` | `modelo_requisitos.json` del documento, si ya se procesó |
+| `POST /ejecuciones` | Lanza la fase 1 con un documento cargado (`{"documento": "<id>"}`); una a la vez |
+| `GET /ejecuciones?estado=` | Ejecuciones recientes, con filtro opcional por estado |
+| `GET /ejecuciones/{id}` | Estado de la ejecución y de cada fase, y el resultado al terminar |
+| `GET /ejecuciones/{id}/eventos` | Progreso en tiempo real con Server-Sent Events |
+| `POST /ejecuciones/{id}/cancelar` | Detiene la ejecución en su siguiente paso |
+
+En Windows, si la ruta del proyecto tiene tildes, `uv run framework` no arranca. Usa
+`uv run python -m orchestrator.cli api`.
+
 *El resto se completará a medida que avance el desarrollo.*
 
 ## Equipo

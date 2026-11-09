@@ -33,6 +33,15 @@ Cada evento lleva un número correlativo. Si se corta la conexión, EventSource 
 con `Last-Event-ID` y el motor le reenvía lo que faltaba. Las fases 2 a 11 aparecen pendientes
 hasta que existan en el motor.
 
+Con los endpoints de estado (#53):
+
+- **Cancelar.** Mientras la ejecución está en curso, el botón «Cancelar» llama a
+  `POST /ejecuciones/{id}/cancelar`. El motor se detiene en su siguiente paso, y la fase y la
+  ejecución quedan como «Cancelada».
+- **Retomar al recargar.** Al abrir la página, el dashboard pregunta por
+  `GET /ejecuciones?estado=en_curso`. Si hay una ejecución en marcha, vuelve a seguirla y recibe
+  todos sus eventos desde el principio.
+
 ## Uso
 
 Con la API del motor sirviendo el dashboard compilado:

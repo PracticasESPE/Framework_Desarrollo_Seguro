@@ -7,6 +7,7 @@ El documento es Markdown, que se lee sin Docling, para que la fase 1 tarde milis
 import json
 import re
 import threading
+import time
 from pathlib import Path
 
 import pytest
@@ -250,3 +251,191 @@ def test_el_registro_descarta_las_terminadas_mas_antiguas():
 
     assert registro.obtener(terminadas[0].id) is None
     assert [registro.obtener(e.id) for e in terminadas[1:]] == terminadas[1:]
+
+
+# --- Estado, cancelación y resultado (#53) ----------------------------------------------------
+
+
+def test_la_creacion_indica_donde_consultar_el_estado(entorno):
+    respuesta = entorno["cliente"].post("/ejecuciones", json={"documento": entorno["documento"].id})
+    cuerpo = respuesta.json()
+    assert respuesta.headers["location"] == f"/ejecuciones/{cuerpo['id']}"
+    assert cuerpo["nombre_documento"] == "requisitos.md"
+    assert cuerpo["cancelacion_pedida"] is False
+    eventos(entorno["cliente"], cuerpo["id"])
+
+
+def test_estado_de_cada_fase_al_terminar(entorno):
+    id_ejecucion = iniciar(entorno)
+    todos = eventos(entorno["cliente"], id_ejecucion)
+
+    detalle = entorno["cliente"].get(f"/ejecuciones/{id_ejecucion}").json()
+    assert (detalle["estado"], detalle["fase_actual"], detalle["progreso"]) == (
+        "completada",
+        1,
+        1.0,
+    )
+    assert detalle["mensaje"] == "Ejecución completada"
+    assert detalle["eventos"] == len(todos)
+    assert detalle["fin"] is not None
+    assert [f["numero"] for f in detalle["fases"]] == list(range(1, 12))
+    fase1, *resto = detalle["fases"]
+    assert fase1["estado"] == "completada"
+    assert fase1["mensaje"].startswith("2 requisitos identificados")
+    assert {f["estado"] for f in resto} == {"pendiente"}
+    assert [f["numero"] for f in resto if f["es_gate"]] == [4, 8, 11]
+    assert [r["id"] for r in detalle["resultado"]["requisitos"]] == ["RF-01", "RF-02"]
+
+
+def test_estado_mientras_se_ejecuta_y_filtro_por_estado(entorno):
+    senal = threading.Event()
+    entorno["estado"]["llm"] = LLMSimulado(esperar=senal)
+    id_ejecucion = iniciar(entorno)
+    cliente = entorno["cliente"]
+
+    try:
+        detalle = cliente.get(f"/ejecuciones/{id_ejecucion}").json()
+        assert detalle["estado"] == "en_curso"
+        assert detalle["fin"] is None
+        assert detalle["resultado"] is None
+        assert [e["id"] for e in cliente.get("/ejecuciones?estado=en_curso").json()] == [
+            id_ejecucion
+        ]
+        assert cliente.get("/ejecuciones?estado=completada").json() == []
+    finally:
+        senal.set()
+    eventos(cliente, id_ejecucion)
+
+    segunda = iniciar(entorno)
+    eventos(cliente, segunda)
+    assert [e["id"] for e in cliente.get("/ejecuciones").json()] == [segunda, id_ejecucion]
+    assert cliente.get("/ejecuciones?estado=en_curso").json() == []
+    assert cliente.get("/ejecuciones?estado=otro").status_code == 422
+
+
+def test_cancelar_detiene_la_ejecucion_antes_de_la_siguiente_seccion(entorno):
+    senal = threading.Event()
+    llm = LLMSimulado(esperar=senal)
+    entorno["estado"]["llm"] = llm
+    id_ejecucion = iniciar(entorno)
+    cliente = entorno["cliente"]
+
+    respuesta = cliente.post(f"/ejecuciones/{id_ejecucion}/cancelar")
+    assert respuesta.status_code == 202
+    assert respuesta.json()["cancelacion_pedida"] is True
+    senal.set()  # la llamada al LLM ya empezada termina; la siguiente sección no se clasifica
+
+    lista = eventos(cliente, id_ejecucion)
+    assert [(e["tipo"], e["estado"]) for e in lista[-2:]] == [
+        ("fase", "cancelada"),
+        ("fin", "cancelada"),
+    ]
+    assert lista[-1]["mensaje"] == "Ejecución cancelada a petición del usuario"
+    assert not any(e["mensaje"].startswith("Clasificando «3.") for e in lista)
+    assert not entorno["requisitos"].exists()
+
+    detalle = cliente.get(f"/ejecuciones/{id_ejecucion}").json()
+    assert (detalle["estado"], detalle["fases"][0]["estado"]) == ("cancelada", "cancelada")
+    assert cliente.post(f"/ejecuciones/{id_ejecucion}/cancelar").status_code == 409
+
+
+@pytest.mark.parametrize(
+    ("ruta", "codigo"),
+    [
+        ("/ejecuciones/" + "0" * 32, 404),
+        ("/ejecuciones/no-es-un-id", 422),
+        ("/ejecuciones/" + "0" * 32 + "/cancelar", 404),
+    ],
+)
+def test_ejecucion_que_no_existe(entorno, ruta, codigo):
+    cliente = entorno["cliente"]
+    respuesta = cliente.post(ruta) if ruta.endswith("cancelar") else cliente.get(ruta)
+    assert respuesta.status_code == codigo
+
+
+def test_requisitos_del_documento_procesado(entorno):
+    cliente = entorno["cliente"]
+    url = f"/documentos/{entorno['documento'].id}/requisitos"
+    sin_procesar = cliente.get(url)
+    assert sin_procesar.status_code == 404
+    assert sin_procesar.json()["detail"] == "El documento todavía no se ha procesado"
+
+    eventos(cliente, iniciar(entorno))
+    modelo = cliente.get(url).json()
+    assert modelo["documento"]["nombre"] == "requisitos.md"
+    assert [r["id"] for r in modelo["requisitos"]] == ["RF-01", "RF-02"]
+
+    archivo = entorno["requisitos"] / f"{entorno['documento'].id}.modelo_requisitos.json"
+    archivo.write_text('{"version_esquema": "1.0"}', encoding="utf-8")
+    roto = cliente.get(url)
+    assert roto.status_code == 500
+    assert "C:" not in roto.text and "Traceback" not in roto.text
+
+
+@pytest.mark.parametrize(
+    ("id_documento", "codigo"), [("0" * 32, 404), ("no-es-un-id", 422), ("A" * 32, 422)]
+)
+def test_requisitos_de_un_documento_que_no_existe(entorno, id_documento, codigo):
+    respuesta = entorno["cliente"].get(f"/documentos/{id_documento}/requisitos")
+    assert respuesta.status_code == codigo
+
+
+def test_la_documentacion_agrupa_y_describe_los_endpoints(entorno):
+    esquema = entorno["cliente"].get("/openapi.json").json()
+    assert [t["name"] for t in esquema["tags"]] == ["motor", "documentos", "ejecuciones"]
+    operaciones = {
+        (metodo.upper(), ruta): datos
+        for ruta, metodos in esquema["paths"].items()
+        for metodo, datos in metodos.items()
+    }
+    ejecuciones = {
+        clave for clave, datos in operaciones.items() if datos["tags"] == ["ejecuciones"]
+    }
+    assert ejecuciones == {
+        ("POST", "/ejecuciones"),
+        ("GET", "/ejecuciones"),
+        ("GET", "/ejecuciones/{id_ejecucion}"),
+        ("POST", "/ejecuciones/{id_ejecucion}/cancelar"),
+        ("GET", "/ejecuciones/{id_ejecucion}/eventos"),
+    }
+    assert all(datos.get("summary") for datos in operaciones.values())
+    assert {"404", "409"} <= set(operaciones[("POST", "/ejecuciones")]["responses"])
+    assert "text/event-stream" in str(operaciones[("GET", "/ejecuciones/{id_ejecucion}/eventos")])
+
+
+class LLMSinCuota:
+    """Siempre rechaza por límite de uso, como Groq al agotar el plan gratuito."""
+
+    nombre = "sin cuota"
+
+    def __init__(self) -> None:
+        self.llamado = threading.Event()
+
+    def generar_estructurado(self, prompt, esquema, nivel="rapido", sistema=None):
+        self.llamado.set()
+        raise ErrorProveedorLLM("groq: límite de peticiones alcanzado")
+
+
+def test_cancelar_corta_la_espera_por_el_limite_de_uso_del_llm(entorno):
+    llm = LLMSinCuota()
+    entorno["estado"]["llm"] = llm
+    id_ejecucion = iniciar(entorno)
+    cliente = entorno["cliente"]
+    assert llm.llamado.wait(timeout=5)
+
+    # La clasificación espera 20 s antes de reintentar; se avisa y la cancelación no espera.
+    detalle = cliente.get(f"/ejecuciones/{id_ejecucion}").json()
+    for _ in range(50):
+        if "límite de uso" in (detalle["mensaje"] or ""):
+            break
+        threading.Event().wait(0.02)
+        detalle = cliente.get(f"/ejecuciones/{id_ejecucion}").json()
+    assert detalle["mensaje"] == (
+        "El proveedor del LLM alcanzó su límite de uso: se reintenta en 20 s"
+    )
+
+    inicio = time.monotonic()
+    assert cliente.post(f"/ejecuciones/{id_ejecucion}/cancelar").status_code == 202
+    lista = eventos(cliente, id_ejecucion)
+    assert time.monotonic() - inicio < 5
+    assert (lista[-1]["tipo"], lista[-1]["estado"]) == ("fin", "cancelada")

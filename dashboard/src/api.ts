@@ -54,12 +54,17 @@ export async function listarDocumentos(): Promise<DocumentoCargado[]> {
   return leer<DocumentoCargado[]>(await fetch('/documentos'))
 }
 
-export type EstadoEjecucion = 'en_curso' | 'completada' | 'fallida'
+export type EstadoEjecucion = 'en_curso' | 'completada' | 'fallida' | 'cancelada'
 
 export interface Ejecucion {
   id: string
   documento: string
+  nombre_documento: string
   estado: EstadoEjecucion
+  fase_actual: number | null
+  progreso: number | null
+  mensaje: string | null
+  cancelacion_pedida: boolean
   inicio: string
   fin: string | null
 }
@@ -103,6 +108,19 @@ export async function iniciarEjecucion(documento: string): Promise<Ejecucion> {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ documento }),
+  })
+  return leer<Ejecucion>(respuesta)
+}
+
+export async function listarEjecuciones(estado?: EstadoEjecucion): Promise<Ejecucion[]> {
+  const consulta = estado ? `?estado=${estado}` : ''
+  return leer<Ejecucion[]>(await fetch(`/ejecuciones${consulta}`))
+}
+
+/** La ejecución se detiene en su siguiente paso; el evento «fin» llega por `rutaEventos`. */
+export async function cancelarEjecucion(idEjecucion: string): Promise<Ejecucion> {
+  const respuesta = await fetch(`/ejecuciones/${encodeURIComponent(idEjecucion)}/cancelar`, {
+    method: 'POST',
   })
   return leer<Ejecucion>(respuesta)
 }
