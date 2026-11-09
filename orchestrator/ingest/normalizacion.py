@@ -2,9 +2,10 @@
 
 Recibe el Markdown de la extracción (orchestrator/ingest/extraccion.py) y entrega una lista de
 unidades: cada punto de una lista, cada viñeta, cada párrafo y cada tabla, con su sección y una
-ubicación estable como "3.1" (sección 3, punto 1). La clasificación con LLM trabaja después sobre
-estas unidades, de una en una, sin reescribir su texto: así cada requisito conserva la frase
-literal del documento y se puede trazar hasta él.
+ubicación estable como "3.1" (sección 3, punto 1). Un bloque muy largo, típico de un documento
+sin estructura, se divide en oraciones: "0, párrafo 1, oración 4". La clasificación con LLM
+trabaja después sobre estas unidades, de una en una, sin reescribir su texto: así cada requisito
+conserva la frase literal del documento y se puede trazar hasta él.
 
 La limpieza es de forma y no cambia palabras:
 
@@ -41,6 +42,11 @@ _SEPARADOR_TABLA = re.compile(r"^\|?\s*:?-{2,}:?\s*(\|\s*:?-{2,}:?\s*)*\|?$")
 # Negrita o cursiva de Markdown (Docling marca así los encabezados de las tablas de un DOCX).
 _ENFASIS = re.compile(r"(\*\*|__)(?=\S)(.+?)(?<=\S)\1")
 _LARGO_MAXIMO_TITULO = 80
+# Un bloque más largo que esto se divide en oraciones. En un documento sin estructura (un correo,
+# un audio transcrito) todo llega como un solo párrafo, que mezcla varios requisitos con charla y
+# supera el largo máximo de un Requisito. Las unidades del dataset de evaluación miden hasta ~400.
+LARGO_MAXIMO_UNIDAD = 600
+_FIN_DE_ORACION = re.compile(r"(?<=[.!?…])\s+")
 
 
 class TextoNormalizado(BaseModel):
@@ -167,14 +173,21 @@ class _Segmentador:
             return
         bloque, ubicacion, partes = self.actual
         texto = ("\n" if bloque == "tabla" else " ").join(partes).strip()
-        if texto:
+        partes_texto = [texto] if texto else []
+        if bloque != "tabla" and len(texto) > LARGO_MAXIMO_UNIDAD:
+            partes_texto = _FIN_DE_ORACION.split(texto)
+        for numero, parte in enumerate(partes_texto, 1):
+            if len(partes_texto) > 1:
+                parte_ubicacion = f"{ubicacion}, oración {numero}"
+            else:
+                parte_ubicacion = ubicacion
             self.unidades.append(
                 UnidadTexto(
-                    ubicacion=ubicacion,
+                    ubicacion=parte_ubicacion,
                     seccion=self.seccion,
                     titulo_seccion=self.titulo_seccion,
                     bloque=bloque,
-                    texto=texto,
+                    texto=parte,
                 )
             )
         self.actual = None

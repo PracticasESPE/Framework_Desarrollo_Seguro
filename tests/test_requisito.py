@@ -27,6 +27,7 @@ from orchestrator.ingest import (
     normalizar_texto,
     segmentar,
 )
+from orchestrator.ingest.normalizacion import LARGO_MAXIMO_UNIDAD
 from orchestrator.ingest.requisito import Etiqueta
 
 DATASETS = Path(__file__).resolve().parent.parent / "evaluation" / "datasets"
@@ -119,6 +120,37 @@ def test_segmentar_texto_sin_marcas_de_titulo():
         ("3.1", "3", "El cliente se registra."),
         ("3.2", "3", "El cliente paga."),
     ]
+
+
+def test_un_texto_sin_estructura_se_divide_en_oraciones():
+    """Un correo de un solo párrafo mezcla varios requisitos: cada oración es una unidad."""
+    oraciones = [
+        "bueno te cuento rapido porque estoy entre consultas jaja.",
+        "queremos que el dueño se registre con su mail y una contraseña.",
+        "la historia clinica la ven solo los veterinarios, no la recepcionista!",
+        "si alguien se olvida la clave que le llegue un link al mail?",
+        "cualquier cosa me mandas un audio",
+    ]
+    relleno = " ".join(["los turnos son de media hora y atendemos de lunes a sabado."] * 8)
+    texto = " ".join([*oraciones[:4], relleno, oraciones[4]])
+    assert len(texto) > LARGO_MAXIMO_UNIDAD
+
+    unidades = segmentar(texto + "\n")
+
+    assert len(unidades) == 4 + 8 + 1
+    assert [u.texto for u in unidades[:4]] == oraciones[:4]
+    assert unidades[-1].texto == oraciones[4]
+    assert unidades[0].ubicacion == "0, párrafo 1, oración 1"
+    assert unidades[-1].ubicacion == "0, párrafo 1, oración 13"
+    assert {u.bloque for u in unidades} == {"parrafo"}
+    assert all(len(u.texto) <= LARGO_MAXIMO_UNIDAD for u in unidades)
+    # Juntas siguen siendo el texto original, sin perder ni cambiar palabras.
+    assert " ".join(u.texto for u in unidades) == texto
+
+
+def test_un_bloque_corto_no_se_divide():
+    texto = "El cliente se registra. Después confirma su correo. Luego entra."
+    assert [u.ubicacion for u in segmentar(texto + "\n")] == ["0, párrafo 1"]
 
 
 @pytest.mark.parametrize("carpeta", DOCUMENTOS, ids=lambda c: c.name)
@@ -232,6 +264,13 @@ def test_la_clasificacion_rechaza_salidas_incompletas_o_fuera_de_lista(cambios, 
 
 def test_una_unidad_que_no_es_requisito_no_necesita_mas_campos():
     assert not ClasificacionRequisito(es_requisito=False).es_requisito
+
+
+def test_listas_nulas_del_llm_son_listas_vacias():
+    clasificacion = ClasificacionRequisito.model_validate_json(
+        '{"es_requisito": false, "entidades": null, "etiquetas": null}'
+    )
+    assert (clasificacion.entidades, clasificacion.etiquetas) == ([], [])
 
 
 def _requisito(**cambios) -> dict:

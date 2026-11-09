@@ -18,7 +18,14 @@ from __future__ import annotations
 from collections import Counter
 from typing import Annotated, Literal, Self
 
-from pydantic import BaseModel, ConfigDict, Field, StringConstraints, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    StringConstraints,
+    field_validator,
+    model_validator,
+)
 
 from orchestrator.ingest.normalizacion import UnidadTexto
 
@@ -97,6 +104,12 @@ class ClasificacionRequisito(BaseModel):
     entidades: list[Corto] = Field(default_factory=list, max_length=15)
     servicio_sugerido: Servicio | None = None
     etiquetas: list[Etiqueta] = Field(default_factory=list, max_length=9)
+
+    @field_validator("entidades", "etiquetas", mode="before")
+    @classmethod
+    def _nulo_es_lista_vacia(cls, valor: object) -> object:
+        """Ante una frase que no es requisito, el LLM a veces envía null en lugar de []."""
+        return [] if valor is None else valor
 
     @model_validator(mode="after")
     def _completa_si_es_requisito(self) -> Self:
