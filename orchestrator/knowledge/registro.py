@@ -1,7 +1,8 @@
-"""Registro de ejecuciones del pipeline y de sus hallazgos como nodos en Neo4j.
+"""Registro de ejecuciones del pipeline y de sus resultados como nodos en Neo4j.
 
 Modelo:
     (:Ejecucion {id, fecha, estado, documento, version_conocimiento})
+    (:Ejecucion)-[:TIENE_REQUISITO]->(:Requisito {ejecucion_id, id, tipo, texto, ...})
     (:Ejecucion)-[:REGISTRA]->(:Hallazgo {ejecucion_id, huella, ...})
     (:Hallazgo)-[:ES]->(:CWE {id})
 """
@@ -272,4 +273,86 @@ def listar_resultados_gate(
     driver: Any, ejecucion_id: str, base_datos: str = "neo4j"
 ) -> list[dict[str, Any]]:
     resultado = _ejecutar(driver, _LISTAR_RESULTADOS_GATE, base_datos, ejecucion_id=ejecucion_id)
+    return [registro.data() for registro in resultado.records]
+
+
+# --- Requisitos de la fase 1 -------------------------------------------------------------------
+#
+#   (:Ejecucion {documento, documento_sha256, herramienta_extraccion})
+#     -[:TIENE_REQUISITO]->(:Requisito {ejecucion_id, id: "RF-01", tipo, texto, ubicacion, ...})
+#
+# El Requisito es el inicio de la cadena de trazabilidad del plan técnico (listing 5.5):
+# (:Requisito)-[:ORIGINA]->(:Decision)-[:IMPLEMENTA_EN]->(:Componente)-[:TIENE]->(:Hallazgo)...
+
+# MERGE por (ejecucion_id, id): registrar el mismo modelo dos veces no duplica requisitos. Los que
+# ya no están en el modelo (se volvió a clasificar el documento) se eliminan de la ejecución.
+_REGISTRAR_REQUISITOS = """
+MATCH (e:Ejecucion {id: $ejecucion_id})
+SET e.documento = $documento.nombre,
+    e.documento_sha256 = $documento.sha256,
+    e.herramienta_extraccion = $documento.herramienta
+WITH e
+CALL (e) {
+    MATCH (e)-[:TIENE_REQUISITO]->(viejo:Requisito)
+    WHERE NOT viejo.id IN [r IN $requisitos | r.id]
+    DETACH DELETE viejo
+}
+WITH e
+UNWIND $requisitos AS dato
+MERGE (r:Requisito {ejecucion_id: $ejecucion_id, id: dato.id})
+SET r.tipo = dato.tipo,
+    r.texto = dato.texto,
+    r.ubicacion = dato.ubicacion,
+    r.actor = dato.actor,
+    r.accion = dato.accion,
+    r.entidades = dato.entidades,
+    r.servicio_sugerido = dato.servicio_sugerido,
+    r.etiquetas = dato.etiquetas,
+    r.orden = dato.orden
+MERGE (e)-[:TIENE_REQUISITO]->(r)
+"""
+
+_ULTIMA_EJECUCION_CON_REQUISITOS = """
+MATCH (e:Ejecucion)-[:TIENE_REQUISITO]->(:Requisito)
+RETURN DISTINCT e.id AS id, e.fecha AS fecha ORDER BY fecha DESC LIMIT 1
+"""
+
+_LISTAR_REQUISITOS = """
+MATCH (:Ejecucion {id: $ejecucion_id})-[:TIENE_REQUISITO]->(r:Requisito)
+RETURN r.id AS id, r.tipo AS tipo, r.texto AS texto, r.ubicacion AS ubicacion,
+       r.actor AS actor, r.servicio_sugerido AS servicio_sugerido, r.etiquetas AS etiquetas
+ORDER BY r.orden
+"""
+
+
+def registrar_requisitos(
+    driver: Any, ejecucion_id: str, modelo: Any, base_datos: str = "neo4j"
+) -> int:
+    """Guarda los requisitos de un ModeloRequisitos como nodos de su ejecución."""
+    if not existe_ejecucion(driver, ejecucion_id, base_datos):
+        raise ErrorGrafo(f"No existe la ejecución {ejecucion_id}")
+    _ejecutar(
+        driver,
+        _REGISTRAR_REQUISITOS,
+        base_datos,
+        ejecucion_id=ejecucion_id,
+        documento=modelo.documento.model_dump(mode="json"),
+        requisitos=[
+            {**r.model_dump(mode="json"), "orden": orden}
+            for orden, r in enumerate(modelo.requisitos)
+        ],
+    )
+    return len(modelo.requisitos)
+
+
+def ultima_ejecucion_con_requisitos(driver: Any, base_datos: str = "neo4j") -> str | None:
+    resultado = _ejecutar(driver, _ULTIMA_EJECUCION_CON_REQUISITOS, base_datos)
+    return resultado.records[0]["id"] if resultado.records else None
+
+
+def listar_requisitos(
+    driver: Any, ejecucion_id: str, base_datos: str = "neo4j"
+) -> list[dict[str, Any]]:
+    """Requisitos de una ejecución, en el orden del documento."""
+    resultado = _ejecutar(driver, _LISTAR_REQUISITOS, base_datos, ejecucion_id=ejecucion_id)
     return [registro.data() for registro in resultado.records]

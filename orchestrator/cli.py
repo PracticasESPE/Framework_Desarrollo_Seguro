@@ -715,7 +715,8 @@ def gates_listar(
 
 
 requisitos_app = typer.Typer(
-    help="Fase 1: documento de requisitos (extracción a Markdown).", no_args_is_help=True
+    help="Fase 1: documento de requisitos (extracción, clasificación y registro en Neo4j).",
+    no_args_is_help=True,
 )
 app.add_typer(requisitos_app, name="requisitos")
 
@@ -943,6 +944,96 @@ def requisitos_esquema(
         return
     salida.write_text(esquema + "\n", encoding="utf-8")
     typer.echo(f"JSON Schema guardado en {salida.as_posix()}")
+
+
+@requisitos_app.command("registrar")
+def requisitos_registrar(
+    modelo: Annotated[
+        Path, typer.Argument(help="modelo_requisitos.json generado por «requisitos clasificar».")
+    ],
+    ejecucion: Annotated[
+        str | None,
+        typer.Option("--ejecucion", help="Ejecución existente; si se omite se crea una nueva."),
+    ] = None,
+) -> None:
+    """Guarda los requisitos del modelo como nodos Requisito de una ejecución en Neo4j."""
+    from collections import Counter
+
+    from pydantic import ValidationError
+
+    from orchestrator.ingest import ModeloRequisitos
+    from orchestrator.knowledge import ErrorGrafo, conectar, crear_ejecucion, registrar_requisitos
+
+    if not modelo.is_file():
+        raise typer.BadParameter(f"no existe el archivo '{modelo}'", param_hint="MODELO")
+    try:
+        datos = ModeloRequisitos.model_validate_json(modelo.read_bytes())
+    except ValidationError as error:
+        typer.echo(f"Error: {modelo.name} no es un modelo de requisitos válido.\n{error}", err=True)
+        raise typer.Exit(1) from error
+
+    config = obtener_configuracion()
+    try:
+        driver = conectar(config)
+        try:
+            db = config.neo4j_database
+            ejecucion_id = ejecucion or crear_ejecucion(
+                driver, documento=datos.documento.nombre, base_datos=db
+            )
+            registrados = registrar_requisitos(driver, ejecucion_id, datos, base_datos=db)
+        finally:
+            driver.close()
+    except ErrorGrafo as error:
+        typer.echo(f"Error: {error}", err=True)
+        raise typer.Exit(1) from error
+    # Las fases siguientes del mismo pipeline (gates) se registran en esta ejecución.
+    _guardar_ejecucion_del_pipeline(config.directorio_salida, ejecucion_id)
+
+    tipos = Counter(r.tipo for r in datos.requisitos)
+    typer.echo(f"Ejecución: {ejecucion_id}")
+    typer.echo(f"Documento: {datos.documento.nombre}")
+    typer.echo(
+        f"Requisitos registrados: {registrados} (funcionales: {tipos['funcional']}, "
+        f"no funcionales: {tipos['no_funcional']})"
+    )
+
+
+@requisitos_app.command("listar")
+def requisitos_listar(
+    ejecucion: Annotated[
+        str | None,
+        typer.Option(
+            "--ejecucion", help="Ejecución a consultar; por defecto la última con requisitos."
+        ),
+    ] = None,
+) -> None:
+    """Muestra los requisitos registrados en Neo4j para una ejecución."""
+    from orchestrator.knowledge import ErrorGrafo, conectar, listar_requisitos
+    from orchestrator.knowledge.registro import ultima_ejecucion_con_requisitos
+
+    config = obtener_configuracion()
+    try:
+        driver = conectar(config)
+        try:
+            db = config.neo4j_database
+            ejecucion_id = ejecucion or ultima_ejecucion_con_requisitos(driver, db)
+            filas = listar_requisitos(driver, ejecucion_id, db) if ejecucion_id else []
+        finally:
+            driver.close()
+    except ErrorGrafo as error:
+        typer.echo(f"Error: {error}", err=True)
+        raise typer.Exit(1) from error
+
+    if ejecucion_id is None:
+        typer.echo("No hay requisitos registrados en Neo4j.")
+        return
+    typer.echo(f"Ejecución: {ejecucion_id} ({len(filas)} requisitos)")
+    for fila in filas:
+        etiquetas = ", ".join(fila["etiquetas"] or []) or "sin etiquetas"
+        typer.echo(
+            f"  {fila['id']:<7} [{fila['ubicacion']}] {fila['servicio_sugerido']} | {etiquetas}"
+        )
+        typer.echo(f"          {fila['texto'][:100]}")
 
 
 if __name__ == "__main__":
