@@ -728,26 +728,21 @@ def _base_del_archivo(ruta: Path) -> str:
     return f"{raiz[:60]}-{ruta.suffix.lower().lstrip('.')}"
 
 
-@requisitos_app.command("extraer")
-def requisitos_extraer(
-    ruta: Annotated[
-        Path | None,
-        typer.Argument(help="Documento de requisitos local (PDF, DOCX, TXT o MD)."),
-    ] = None,
-    documento: Annotated[
-        str | None,
-        typer.Option("--documento", help="Id de un documento cargado desde el dashboard o la API."),
-    ] = None,
-    destino: Annotated[
-        Path | None,
-        typer.Option("--destino", help="Carpeta de salida; por defecto salida/requisitos."),
-    ] = None,
-    vista_previa: Annotated[
-        int, typer.Option("--vista-previa", min=0, help="Líneas del Markdown que se muestran.")
-    ] = 12,
-) -> None:
-    """Extrae el documento de requisitos a Markdown con Docling y lo guarda con sus metadatos."""
-    import json
+RutaDocumento = Annotated[
+    Path | None, typer.Argument(help="Documento de requisitos local (PDF, DOCX, TXT o MD).")
+]
+IdDocumento = Annotated[
+    str | None,
+    typer.Option("--documento", help="Id de un documento cargado desde el dashboard o la API."),
+]
+CarpetaDestino = Annotated[
+    Path | None,
+    typer.Option("--destino", help="Carpeta de salida; por defecto salida/requisitos."),
+]
+
+
+def _extraer_documento(ruta: Path | None, documento: str | None):  # -> (DocumentoExtraido, str)
+    """Extrae el documento indicado por ruta o por id; devuelve también el nombre de salida."""
     import re
 
     from orchestrator.documentos import DocumentoCargado, ErrorDocumento
@@ -782,13 +777,32 @@ def requisitos_extraer(
         base = _base_del_archivo(ruta)
 
     try:
-        extraido = extraer_markdown(ruta, nombre)
+        return extraer_markdown(ruta, nombre), base
     except ErrorDocumento as error:
         typer.echo(f"Error: {error}", err=True)
         raise typer.Exit(1) from error
 
-    carpeta_salida = destino or config.directorio_salida / "requisitos"
-    carpeta_salida.mkdir(parents=True, exist_ok=True)
+
+def _carpeta_requisitos(destino: Path | None) -> Path:
+    carpeta = destino or obtener_configuracion().directorio_salida / "requisitos"
+    carpeta.mkdir(parents=True, exist_ok=True)
+    return carpeta
+
+
+@requisitos_app.command("extraer")
+def requisitos_extraer(
+    ruta: RutaDocumento = None,
+    documento: IdDocumento = None,
+    destino: CarpetaDestino = None,
+    vista_previa: Annotated[
+        int, typer.Option("--vista-previa", min=0, help="Líneas del Markdown que se muestran.")
+    ] = 12,
+) -> None:
+    """Extrae el documento de requisitos a Markdown con Docling y lo guarda con sus metadatos."""
+    import json
+
+    extraido, base = _extraer_documento(ruta, documento)
+    carpeta_salida = _carpeta_requisitos(destino)
     markdown = carpeta_salida / f"{base}.md"
     markdown.write_text(extraido.markdown, encoding="utf-8")
     metadatos = extraido.model_dump(exclude={"markdown"}) | {"markdown": markdown.name}
@@ -806,6 +820,69 @@ def requisitos_extraer(
         typer.echo("--- Vista previa ---")
         for linea in extraido.markdown.splitlines()[:vista_previa]:
             typer.echo(linea)
+
+
+@requisitos_app.command("normalizar")
+def requisitos_normalizar(
+    ruta: RutaDocumento = None,
+    documento: IdDocumento = None,
+    destino: CarpetaDestino = None,
+    mostrar: Annotated[
+        int, typer.Option("--mostrar", min=0, help="Unidades que se muestran en la terminal.")
+    ] = 15,
+) -> None:
+    """Extrae, normaliza y divide el documento en unidades de requisito con su ubicación."""
+    import json
+    from collections import Counter
+
+    from orchestrator.ingest import normalizar_texto, segmentar
+
+    extraido, base = _extraer_documento(ruta, documento)
+    invisibles = normalizar_texto(extraido.markdown).invisibles_eliminados
+    unidades = segmentar(extraido.markdown)
+
+    archivo = _carpeta_requisitos(destino) / f"{base}.unidades.json"
+    contenido = {
+        "documento": extraido.model_dump(include={"nombre", "formato", "sha256", "herramienta"}),
+        "invisibles_eliminados": invisibles,
+        "unidades": [u.model_dump() for u in unidades],
+    }
+    archivo.write_text(json.dumps(contenido, indent=2, ensure_ascii=False), encoding="utf-8")
+
+    bloques = Counter(u.bloque for u in unidades)
+    typer.echo(f"Documento: {extraido.nombre} ({extraido.formato}, {extraido.herramienta})")
+    typer.echo(
+        f"  Unidades: {len(unidades)} ("
+        + ", ".join(f"{bloque}: {total}" for bloque, total in sorted(bloques.items()))
+        + ")"
+    )
+    if invisibles:
+        typer.echo(f"  Aviso: se eliminaron {invisibles} caracteres invisibles del documento")
+    typer.echo(f"  Guardadas en {archivo.as_posix()}")
+    for unidad in unidades[:mostrar]:
+        texto = unidad.texto.replace("\n", " / ")
+        typer.echo(f"  [{unidad.ubicacion:<14}] {unidad.bloque:<7} {texto[:90]}")
+    if len(unidades) > mostrar:
+        typer.echo(f"  ... y {len(unidades) - mostrar} más")
+
+
+@requisitos_app.command("esquema")
+def requisitos_esquema(
+    salida: Annotated[
+        Path | None, typer.Option("--salida", help="Archivo donde guardar el JSON Schema.")
+    ] = None,
+) -> None:
+    """Muestra el JSON Schema de modelo_requisitos.json (esquema Pydantic Requisito)."""
+    import json
+
+    from orchestrator.ingest import ModeloRequisitos
+
+    esquema = json.dumps(ModeloRequisitos.model_json_schema(), indent=2, ensure_ascii=False)
+    if salida is None:
+        typer.echo(esquema)
+        return
+    salida.write_text(esquema + "\n", encoding="utf-8")
+    typer.echo(f"JSON Schema guardado en {salida.as_posix()}")
 
 
 if __name__ == "__main__":

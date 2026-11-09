@@ -1,0 +1,152 @@
+{
+  "$defs": {
+    "DocumentoOrigen": {
+      "additionalProperties": false,
+      "properties": {
+        "nombre": {
+          "title": "Nombre",
+          "type": "string"
+        },
+        "sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Sha256",
+          "type": "string"
+        },
+        "herramienta": {
+          "title": "Herramienta",
+          "type": "string"
+        }
+      },
+      "required": [
+        "nombre",
+        "sha256",
+        "herramienta"
+      ],
+      "title": "DocumentoOrigen",
+      "type": "object"
+    },
+    "Requisito": {
+      "additionalProperties": false,
+      "description": "Un requisito del modelo estructurado, trazable hasta su frase en el documento.",
+      "properties": {
+        "actor": {
+          "description": "Quién realiza o necesita la acción, p. ej. «cliente»",
+          "maxLength": 80,
+          "minLength": 1,
+          "title": "Actor",
+          "type": "string"
+        },
+        "accion": {
+          "description": "Qué hace o qué debe cumplirse, en pocas palabras",
+          "maxLength": 200,
+          "minLength": 3,
+          "title": "Accion",
+          "type": "string"
+        },
+        "entidades": {
+          "description": "Entidades de negocio en singular, p. ej. «Pedido»",
+          "items": {
+            "maxLength": 80,
+            "minLength": 1,
+            "type": "string"
+          },
+          "maxItems": 15,
+          "title": "Entidades",
+          "type": "array"
+        },
+        "servicio_sugerido": {
+          "description": "Microservicio en minúsculas, p. ej. «pedidos»; «transversal» si es de todos",
+          "pattern": "^[a-z][a-z0-9_]{1,39}$",
+          "title": "Servicio Sugerido",
+          "type": "string"
+        },
+        "etiquetas": {
+          "description": "Etiquetas de seguridad de la lista; vacía si no aplica",
+          "items": {
+            "enum": [
+              "autenticacion",
+              "autorizacion",
+              "control_acceso_recursos",
+              "validacion_entrada",
+              "hash_password",
+              "cifrado_transito",
+              "punto_unico_acceso",
+              "limite_peticiones",
+              "auditoria"
+            ],
+            "type": "string"
+          },
+          "maxItems": 9,
+          "title": "Etiquetas",
+          "type": "array"
+        },
+        "id": {
+          "pattern": "^(RF|RNF)-\\d{2,3}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "tipo": {
+          "enum": [
+            "funcional",
+            "no_funcional"
+          ],
+          "title": "Tipo",
+          "type": "string"
+        },
+        "texto": {
+          "description": "Frase literal del documento, tal como quedó tras la normalización",
+          "maxLength": 2000,
+          "minLength": 10,
+          "title": "Texto",
+          "type": "string"
+        },
+        "ubicacion": {
+          "maxLength": 60,
+          "minLength": 1,
+          "title": "Ubicacion",
+          "type": "string"
+        }
+      },
+      "required": [
+        "actor",
+        "accion",
+        "entidades",
+        "servicio_sugerido",
+        "etiquetas",
+        "id",
+        "tipo",
+        "texto",
+        "ubicacion"
+      ],
+      "title": "Requisito",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Contenido de modelo_requisitos.json, la salida de la fase 1.",
+  "properties": {
+    "version_esquema": {
+      "const": "1.0",
+      "default": "1.0",
+      "title": "Version Esquema",
+      "type": "string"
+    },
+    "documento": {
+      "$ref": "#/$defs/DocumentoOrigen"
+    },
+    "requisitos": {
+      "items": {
+        "$ref": "#/$defs/Requisito"
+      },
+      "minItems": 1,
+      "title": "Requisitos",
+      "type": "array"
+    }
+  },
+  "required": [
+    "documento",
+    "requisitos"
+  ],
+  "title": "ModeloRequisitos",
+  "type": "object"
+}
