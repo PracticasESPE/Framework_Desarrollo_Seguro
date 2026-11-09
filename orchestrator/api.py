@@ -1,4 +1,8 @@
-"""API del motor del framework. También sirve el dashboard compilado (dashboard/dist)."""
+"""API del motor del framework. También sirve el dashboard compilado (dashboard/dist).
+
+La documentación interactiva está en `/docs` (Swagger UI) y `/redoc`. La API escucha solo en
+127.0.0.1 porque todavía no tiene autenticación.
+"""
 
 import asyncio
 from collections.abc import AsyncIterator, Awaitable, Callable
@@ -9,7 +13,7 @@ from fastapi import Depends, FastAPI, Header, HTTPException, Query, Request, Res
 from fastapi import Path as ParametroRuta
 from fastapi.sse import EventSourceResponse, ServerSentEvent
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from orchestrator import __version__
 from orchestrator.config import obtener_configuracion
@@ -28,14 +32,18 @@ from orchestrator.documentos import (
 )
 from orchestrator.ejecuciones import (
     ID_EJECUCION,
+    DetalleEjecucion,
     Ejecucion,
     EjecucionEnCurso,
+    EjecucionTerminada,
+    Estado,
     EstadoEjecucion,
     Evento,
     RegistroEjecuciones,
     trabajo_fase1,
 )
 from orchestrator.fases import FASES, Fase
+from orchestrator.ingest.requisito import ModeloRequisitos
 from orchestrator.llm import ProveedorLLM, crear_proveedor
 
 DASHBOARD = Path(__file__).resolve().parent.parent / "dashboard" / "dist"
@@ -54,11 +62,50 @@ CABECERAS_DE_SEGURIDAD = {
 # La documentación interactiva de FastAPI carga Swagger UI y ReDoc desde una CDN.
 RUTAS_DE_DOCUMENTACION = {"/docs", "/docs/oauth2-redirect", "/redoc"}
 
+DESCRIPCION = """
+API del motor del framework de desarrollo seguro guiado por conocimiento.
+
+Flujo de la fase 1 desde el dashboard o desde cualquier cliente:
+
+1. `POST /documentos` carga el documento de requisitos y devuelve su `id`.
+2. `POST /ejecuciones` con ese `id` lanza la fase 1 en segundo plano.
+3. `GET /ejecuciones/{id}/eventos` sigue el progreso en tiempo real (Server-Sent Events), o
+   `GET /ejecuciones/{id}` consulta el estado en un momento dado.
+4. `GET /documentos/{id}/requisitos` devuelve el `modelo_requisitos.json` generado.
+
+La API escucha solo en `127.0.0.1` porque todavía no tiene autenticación.
+"""
+
+ETIQUETAS = [
+    {"name": "motor", "description": "Estado y configuración del motor."},
+    {
+        "name": "documentos",
+        "description": "Carga del documento de requisitos (PDF, DOCX, TXT o Markdown) y el "
+        "modelo de requisitos generado a partir de él.",
+    },
+    {
+        "name": "ejecuciones",
+        "description": "Ejecución del pipeline: lanzarla, consultar su estado, seguir su "
+        "progreso en tiempo real y cancelarla. Hoy ejecuta la fase 1.",
+    },
+]
+
 app = FastAPI(
     title="Framework de desarrollo seguro",
-    description="API del motor del framework de desarrollo seguro guiado por conocimiento.",
+    description=DESCRIPCION,
     version=__version__,
+    openapi_tags=ETIQUETAS,
 )
+
+
+class Error(BaseModel):
+    """Cuerpo de las respuestas de error."""
+
+    detail: str
+
+
+def _error(descripcion: str) -> dict[str, object]:
+    return {"model": Error, "description": descripcion}
 
 
 @app.middleware("http")
@@ -73,36 +120,51 @@ async def cabeceras_de_seguridad(
     return respuesta
 
 
-@app.get("/salud")
+# --- Motor -----------------------------------------------------------------------------------
+
+
+@app.get("/salud", tags=["motor"], summary="Comprobar que el motor responde")
 def salud() -> dict[str, str]:
     return {"estado": "ok", "version": __version__}
 
 
-@app.get("/fases")
+@app.get("/fases", tags=["motor"], summary="Las 11 fases del pipeline")
 def listar_fases() -> list[Fase]:
     return list(FASES)
 
 
-@app.get("/configuracion")
+@app.get("/configuracion", tags=["motor"], summary="Configuración activa, sin secretos")
 def ver_configuracion() -> dict[str, object]:
     return obtener_configuracion().resumen()
+
+
+# --- Documentos ------------------------------------------------------------------------------
 
 
 def carpeta_documentos() -> Path:
     return obtener_configuracion().directorio_salida / "documentos"
 
 
+def carpeta_requisitos() -> Path:
+    return obtener_configuracion().directorio_salida / "requisitos"
+
+
 Carpeta = Annotated[Path, Depends(carpeta_documentos)]
+CarpetaRequisitos = Annotated[Path, Depends(carpeta_requisitos)]
+IdDocumento = Annotated[
+    str, ParametroRuta(pattern=ID_DOCUMENTO, description="Id que devolvió la carga")
+]
 
 
 @app.post(
     "/documentos",
+    tags=["documentos"],
     status_code=201,
     summary="Cargar el documento de requisitos",
     responses={
-        400: {"description": "El contenido no corresponde al formato"},
-        413: {"description": "El documento supera el tamaño máximo"},
-        415: {"description": "Formato no permitido"},
+        400: _error("El contenido no corresponde al formato"),
+        413: _error("El documento supera el tamaño máximo"),
+        415: _error("Formato no permitido"),
     },
     openapi_extra={
         "requestBody": {
@@ -155,12 +217,47 @@ async def cargar_documento(
         raise HTTPException(status_code=400, detail=str(error)) from error
 
 
-@app.get("/documentos", summary="Documentos cargados, del más reciente al más antiguo")
+@app.get(
+    "/documentos",
+    tags=["documentos"],
+    summary="Documentos cargados, del más reciente al más antiguo",
+)
 def ver_documentos(carpeta: Carpeta) -> list[DocumentoCargado]:
     return listar_documentos(carpeta)
 
 
-# --- Ejecuciones y progreso (Server-Sent Events) ---------------------------------------------
+@app.get(
+    "/documentos/{id_documento}/requisitos",
+    tags=["documentos"],
+    summary="Modelo de requisitos generado por la fase 1",
+    responses={404: _error("El documento no existe o todavía no se ha procesado")},
+)
+def ver_requisitos(
+    id_documento: IdDocumento, carpeta: Carpeta, destino: CarpetaRequisitos
+) -> ModeloRequisitos:
+    """Devuelve el `modelo_requisitos.json` de la última ejecución completada con ese documento.
+
+    Se lee del disco, así que sigue disponible después de reiniciar la API.
+    """
+    try:
+        obtener_documento(carpeta, id_documento)
+    except DocumentoNoEncontrado as error:
+        raise HTTPException(status_code=404, detail=str(error)) from error
+    archivo = destino / f"{id_documento}.modelo_requisitos.json"
+    try:
+        return ModeloRequisitos.model_validate_json(archivo.read_bytes())
+    except FileNotFoundError as error:
+        raise HTTPException(
+            status_code=404, detail="El documento todavía no se ha procesado"
+        ) from error
+    except ValidationError as error:
+        # Lo escribe el propio motor; si no valida, es que se editó a mano o cambió el esquema.
+        raise HTTPException(
+            status_code=500, detail="El modelo de requisitos guardado no es válido"
+        ) from error
+
+
+# --- Ejecuciones -----------------------------------------------------------------------------
 
 REGISTRO = RegistroEjecuciones()
 # Cada cuánto se revisan los eventos nuevos de una ejecución mientras hay un navegador conectado.
@@ -171,53 +268,84 @@ def registro_ejecuciones() -> RegistroEjecuciones:
     return REGISTRO
 
 
-def carpeta_requisitos() -> Path:
-    return obtener_configuracion().directorio_salida / "requisitos"
-
-
 def fabrica_llm() -> Callable[[], ProveedorLLM]:
     return crear_proveedor
 
 
+Registro = Annotated[RegistroEjecuciones, Depends(registro_ejecuciones)]
+
+
 class SolicitudEjecucion(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(
+        extra="forbid",
+        json_schema_extra={"examples": [{"documento": "0123456789abcdef0123456789abcdef"}]},
+    )
 
     documento: str = Field(pattern=ID_DOCUMENTO, description="Id de un documento cargado")
 
 
 @app.post(
     "/ejecuciones",
+    tags=["ejecuciones"],
     status_code=201,
-    summary="Ejecutar la fase 1 con un documento cargado",
+    summary="Lanzar la fase 1 con un documento cargado",
     responses={
-        404: {"description": "No existe el documento"},
-        409: {"description": "Ya hay una ejecución en curso"},
+        404: _error("No existe el documento"),
+        409: _error("Ya hay una ejecución en curso: el motor procesa un documento a la vez"),
     },
 )
 def iniciar_ejecucion(
     solicitud: SolicitudEjecucion,
+    respuesta: Response,
     carpeta: Carpeta,
-    destino: Annotated[Path, Depends(carpeta_requisitos)],
-    registro: Annotated[RegistroEjecuciones, Depends(registro_ejecuciones)],
+    destino: CarpetaRequisitos,
+    registro: Registro,
     crear_llm: Annotated[Callable[[], ProveedorLLM], Depends(fabrica_llm)],
 ) -> EstadoEjecucion:
-    """Lanza la ejecución en segundo plano. El progreso se sigue en `/ejecuciones/{id}/eventos`."""
+    """Lanza la ejecución en segundo plano y responde enseguida.
+
+    El progreso se sigue en `/ejecuciones/{id}/eventos` y el estado se consulta en
+    `/ejecuciones/{id}`, que es lo que indica la cabecera `Location`.
+    """
     try:
         documento, ruta = obtener_documento(carpeta, solicitud.documento)
     except DocumentoNoEncontrado as error:
         raise HTTPException(status_code=404, detail=str(error)) from error
     try:
         ejecucion = registro.iniciar(
-            documento.id, trabajo_fase1(documento, ruta, destino, crear_llm)
+            documento.id,
+            trabajo_fase1(documento, ruta, destino, crear_llm),
+            nombre_documento=documento.nombre,
         )
     except EjecucionEnCurso as error:
         raise HTTPException(status_code=409, detail=str(error)) from error
+    respuesta.headers["Location"] = f"/ejecuciones/{ejecucion.id}"
     return ejecucion.resumen()
 
 
+@app.get(
+    "/ejecuciones",
+    tags=["ejecuciones"],
+    summary="Ejecuciones recientes, de la más reciente a la más antigua",
+)
+def listar_ejecuciones(
+    registro: Registro,
+    estado: Annotated[
+        Estado | None, Query(description="Solo las ejecuciones en este estado")
+    ] = None,
+) -> list[EstadoEjecucion]:
+    """Ejecuciones que recuerda el motor desde que arrancó: hasta 20, en memoria.
+
+    Con `estado=en_curso`, el dashboard retoma la ejecución en marcha al recargar la página.
+    """
+    return [e.resumen() for e in registro.listar() if estado is None or e.estado == estado]
+
+
 def ejecucion_existente(
-    id_ejecucion: Annotated[str, ParametroRuta(pattern=ID_EJECUCION)],
-    registro: Annotated[RegistroEjecuciones, Depends(registro_ejecuciones)],
+    id_ejecucion: Annotated[
+        str, ParametroRuta(pattern=ID_EJECUCION, description="Id que devolvió la creación")
+    ],
+    registro: Registro,
 ) -> Ejecucion:
     # Se comprueba en una dependencia porque, una vez abierto el flujo de eventos, ya no se
     # puede responder con un 404.
@@ -227,14 +355,52 @@ def ejecucion_existente(
     return ejecucion
 
 
+EjecucionExistente = Annotated[Ejecucion, Depends(ejecucion_existente)]
+
+
+@app.get(
+    "/ejecuciones/{id_ejecucion}",
+    tags=["ejecuciones"],
+    summary="Estado de una ejecución y de cada fase",
+    responses={404: _error("No existe la ejecución")},
+)
+def ver_ejecucion(ejecucion: EjecucionExistente) -> DetalleEjecucion:
+    """Estado en este momento: el de la ejecución, el de cada una de las 11 fases y, cuando
+    termina la fase 1, su resultado. Para seguir el progreso sin consultar a cada rato, usa
+    `/ejecuciones/{id}/eventos`."""
+    return ejecucion.detalle()
+
+
+@app.post(
+    "/ejecuciones/{id_ejecucion}/cancelar",
+    tags=["ejecuciones"],
+    status_code=202,
+    summary="Pedir que se cancele una ejecución",
+    responses={
+        404: _error("No existe la ejecución"),
+        409: _error("La ejecución ya terminó"),
+    },
+)
+def cancelar_ejecucion(ejecucion: EjecucionExistente) -> EstadoEjecucion:
+    """La ejecución se detiene en el siguiente paso: tras la extracción o antes de la siguiente
+    sección que clasifica el LLM. Por eso responde 202: el evento «fin» con estado `cancelada`
+    llega por `/ejecuciones/{id}/eventos`."""
+    try:
+        ejecucion.pedir_cancelacion()
+    except EjecucionTerminada as error:
+        raise HTTPException(status_code=409, detail=str(error)) from error
+    return ejecucion.resumen()
+
+
 @app.get(
     "/ejecuciones/{id_ejecucion}/eventos",
+    tags=["ejecuciones"],
     response_class=EventSourceResponse,
     summary="Progreso de una ejecución en tiempo real (Server-Sent Events)",
-    responses={404: {"description": "No existe la ejecución"}},
+    responses={404: _error("No existe la ejecución")},
 )
 async def eventos_de_ejecucion(
-    ejecucion: Annotated[Ejecucion, Depends(ejecucion_existente)],
+    ejecucion: EjecucionExistente,
     last_event_id: Annotated[
         int | None,
         Header(ge=0, description="Último evento recibido; lo envía EventSource al reconectar"),

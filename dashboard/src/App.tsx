@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react'
 import {
+  cancelarEjecucion,
   iniciarEjecucion,
   listarDocumentos,
+  listarEjecuciones,
   obtenerFases,
   obtenerSalud,
   type DocumentoCargado,
@@ -21,7 +23,7 @@ type Inicio = { tipo: 'inactivo' } | { tipo: 'iniciando' } | { tipo: 'error'; me
 
 interface Seguida {
   id: string
-  documento: DocumentoCargado
+  nombreDocumento: string
 }
 
 export default function App() {
@@ -40,7 +42,7 @@ export default function App() {
     setInicio({ tipo: 'iniciando' })
     try {
       const ejecucion = await iniciarEjecucion(documento.id)
-      setSeguida({ id: ejecucion.id, documento })
+      setSeguida({ id: ejecucion.id, nombreDocumento: documento.nombre })
       setInicio({ tipo: 'inactivo' })
     } catch (error) {
       const mensaje = error instanceof Error ? error.message : 'No se pudo iniciar la ejecución'
@@ -50,12 +52,16 @@ export default function App() {
 
   useEffect(() => {
     let vigente = true
-    Promise.all([obtenerSalud(), obtenerFases(), listarDocumentos()])
-      .then(([salud, fasesDelMotor, cargados]) => {
+    Promise.all([obtenerSalud(), obtenerFases(), listarDocumentos(), listarEjecuciones('en_curso')])
+      .then(([salud, fasesDelMotor, cargados, enCurso]) => {
         if (!vigente) return
         setConexion({ tipo: 'conectado', salud })
         setFases(fasesDelMotor)
         setDocumentos(cargados)
+        // Si al recargar la página había una ejecución en marcha, se retoma: el flujo de eventos
+        // reenvía todo lo ocurrido desde el principio.
+        const enMarcha = enCurso[0]
+        if (enMarcha) setSeguida({ id: enMarcha.id, nombreDocumento: enMarcha.nombre_documento })
       })
       .catch(() => {
         if (vigente) setConexion({ tipo: 'sin-conexion' })
@@ -96,9 +102,13 @@ export default function App() {
           )}
           {seguida && (
             <ProgresoEjecucion
-              nombreDocumento={seguida.documento.nombre}
+              key={seguida.id}
+              nombreDocumento={seguida.nombreDocumento}
               eventos={eventos}
               conexion={conexionEventos}
+              onCancelar={async () => {
+                await cancelarEjecucion(seguida.id)
+              }}
             />
           )}
           {resultado && <RequisitosIdentificados resumen={resultado} />}

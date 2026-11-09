@@ -15,9 +15,10 @@ export function estadoDeFases(eventos: EventoEjecucion[]): Map<number, EstadoFas
     const anterior = fases.get(evento.fase)
     const progreso = evento.progreso ?? anterior?.progreso ?? null
     if (evento.tipo === 'fase' && evento.estado !== null) {
-      // Al empezar o terminar se conserva el último avance; si falla, se muestra el motivo.
-      const mensaje =
-        evento.estado === 'fallida' ? evento.mensaje : (anterior?.mensaje ?? evento.mensaje)
+      // Al empezar o terminar se conserva el último avance; si falla o se cancela, el motivo.
+      // Es la misma regla que estado_de_fases en orchestrator/ejecuciones.py.
+      const detenida = evento.estado === 'fallida' || evento.estado === 'cancelada'
+      const mensaje = detenida ? evento.mensaje : (anterior?.mensaje ?? evento.mensaje)
       fases.set(evento.fase, { estado: evento.estado, mensaje, progreso })
     } else {
       fases.set(evento.fase, {

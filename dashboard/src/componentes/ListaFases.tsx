@@ -11,6 +11,8 @@ function etiqueta(estado: EstadoEjecucion | 'pendiente'): string {
       return 'Completada'
     case 'fallida':
       return 'Fallida'
+    case 'cancelada':
+      return 'Cancelada'
   }
 }
 

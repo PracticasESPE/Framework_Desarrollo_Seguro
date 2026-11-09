@@ -33,7 +33,12 @@ const DOCUMENTO: DocumentoCargado = {
 const EJECUCION: Ejecucion = {
   id: 'e'.repeat(32),
   documento: DOCUMENTO.id,
+  nombre_documento: DOCUMENTO.nombre,
   estado: 'en_curso',
+  fase_actual: null,
+  progreso: null,
+  mensaje: null,
+  cancelacion_pedida: false,
   inicio: '2026-11-09T15:00:00Z',
   fin: null,
 }
@@ -59,14 +64,26 @@ const RESUMEN: ResumenFase1 = {
   ],
 }
 
-/** Responde las rutas de lectura de la API y, al lanzar la ejecución, `alIniciar`. */
-function simularApi(alIniciar: Response) {
+interface Simulacion {
+  /** Respuesta de POST /ejecuciones. */
+  alIniciar?: Response
+  /** Lo que devuelve GET /ejecuciones?estado=en_curso al cargar la página. */
+  enCurso?: Ejecucion[]
+  /** Respuesta de POST /ejecuciones/{id}/cancelar. */
+  alCancelar?: Response
+}
+
+/** Responde las rutas de la API del motor como lo haría orchestrator/api.py. */
+function simularApi({ alIniciar, enCurso = [], alCancelar }: Simulacion = {}) {
   return vi.spyOn(globalThis, 'fetch').mockImplementation((entrada) => {
     const ruta = typeof entrada === 'string' ? entrada : ''
     if (ruta === '/salud') return Promise.resolve(json({ estado: 'ok', version: '0.1.0' }))
     if (ruta === '/fases') return Promise.resolve(json(FASES))
-    if (ruta === '/ejecuciones') return Promise.resolve(alIniciar)
-    return Promise.resolve(json([DOCUMENTO]))
+    if (ruta === '/documentos') return Promise.resolve(json([DOCUMENTO]))
+    if (ruta === '/ejecuciones?estado=en_curso') return Promise.resolve(json(enCurso))
+    if (ruta === '/ejecuciones' && alIniciar) return Promise.resolve(alIniciar)
+    if (ruta.endsWith('/cancelar') && alCancelar) return Promise.resolve(alCancelar)
+    return Promise.reject(new Error(`Ruta no simulada: ${ruta}`))
   })
 }
 
@@ -81,23 +98,7 @@ afterEach(() => {
 
 describe('App', () => {
   it('muestra el estado del motor, las fases y los documentos cargados', async () => {
-    vi.spyOn(globalThis, 'fetch').mockImplementation((entrada) => {
-      const ruta = typeof entrada === 'string' ? entrada : ''
-      if (ruta === '/salud') return Promise.resolve(json({ estado: 'ok', version: '0.1.0' }))
-      if (ruta === '/fases') return Promise.resolve(json(FASES))
-      return Promise.resolve(
-        json([
-          {
-            id: 'f'.repeat(32),
-            nombre: 'tienda.docx',
-            formato: 'docx',
-            tamano: 40960,
-            sha256: 'b'.repeat(64),
-            fecha: '2026-11-06T15:00:00Z',
-          },
-        ]),
-      )
-    })
+    simularApi()
 
     render(<App />)
 
@@ -109,7 +110,7 @@ describe('App', () => {
   })
 
   it('procesa un documento y muestra el progreso en tiempo real', async () => {
-    const fetchSimulado = simularApi(respuestaJson(EJECUCION, 201))
+    const fetchSimulado = simularApi({ alIniciar: respuestaJson(EJECUCION, 201) })
     const usuario = userEvent.setup()
     render(<App />)
 
@@ -150,7 +151,7 @@ describe('App', () => {
   })
 
   it('muestra el motivo si el motor no puede iniciar la ejecución', async () => {
-    simularApi(respuestaJson({ detail: 'Ya hay una ejecución en curso (abc)' }, 409))
+    simularApi({ alIniciar: respuestaJson({ detail: 'Ya hay una ejecución en curso (abc)' }, 409) })
     const usuario = userEvent.setup()
     render(<App />)
 
@@ -161,7 +162,7 @@ describe('App', () => {
   })
 
   it('avisa si se pierde la conexión con el motor', async () => {
-    simularApi(respuestaJson(EJECUCION, 201))
+    simularApi({ alIniciar: respuestaJson(EJECUCION, 201) })
     const usuario = userEvent.setup()
     render(<App />)
     await usuario.click(await screen.findByRole('button', { name: 'Procesar tienda.docx' }))
@@ -173,6 +174,67 @@ describe('App', () => {
     fuente.fallar(true)
     expect(screen.getByRole('alert')).toHaveTextContent('Se perdió la conexión con el motor')
     expect(screen.getByRole('button', { name: 'Procesar tienda.docx' })).toBeEnabled()
+  })
+
+  it('retoma la ejecución en curso al recargar la página', async () => {
+    simularApi({ enCurso: [EJECUCION] })
+    render(<App />)
+
+    expect(await screen.findByRole('heading', { name: 'Progreso de la ejecución' })).toBeInTheDocument()
+    const fuente = EventSourceSimulado.instancias[0]
+    expect(fuente?.url).toBe(`/ejecuciones/${EJECUCION.id}/eventos`)
+    fuente?.emitir(evento({ tipo: 'fase', fase: 1, estado: 'en_curso', mensaje: 'Adquisición' }))
+
+    const progreso = screen.getByRole('region', { name: 'Progreso de la ejecución' })
+    expect(progreso).toHaveTextContent('tienda.docx')
+    expect(screen.getByRole('button', { name: 'Procesar tienda.docx' })).toBeDisabled()
+  })
+
+  it('cancela la ejecución en curso', async () => {
+    const fetchSimulado = simularApi({
+      alIniciar: respuestaJson(EJECUCION, 201),
+      alCancelar: respuestaJson({ ...EJECUCION, cancelacion_pedida: true }, 202),
+    })
+    const usuario = userEvent.setup()
+    render(<App />)
+    await usuario.click(await screen.findByRole('button', { name: 'Procesar tienda.docx' }))
+    const fuente = EventSourceSimulado.instancias[0]
+    if (!fuente) throw new Error('No se abrió el EventSource')
+    fuente.emitir(evento({ tipo: 'fase', fase: 1, estado: 'en_curso', mensaje: 'Adquisición' }))
+
+    await usuario.click(screen.getByRole('button', { name: 'Cancelar' }))
+
+    expect(fetchSimulado).toHaveBeenCalledWith(`/ejecuciones/${EJECUCION.id}/cancelar`, {
+      method: 'POST',
+    })
+    expect(screen.getByRole('button', { name: 'Cancelando…' })).toBeDisabled()
+    expect(screen.getByText(/se detendrá en cuanto termine el paso en curso/)).toBeInTheDocument()
+
+    const motivo = 'Ejecución cancelada a petición del usuario'
+    fuente.emitir(evento({ tipo: 'fase', fase: 1, estado: 'cancelada', mensaje: motivo }))
+    fuente.emitir(evento({ tipo: 'fin', estado: 'cancelada', mensaje: motivo }))
+
+    const progreso = screen.getByRole('region', { name: 'Progreso de la ejecución' })
+    expect(within(progreso).getByText('Cancelada')).toBeInTheDocument()
+    expect(within(progreso).queryByRole('button')).not.toBeInTheDocument()
+    const fases = screen.getByRole('region', { name: 'Fases del pipeline' })
+    expect(within(fases).getAllByRole('listitem')[0]).toHaveTextContent(`Cancelada${motivo}`)
+    expect(screen.getByRole('button', { name: 'Procesar tienda.docx' })).toBeEnabled()
+  })
+
+  it('muestra el motivo si no se puede cancelar', async () => {
+    simularApi({
+      alIniciar: respuestaJson(EJECUCION, 201),
+      alCancelar: respuestaJson({ detail: 'La ejecución ya terminó (completada)' }, 409),
+    })
+    const usuario = userEvent.setup()
+    render(<App />)
+    await usuario.click(await screen.findByRole('button', { name: 'Procesar tienda.docx' }))
+
+    await usuario.click(screen.getByRole('button', { name: 'Cancelar' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('La ejecución ya terminó')
+    expect(screen.getByRole('button', { name: 'Cancelar' })).toBeEnabled()
   })
 
   it('avisa cuando la API del motor no está levantada', async () => {

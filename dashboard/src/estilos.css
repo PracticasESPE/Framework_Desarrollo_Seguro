@@ -547,6 +547,14 @@ progress::-moz-progress-bar {
   font-weight: 600;
 }
 
+.evento--fin.evento--fallida {
+  color: var(--error);
+}
+
+.evento--fin.evento--cancelada {
+  color: var(--texto-suave);
+}
+
 /* Requisitos identificados */
 .cifras {
   display: grid;
@@ -631,6 +639,29 @@ progress::-moz-progress-bar {
   display: block;
   color: var(--texto-suave);
   font-size: 0.8rem;
+}
+
+.boton--peligro {
+  padding: 4px 12px;
+  font-size: 0.85rem;
+  background: var(--error-suave);
+  color: var(--error);
+}
+
+.fase--cancelada {
+  border-style: dashed;
+}
+
+.fase__estado--cancelada {
+  font-weight: 600;
+}
+
+.progreso__barra--cancelada::-webkit-progress-value {
+  background: var(--texto-suave);
+}
+
+.progreso__barra--cancelada::-moz-progress-bar {
+  background: var(--texto-suave);
 }
 
 .boton--secundario {
