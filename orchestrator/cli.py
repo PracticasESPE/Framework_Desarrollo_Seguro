@@ -866,6 +866,66 @@ def requisitos_normalizar(
         typer.echo(f"  ... y {len(unidades) - mostrar} más")
 
 
+@requisitos_app.command("clasificar")
+def requisitos_clasificar(
+    ruta: RutaDocumento = None,
+    documento: IdDocumento = None,
+    destino: CarpetaDestino = None,
+    proveedor: Annotated[
+        str | None,
+        typer.Option("--proveedor", help="Proveedor de LLM; por defecto LLM_PROVIDER."),
+    ] = None,
+) -> None:
+    """Fase 1 completa: extrae, normaliza y clasifica con el LLM; guarda modelo_requisitos.json."""
+    from collections import Counter
+
+    from orchestrator.ingest import (
+        DocumentoOrigen,
+        ModeloRequisitos,
+        construir_requisitos,
+        segmentar,
+    )
+    from orchestrator.ingest.clasificacion import clasificar_unidades
+    from orchestrator.llm import ErrorLLM, crear_proveedor
+
+    extraido, base = _extraer_documento(ruta, documento)
+    unidades = segmentar(extraido.markdown)
+    typer.echo(f"Documento: {extraido.nombre} ({extraido.formato}), {len(unidades)} unidades")
+
+    def avance(titulo: str, total: int) -> None:
+        typer.echo(f"  Clasificando «{titulo}» ({total} unidades)")
+
+    try:
+        llm = crear_proveedor(proveedor)
+        pares = clasificar_unidades(unidades, llm, al_avanzar=avance)
+        modelo = ModeloRequisitos(
+            documento=DocumentoOrigen(
+                nombre=extraido.nombre, sha256=extraido.sha256, herramienta=extraido.herramienta
+            ),
+            requisitos=construir_requisitos(pares),
+        )
+    except (ErrorLLM, ValueError) as error:
+        typer.echo(f"Error: {error}", err=True)
+        raise typer.Exit(1) from error
+
+    archivo = _carpeta_requisitos(destino) / f"{base}.modelo_requisitos.json"
+    archivo.write_text(modelo.model_dump_json(indent=2), encoding="utf-8")
+
+    tipos = Counter(r.tipo for r in modelo.requisitos)
+    etiquetas = Counter(e for r in modelo.requisitos for e in r.etiquetas)
+    descartadas = sum(1 for _, c in pares if not c.es_requisito)
+    typer.echo(f"Proveedor: {getattr(llm, 'nombre', proveedor)}")
+    typer.echo(
+        f"Requisitos: {len(modelo.requisitos)} (funcionales: {tipos['funcional']}, "
+        f"no funcionales: {tipos['no_funcional']}); unidades descartadas: {descartadas}"
+    )
+    typer.echo(
+        "Etiquetas de seguridad: "
+        + (", ".join(f"{e} {n}" for e, n in etiquetas.most_common()) or "ninguna")
+    )
+    typer.echo(f"Modelo guardado en {archivo.as_posix()}")
+
+
 @requisitos_app.command("esquema")
 def requisitos_esquema(
     salida: Annotated[
