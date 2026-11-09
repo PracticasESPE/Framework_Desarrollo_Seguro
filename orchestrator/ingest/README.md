@@ -51,6 +51,9 @@ variante para CPU (ver `pyproject.toml`).
 - Cada punto de una lista, viñeta, párrafo y tabla es una unidad con su sección y una ubicación
   estable: `3.1` es el punto 1 de la sección 3; `10, viñeta 2` y `2, tabla 1` siguen el mismo
   criterio. En un TXT, un título es una línea corta y aislada que no termina como una frase.
+- Un bloque de más de 600 caracteres se divide en oraciones (`0, párrafo 1, oración 4`). Es el
+  caso de un documento sin estructura, como un correo de un solo párrafo, que mezcla varios
+  requisitos con charla. Las unidades del dataset miden hasta ~400 caracteres y no cambian.
 
 ```bash
 uv run framework requisitos normalizar evaluation/datasets/02_gestion_academica/requisitos.docx

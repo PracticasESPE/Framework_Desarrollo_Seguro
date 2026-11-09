@@ -13,6 +13,9 @@ MODELOS_POR_DEFECTO: dict[Nivel, str] = {
     "rapido": "openai/gpt-oss-20b",
     "razonamiento": "openai/gpt-oss-120b",
 }
+# Los modelos gpt-oss razonan antes de responder y ese razonamiento cuenta como salida. Con el
+# límite por defecto de Groq, una sección de unas 15 unidades se cortaba a mitad del JSON.
+MAX_TOKENS_SALIDA = 16384
 
 
 class ProveedorGroq(ProveedorBase):
@@ -42,6 +45,7 @@ class ProveedorGroq(ProveedorBase):
                 model=modelo,
                 messages=mensajes,
                 temperature=self.temperatura,
+                max_completion_tokens=MAX_TOKENS_SALIDA,
                 response_format={
                     "type": "json_schema",
                     "json_schema": {
@@ -53,6 +57,11 @@ class ProveedorGroq(ProveedorBase):
         except openai.RateLimitError as error:
             raise ErrorProveedorLLM("groq: límite de peticiones alcanzado") from error
         except openai.APIStatusError as error:
+            if getattr(error, "code", None) == "json_validate_failed":
+                # Groq valida el JSON del modelo y lo rechaza si no cumple el esquema. Es lo mismo
+                # que una salida inválida: se devuelve lo generado para que la base reintente.
+                cuerpo = error.body if isinstance(error.body, dict) else {}
+                return str(cuerpo.get("failed_generation") or "")
             raise ErrorProveedorLLM(
                 f"groq: error {error.status_code} de la API: {error.message}"
             ) from error

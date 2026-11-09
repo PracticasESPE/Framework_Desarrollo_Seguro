@@ -49,6 +49,7 @@ def test_groq_devuelve_el_esquema_validado():
     llamada = llamadas[0]
     assert llamada["model"] == "openai/gpt-oss-120b"
     assert llamada["temperature"] == 0.1
+    assert llamada["max_completion_tokens"] == 16384
     assert llamada["messages"] == [
         {"role": "system", "content": "Eres analista"},
         {"role": "user", "content": "extrae"},
@@ -64,6 +65,45 @@ def test_groq_reintenta_si_la_salida_no_cumple_el_esquema():
     assert ProveedorGroq(cliente=cliente).generar_estructurado("x", Requisito) == ESPERADO
     assert len(llamadas) == 2
     assert llamadas[0]["model"] == "openai/gpt-oss-20b"
+
+
+def _json_rechazado(generado: str) -> openai.BadRequestError:
+    """El error 400 que da Groq cuando el JSON del modelo no cumple el esquema."""
+    peticion = httpx.Request("POST", "https://api.groq.com/openai/v1/chat/completions")
+    cuerpo = {
+        "message": "Failed to validate JSON.",
+        "type": "invalid_request_error",
+        "code": "json_validate_failed",
+        "failed_generation": generado,
+    }
+    return openai.BadRequestError(
+        "Error code: 400", response=httpx.Response(400, request=peticion), body=cuerpo
+    )
+
+
+def test_groq_reintenta_si_rechaza_el_json_del_modelo():
+    cliente, llamadas = _cliente(_json_rechazado(""), _json_rechazado('{"id": 1}'), VALIDO)
+    assert ProveedorGroq(cliente=cliente).generar_estructurado("x", Requisito) == ESPERADO
+    assert len(llamadas) == 3
+
+
+def test_groq_json_rechazado_en_todos_los_intentos():
+    cliente, _ = _cliente(*[_json_rechazado("")] * 3)
+    with pytest.raises(ErrorLLM, match="no cumplió el esquema"):
+        ProveedorGroq(cliente=cliente).generar_estructurado("x", Requisito)
+
+
+def test_groq_otro_error_400_no_se_reintenta():
+    peticion = httpx.Request("POST", "https://api.groq.com/openai/v1/chat/completions")
+    error = openai.BadRequestError(
+        "modelo inexistente",
+        response=httpx.Response(400, request=peticion),
+        body={"code": "model_not_found"},
+    )
+    cliente, llamadas = _cliente(error, VALIDO)
+    with pytest.raises(ErrorProveedorLLM, match="error 400"):
+        ProveedorGroq(cliente=cliente).generar_estructurado("x", Requisito)
+    assert len(llamadas) == 1
 
 
 def test_groq_respuesta_vacia():
