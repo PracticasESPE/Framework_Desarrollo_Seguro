@@ -82,6 +82,16 @@ def test_docx_con_docling_conserva_titulos_y_tablas():
     assert "| Visitante" in extraido.markdown  # la tabla de usuarios sigue siendo una tabla
 
 
+def test_el_pdf_no_usa_docling_parse():
+    # docling-parse no abre sus propios archivos si el proyecto está en una ruta con tildes
+    # (D:\...\Prácticas\...), y el CI no lo detecta porque sus rutas son ASCII.
+    from docling.backend.pypdfium2_backend import PyPdfiumDocumentBackend
+    from docling.datamodel.base_models import InputFormat
+
+    opciones = extraccion._conversor().format_to_options[InputFormat.PDF]
+    assert opciones.backend is PyPdfiumDocumentBackend
+
+
 def test_metadatos_del_documento_extraido():
     ruta = DOCUMENTOS[0] / "requisitos.txt"
     extraido = extraer_markdown(ruta)
