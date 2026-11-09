@@ -19,6 +19,7 @@ Las tablas no se clasifican: acompañan como contexto a las unidades de su secci
 
 from __future__ import annotations
 
+import html
 import secrets
 import time
 from collections.abc import Callable
@@ -28,7 +29,10 @@ from pydantic import BaseModel, ConfigDict, Field, StringConstraints
 
 from orchestrator.ingest.normalizacion import UnidadTexto
 from orchestrator.ingest.requisito import ClasificacionRequisito
-from orchestrator.llm.base import ErrorLLM, ErrorProveedorLLM, ProveedorLLM
+from orchestrator.llm.base import ErrorLimiteLLM, ErrorLLM, ErrorProveedorLLM, ProveedorLLM
+
+# Más allá de esto no compensa esperar a que el proveedor recupere su límite por minuto.
+ESPERA_MAXIMA_S = 120.0
 
 DEFINICION_ETIQUETAS: dict[str, str] = {
     "autenticacion": "identificar a quien usa el sistema: registro, inicio de sesión, contraseña, "
@@ -157,6 +161,25 @@ def _secciones(unidades: list[UnidadTexto]) -> list[tuple[str, list[UnidadTexto]
     return grupos
 
 
+def _espera_por_limite(
+    error: ErrorProveedorLLM, esperas_s: tuple[float, ...], limites: int
+) -> float | None:
+    """Segundos que esperar antes de reintentar por el límite de uso, o None para no esperar.
+
+    Se usa la espera que pide el proveedor (`retry-after`) si la indica. No se espera si la cuota
+    agotada es la del día o si la espera supera ESPERA_MAXIMA_S: no se recupera en minutos.
+    """
+    if limites >= len(esperas_s):
+        return None
+    if isinstance(error, ErrorLimiteLLM):
+        if error.diario:
+            return None
+        espera = error.espera_s if error.espera_s is not None else esperas_s[limites]
+        return espera if espera <= ESPERA_MAXIMA_S else None
+    # Adaptadores que solo indican el límite en el mensaje.
+    return esperas_s[limites] if "límite" in str(error) else None
+
+
 def _clasificar_seccion(
     prompt: str,
     unidades: list[UnidadTexto],
@@ -176,13 +199,17 @@ def _clasificar_seccion(
             )
         except ErrorProveedorLLM as error:
             # Límite de uso del plan gratuito: se espera y se reintenta, sin gastar un intento.
-            if "límite" in str(error) and limites < len(esperas_s):
-                dormir(esperas_s[limites])
-                limites += 1
-                continue
-            raise
+            espera = _espera_por_limite(error, esperas_s, limites)
+            if espera is None:
+                raise
+            dormir(espera)
+            limites += 1
+            continue
         intento += 1
-        recibidas = [c.ubicacion for c in respuesta.clasificaciones]
+        # Algunos modelos (Gemini) devuelven la ubicación con entidades HTML («p&aacute;rrafo»),
+        # porque en el prompt va como atributo de una marca. La ubicación la genera el motor, así
+        # que decodificarla no deja pasar nada que el LLM pueda inventar.
+        recibidas = [html.unescape(c.ubicacion) for c in respuesta.clasificaciones]
         if recibidas == esperadas:
             return [
                 ClasificacionRequisito.model_validate(c.model_dump(exclude={"ubicacion"}))

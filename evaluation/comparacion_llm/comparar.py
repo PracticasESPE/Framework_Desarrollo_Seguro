@@ -299,7 +299,9 @@ def principal(nombres: list[str]) -> int:
     for nombre in nombres:
         print(f"Evaluando {nombre}...")
         try:
-            proveedor = crear_proveedor(nombre, config.model_copy(update={"llm_max_intentos": 1}))
+            # Sin caché (mide la latencia real) y sin respaldo (compara cada proveedor por sí solo).
+            sin_ayudas = {"llm_max_intentos": 1, "llm_cache": False, "llm_respaldo": ""}
+            proveedor = crear_proveedor(nombre, config.model_copy(update=sin_ayudas))
         except ErrorLLM as error:
             print(f"  omitido: {error}", file=sys.stderr)
             continue

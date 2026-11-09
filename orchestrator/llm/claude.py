@@ -4,7 +4,7 @@ from typing import Any
 
 import anthropic
 
-from orchestrator.llm.base import ErrorProveedorLLM, Nivel, ProveedorBase, T
+from orchestrator.llm.base import ErrorProveedorLLM, Nivel, ProveedorBase, T, error_de_limite
 
 MODELOS_POR_DEFECTO: dict[Nivel, str] = {
     "rapido": "claude-haiku-4-5",
@@ -54,7 +54,13 @@ class ProveedorClaude(ProveedorBase):
             else:
                 respuesta = self._cliente.messages.parse(**parametros)
         except anthropic.RateLimitError as error:
-            raise ErrorProveedorLLM("claude: límite de peticiones alcanzado") from error
+            raise error_de_limite(
+                "claude", error.message, error.response.headers.get("retry-after")
+            ) from error
+        except anthropic.AuthenticationError as error:
+            raise ErrorProveedorLLM(
+                "claude: la clave ANTHROPIC_API_KEY no es válida (401)"
+            ) from error
         except anthropic.APIStatusError as error:
             raise ErrorProveedorLLM(
                 f"claude: error {error.status_code} de la API: {error.message}"
@@ -62,6 +68,8 @@ class ProveedorClaude(ProveedorBase):
         except anthropic.APIConnectionError as error:
             raise ErrorProveedorLLM("claude: no se pudo conectar con la API") from error
 
+        uso = getattr(respuesta, "usage", None)
+        self._anotar_uso(getattr(uso, "input_tokens", None), getattr(uso, "output_tokens", None))
         if respuesta.stop_reason == "refusal":
             raise ErrorProveedorLLM("claude: el modelo rechazó la petición")
         if respuesta.stop_reason == "max_tokens":

@@ -45,6 +45,9 @@ class ProveedorOllama(ProveedorBase):
         except ConnectionError as error:
             raise ErrorProveedorLLM("ollama: no se pudo conectar con el servidor local") from error
 
+        self._anotar_uso(
+            getattr(respuesta, "prompt_eval_count", None), getattr(respuesta, "eval_count", None)
+        )
         contenido = respuesta.message.content
         if not contenido:
             raise ErrorProveedorLLM("ollama: la respuesta llegó vacía")

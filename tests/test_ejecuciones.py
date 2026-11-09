@@ -22,7 +22,7 @@ from orchestrator.api import (
 )
 from orchestrator.documentos import DocumentoNoEncontrado, guardar_documento, obtener_documento
 from orchestrator.ejecuciones import Ejecucion, RegistroEjecuciones
-from orchestrator.llm import ErrorProveedorLLM
+from orchestrator.llm import ErrorLimiteLLM, ErrorProveedorLLM, ProveedorEnCadena
 
 TEXTO = """\
 # Tienda
@@ -439,3 +439,20 @@ def test_cancelar_corta_la_espera_por_el_limite_de_uso_del_llm(entorno):
     lista = eventos(cliente, id_ejecucion)
     assert time.monotonic() - inicio < 5
     assert (lista[-1]["tipo"], lista[-1]["estado"]) == ("fin", "cancelada")
+
+
+class LLMAgotado:
+    nombre = "groq"
+
+    def generar_estructurado(self, prompt, esquema, nivel="rapido", sistema=None):
+        raise ErrorLimiteLLM("groq: cuota diaria agotada; se renueva en 7 min", 432, diario=True)
+
+
+def test_el_progreso_muestra_el_respaldo_y_el_uso_del_llm(entorno):
+    entorno["estado"]["llm"] = ProveedorEnCadena([LLMAgotado(), LLMSimulado()])
+    lista = eventos(entorno["cliente"], iniciar(entorno))
+
+    mensajes = [e["mensaje"] for e in lista]
+    assert "groq: cuota diaria agotada; se renueva en 7 min: la sección pasa a simulado" in mensajes
+    assert any(m.startswith("Uso del LLM: ") for m in mensajes)
+    assert lista[-1]["estado"] == "completada"

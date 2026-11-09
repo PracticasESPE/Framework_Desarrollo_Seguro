@@ -1,10 +1,10 @@
 """Adaptador de Groq (modelos abiertos en la nube) sobre su API compatible con OpenAI."""
 
-from typing import Any
+from typing import Any, Literal
 
 import openai
 
-from orchestrator.llm.base import ErrorProveedorLLM, Nivel, ProveedorBase, T
+from orchestrator.llm.base import ErrorProveedorLLM, Nivel, ProveedorBase, T, error_de_limite
 
 URL_BASE = "https://api.groq.com/openai/v1"
 
@@ -16,9 +16,15 @@ MODELOS_POR_DEFECTO: dict[Nivel, str] = {
 # Los modelos gpt-oss razonan antes de responder y ese razonamiento cuenta como salida. Con el
 # límite por defecto de Groq, una sección de unas 15 unidades se cortaba a mitad del JSON.
 MAX_TOKENS_SALIDA = 16384
+# Solo los modelos que razonan aceptan `reasoning_effort` (low, medium o high).
+_PREFIJOS_CON_RAZONAMIENTO = ("openai/gpt-oss",)
+EsfuerzoRazonamiento = Literal["low", "medium", "high"]
 
 
 class ProveedorGroq(ProveedorBase):
+    """`esfuerzo_razonamiento` controla cuánto razonan los gpt-oss antes de responder. Ese
+    razonamiento cuenta como tokens de salida y gasta la cuota; None deja el valor de Groq."""
+
     nombre = "groq"
 
     def __init__(
@@ -29,9 +35,11 @@ class ProveedorGroq(ProveedorBase):
         temperatura: float = 0.1,
         url_base: str = URL_BASE,
         cliente: Any | None = None,
+        esfuerzo_razonamiento: EsfuerzoRazonamiento | None = None,
     ) -> None:
         super().__init__(modelos or dict(MODELOS_POR_DEFECTO), max_intentos)
         self.temperatura = temperatura
+        self.esfuerzo_razonamiento = esfuerzo_razonamiento
         self._cliente = cliente or openai.OpenAI(api_key=api_key, base_url=url_base)
 
     def _invocar(self, prompt: str, esquema: type[T], modelo: str, sistema: str | None) -> T | str:
@@ -39,6 +47,10 @@ class ProveedorGroq(ProveedorBase):
         if sistema:
             mensajes.append({"role": "system", "content": sistema})
         mensajes.append({"role": "user", "content": prompt})
+
+        extra: dict[str, Any] = {}
+        if self.esfuerzo_razonamiento and modelo.startswith(_PREFIJOS_CON_RAZONAMIENTO):
+            extra["reasoning_effort"] = self.esfuerzo_razonamiento
 
         try:
             respuesta = self._cliente.chat.completions.create(
@@ -53,9 +65,14 @@ class ProveedorGroq(ProveedorBase):
                         "schema": esquema.model_json_schema(),
                     },
                 },
+                **extra,
             )
         except openai.RateLimitError as error:
-            raise ErrorProveedorLLM("groq: límite de peticiones alcanzado") from error
+            raise error_de_limite(
+                "groq", error.message, error.response.headers.get("retry-after")
+            ) from error
+        except openai.AuthenticationError as error:
+            raise ErrorProveedorLLM("groq: la clave GROQ_API_KEY no es válida (401)") from error
         except openai.APIStatusError as error:
             if getattr(error, "code", None) == "json_validate_failed":
                 # Groq valida el JSON del modelo y lo rechaza si no cumple el esquema. Es lo mismo
@@ -68,6 +85,10 @@ class ProveedorGroq(ProveedorBase):
         except openai.APIConnectionError as error:
             raise ErrorProveedorLLM("groq: no se pudo conectar con la API") from error
 
+        uso = getattr(respuesta, "usage", None)
+        self._anotar_uso(
+            getattr(uso, "prompt_tokens", None), getattr(uso, "completion_tokens", None)
+        )
         contenido = respuesta.choices[0].message.content if respuesta.choices else None
         if not contenido:
             raise ErrorProveedorLLM("groq: la respuesta llegó vacía")

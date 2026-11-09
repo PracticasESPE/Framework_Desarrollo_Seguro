@@ -121,7 +121,9 @@ def test_groq_error_de_conexion():
 
 def test_fabrica_crea_groq_y_exige_su_clave(monkeypatch):
     monkeypatch.delenv("GROQ_API_KEY", raising=False)
-    con_clave = Configuracion(_env_file=None, llm_provider="groq", groq_api_key="k")
+    con_clave = Configuracion(
+        _env_file=None, llm_provider="groq", groq_api_key="k", llm_cache=False
+    )
     assert isinstance(crear_proveedor(configuracion=con_clave), ProveedorGroq)
 
     sin_clave = Configuracion(_env_file=None, llm_provider="groq")
