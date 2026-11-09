@@ -54,6 +54,63 @@ export async function listarDocumentos(): Promise<DocumentoCargado[]> {
   return leer<DocumentoCargado[]>(await fetch('/documentos'))
 }
 
+export type EstadoEjecucion = 'en_curso' | 'completada' | 'fallida'
+
+export interface Ejecucion {
+  id: string
+  documento: string
+  estado: EstadoEjecucion
+  inicio: string
+  fin: string | null
+}
+
+export interface Requisito {
+  id: string
+  tipo: 'funcional' | 'no_funcional'
+  texto: string
+  ubicacion: string
+  actor: string
+  accion: string
+  entidades: string[]
+  servicio_sugerido: string
+  etiquetas: string[]
+}
+
+export interface ResumenFase1 {
+  archivo: string
+  funcionales: number
+  no_funcionales: number
+  descartadas: number
+  etiquetas: Record<string, number>
+  requisitos: Requisito[]
+}
+
+/** Lo que llega en cada evento de /ejecuciones/{id}/eventos (orchestrator/ejecuciones.py). */
+export interface EventoEjecucion {
+  id: number
+  tipo: 'fase' | 'avance' | 'resultado' | 'fin'
+  fecha: string
+  mensaje: string
+  fase: number | null
+  estado: EstadoEjecucion | null
+  progreso: number | null
+  resultado: ResumenFase1 | null
+}
+
+/** Lanza la fase 1 con un documento cargado; el progreso se sigue con `rutaEventos`. */
+export async function iniciarEjecucion(documento: string): Promise<Ejecucion> {
+  const respuesta = await fetch('/ejecuciones', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ documento }),
+  })
+  return leer<Ejecucion>(respuesta)
+}
+
+export function rutaEventos(idEjecucion: string): string {
+  return `/ejecuciones/${encodeURIComponent(idEjecucion)}/eventos`
+}
+
 /** Sube el archivo como cuerpo binario; el nombre original va aparte y solo se muestra. */
 export async function cargarDocumento(archivo: File): Promise<DocumentoCargado> {
   const respuesta = await fetch(`/documentos?nombre=${encodeURIComponent(archivo.name)}`, {

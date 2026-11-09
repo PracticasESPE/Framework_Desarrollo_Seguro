@@ -4,7 +4,7 @@ import { defineConfig } from 'vitest/config'
 // En producción la API del motor sirve el dashboard compilado (dist/), así que comparten origen
 // y no hace falta CORS. En desarrollo, Vite reenvía a la API las rutas que no son del dashboard.
 const API = 'http://127.0.0.1:8000'
-const RUTAS_API = ['/salud', '/fases', '/configuracion', '/documentos']
+const RUTAS_API = ['/salud', '/fases', '/configuracion', '/documentos', '/ejecuciones']
 
 export default defineConfig({
   plugins: [react()],

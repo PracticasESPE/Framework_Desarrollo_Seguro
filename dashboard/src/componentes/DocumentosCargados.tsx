@@ -3,7 +3,14 @@ import { formatearTamano } from '../validacion'
 
 const FECHA = new Intl.DateTimeFormat('es-EC', { dateStyle: 'short', timeStyle: 'short' })
 
-export function DocumentosCargados({ documentos }: { documentos: DocumentoCargado[] }) {
+interface Props {
+  documentos: DocumentoCargado[]
+  onProcesar?: (documento: DocumentoCargado) => void
+  /** Hay una ejecución en curso: el motor procesa un documento a la vez. */
+  ocupado?: boolean
+}
+
+export function DocumentosCargados({ documentos, onProcesar, ocupado = false }: Props) {
   return (
     <section className="tarjeta" aria-labelledby="titulo-documentos">
       <h2 id="titulo-documentos">Documentos cargados</h2>
@@ -21,6 +28,11 @@ export function DocumentosCargados({ documentos }: { documentos: DocumentoCargad
                 </th>
                 <th scope="col">Cargado</th>
                 <th scope="col">SHA-256</th>
+                {onProcesar && (
+                  <th scope="col">
+                    <span className="oculto">Acción</span>
+                  </th>
+                )}
               </tr>
             </thead>
             <tbody>
@@ -33,6 +45,19 @@ export function DocumentosCargados({ documentos }: { documentos: DocumentoCargad
                   <td>
                     <code title={documento.sha256}>{documento.sha256.slice(0, 12)}…</code>
                   </td>
+                  {onProcesar && (
+                    <td>
+                      <button
+                        type="button"
+                        className="boton boton--secundario"
+                        disabled={ocupado}
+                        onClick={() => onProcesar(documento)}
+                        aria-label={`Procesar ${documento.nombre}`}
+                      >
+                        Procesar
+                      </button>
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>
