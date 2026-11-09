@@ -396,6 +396,254 @@ code {
   font-size: 0.8rem;
 }
 
+.fase__detalle {
+  grid-column: 2 / -1;
+  color: var(--texto-suave);
+  font-size: 0.82rem;
+  overflow-wrap: anywhere;
+}
+
+.fase__barra {
+  grid-column: 2 / -1;
+}
+
+.fase--en_curso {
+  border-color: var(--acento);
+  box-shadow: 0 0 0 1px var(--acento);
+}
+
+.fase--en_curso .fase__numero,
+.fase--completada .fase__numero {
+  background: var(--acento);
+  color: var(--superficie);
+}
+
+.fase__estado--en_curso,
+.fase__estado--completada {
+  color: var(--acento);
+  font-weight: 600;
+}
+
+.fase--fallida {
+  border-color: var(--error);
+  background: var(--error-suave);
+}
+
+.fase--fallida .fase__numero {
+  background: var(--error);
+  color: var(--superficie);
+}
+
+.fase__estado--fallida,
+.fase--fallida .fase__detalle {
+  color: var(--error);
+  font-weight: 600;
+}
+
+/* Progreso de la ejecución */
+.tarjeta__cabecera {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+}
+
+.tarjeta__cabecera .estado {
+  margin-left: 0;
+}
+
+.estado--curso {
+  color: var(--acento);
+  border-color: var(--acento);
+}
+
+.progreso {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.progreso__barra {
+  flex: 1;
+}
+
+.progreso__valor {
+  min-width: 4ch;
+  text-align: right;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+progress {
+  appearance: none;
+  width: 100%;
+  height: 8px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--fondo);
+  overflow: hidden;
+  accent-color: var(--acento);
+}
+
+progress::-webkit-progress-bar {
+  background: var(--fondo);
+  border-radius: 999px;
+}
+
+progress::-webkit-progress-value {
+  background: var(--acento);
+  border-radius: 999px;
+  transition: width 0.3s;
+}
+
+progress::-moz-progress-bar {
+  background: var(--acento);
+  border-radius: 999px;
+}
+
+.progreso__barra--fallida::-webkit-progress-value {
+  background: var(--error);
+}
+
+.progreso__barra--fallida::-moz-progress-bar {
+  background: var(--error);
+}
+
+.eventos {
+  list-style: none;
+  margin: 0;
+  padding: 10px 12px;
+  display: grid;
+  gap: 4px;
+  max-height: 260px;
+  overflow-y: auto;
+  border: 1px solid var(--borde);
+  border-radius: var(--radio);
+  background: var(--fondo);
+  font-size: 0.86rem;
+}
+
+.evento {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 10px;
+  overflow-wrap: anywhere;
+}
+
+.evento__hora {
+  color: var(--texto-suave);
+  font-family: ui-monospace, 'Cascadia Code', Consolas, monospace;
+  font-size: 0.82rem;
+}
+
+.evento--fase,
+.evento--resultado {
+  font-weight: 600;
+}
+
+.evento--fin {
+  color: var(--acento);
+  font-weight: 600;
+}
+
+/* Requisitos identificados */
+.cifras {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  gap: 10px;
+  margin: 0;
+}
+
+.cifras div {
+  padding: 10px 12px;
+  border-radius: var(--radio);
+  background: var(--fondo);
+}
+
+.cifras dt {
+  color: var(--texto-suave);
+  font-size: 0.82rem;
+}
+
+.cifras dd {
+  margin: 0;
+  font-size: 1.4rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.chips {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.chip {
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: var(--gate-suave);
+  color: var(--gate);
+  font-size: 0.82rem;
+}
+
+.chip__numero {
+  font-weight: 700;
+}
+
+.tipo {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 0.82rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.tipo--funcional {
+  background: var(--acento-suave);
+  color: var(--acento);
+}
+
+.tipo--no_funcional {
+  background: var(--gate-suave);
+  color: var(--gate);
+}
+
+.tabla--requisitos td {
+  vertical-align: top;
+}
+
+.tabla .tabla__texto {
+  white-space: normal;
+  min-width: 160px;
+}
+
+.tabla .tabla__requisito {
+  width: 60%;
+  min-width: 260px;
+}
+
+.tabla__ubicacion {
+  display: block;
+  color: var(--texto-suave);
+  font-size: 0.8rem;
+}
+
+.boton--secundario {
+  padding: 4px 12px;
+  font-size: 0.85rem;
+  background: var(--acento-suave);
+  color: var(--acento);
+}
+
+.aviso__accion {
+  justify-self: start;
+}
+
 /* Tabla de documentos */
 .tabla-contenedor {
   overflow-x: auto;

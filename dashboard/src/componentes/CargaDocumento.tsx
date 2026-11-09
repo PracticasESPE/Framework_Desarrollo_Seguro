@@ -18,6 +18,9 @@ type Modo = 'archivo' | 'texto'
 
 interface Props {
   onCargado: (documento: DocumentoCargado) => void
+  /** Si se indica, «Documento recibido» ofrece lanzar la fase 1 con ese documento. */
+  onProcesar?: (documento: DocumentoCargado) => void
+  ocupado?: boolean
 }
 
 const EJEMPLO = `Ejemplo:
@@ -25,7 +28,7 @@ const EJEMPLO = `Ejemplo:
 2. El administrador gestiona el catálogo de productos.
 - Como cliente, quiero ver el estado de mis pedidos para saber cuándo llegan.`
 
-export function CargaDocumento({ onCargado }: Props) {
+export function CargaDocumento({ onCargado, onProcesar, ocupado = false }: Props) {
   const [modo, setModo] = useState<Modo>('archivo')
   const [estado, setEstado] = useState<Estado>({ tipo: 'inactivo' })
   const [arrastrando, setArrastrando] = useState(false)
@@ -194,12 +197,20 @@ export function CargaDocumento({ onCargado }: Props) {
           {estado.mensaje}
         </p>
       )}
-      {estado.tipo === 'listo' && <DocumentoRecibido documento={estado.documento} />}
+      {estado.tipo === 'listo' && (
+        <DocumentoRecibido documento={estado.documento} onProcesar={onProcesar} ocupado={ocupado} />
+      )}
     </section>
   )
 }
 
-function DocumentoRecibido({ documento }: { documento: DocumentoCargado }) {
+interface PropsRecibido {
+  documento: DocumentoCargado
+  onProcesar?: (documento: DocumentoCargado) => void
+  ocupado: boolean
+}
+
+function DocumentoRecibido({ documento, onProcesar, ocupado }: PropsRecibido) {
   return (
     <div className="aviso aviso--ok" role="status">
       <p className="aviso__titulo">Documento recibido</p>
@@ -219,6 +230,16 @@ function DocumentoRecibido({ documento }: { documento: DocumentoCargado }) {
           <code>{documento.id}</code>
         </dd>
       </dl>
+      {onProcesar && (
+        <button
+          type="button"
+          className="boton aviso__accion"
+          disabled={ocupado}
+          onClick={() => onProcesar(documento)}
+        >
+          Procesar documento
+        </button>
+      )}
     </div>
   )
 }

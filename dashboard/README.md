@@ -14,8 +14,24 @@ necesita servidor propio ni CORS. No forma parte de lo que genera el framework.
   las mismas validaciones que un archivo, así que para la fase 1 son un documento más.
 - **Documentos cargados.** Lista de lo subido, del más reciente al más antiguo.
 - **Fases del pipeline.** Las 11 fases que publica el motor en `/fases`, con los gates resaltados.
-  El progreso en tiempo real con Server-Sent Events llega en #51.
 - **Estado del motor.** Versión de la API, o aviso si no está levantada.
+
+## Versión 1: progreso por fase con Server-Sent Events (#51)
+
+- **Procesar un documento.** El botón «Procesar documento» (al subirlo) o «Procesar» (en la lista)
+  llama a `POST /ejecuciones`, que lanza la fase 1 en segundo plano: extracción con Docling,
+  normalización y clasificación con el LLM.
+- **Progreso en tiempo real.** El dashboard abre un `EventSource` a
+  `/ejecuciones/{id}/eventos` y muestra cada evento en cuanto llega:
+  - la fase en curso resaltada en «Fases del pipeline», con su barra y el paso actual;
+  - la barra general y el registro de eventos con la hora de cada uno.
+- **Requisitos identificados.** Al terminar, se muestran los requisitos con su tipo (RF o RNF),
+  el servicio sugerido y las etiquetas de seguridad. El modelo queda en
+  `salida/requisitos/<id del documento>.modelo_requisitos.json`.
+
+Cada evento lleva un número correlativo. Si se corta la conexión, EventSource se reconecta solo
+con `Last-Event-ID` y el motor le reenvía lo que faltaba. Las fases 2 a 11 aparecen pendientes
+hasta que existan en el motor.
 
 ## Uso
 
@@ -30,8 +46,8 @@ uv run framework api  # http://127.0.0.1:8000
 ```
 
 En desarrollo, con recarga automática: `uv run framework api` en una terminal y `npm run dev` en
-otra (http://127.0.0.1:5173). Vite reenvía a la API las rutas `/salud`, `/fases`, `/configuracion`
-y `/documentos`.
+otra (http://127.0.0.1:5173). Vite reenvía a la API las rutas `/salud`, `/fases`, `/configuracion`,
+`/documentos` y `/ejecuciones`.
 
 | Comando | Qué hace |
 |---|---|
@@ -57,6 +73,15 @@ El archivo viaja como cuerpo binario (`application/octet-stream`) y no como form
 controla mientras llega el cuerpo.
 
 La API escucha solo en `127.0.0.1` porque aún no tiene autenticación.
+
+## Seguridad de las ejecuciones
+
+| Riesgo | Control |
+|---|---|
+| Lanzar muchas ejecuciones y agotar la CPU o la cuota del LLM (CWE-400) | Una ejecución a la vez: la segunda recibe 409. El registro en memoria guarda como mucho 20 |
+| Pasar una ruta en vez de un documento (CWE-22) | `documento` debe ser un id de 32 hexadecimales generado por el servidor; campos extra, 422 |
+| Mostrar detalles internos en un error (CWE-209) | Los errores esperados (documento, LLM) muestran su motivo. Los demás van al log de la API, y el dashboard solo ve un aviso genérico |
+| Texto del documento con HTML o scripts | React escapa todo el texto de los requisitos; no se usa `dangerouslySetInnerHTML`. La CSP sigue en `connect-src 'self'` |
 
 ## Por qué no está en el Gate 1
 

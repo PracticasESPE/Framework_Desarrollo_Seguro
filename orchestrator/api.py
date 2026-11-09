@@ -1,25 +1,42 @@
 """API del motor del framework. También sirve el dashboard compilado (dashboard/dist)."""
 
-from collections.abc import Awaitable, Callable
+import asyncio
+from collections.abc import AsyncIterator, Awaitable, Callable
 from pathlib import Path
 from typing import Annotated
 
-from fastapi import Depends, FastAPI, HTTPException, Query, Request, Response
+from fastapi import Depends, FastAPI, Header, HTTPException, Query, Request, Response
+from fastapi import Path as ParametroRuta
+from fastapi.sse import EventSourceResponse, ServerSentEvent
 from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel, ConfigDict, Field
 
 from orchestrator import __version__
 from orchestrator.config import obtener_configuracion
 from orchestrator.documentos import (
+    ID_DOCUMENTO,
     TAMANO_MAXIMO,
     DocumentoCargado,
     DocumentoDemasiadoGrande,
+    DocumentoNoEncontrado,
     ErrorDocumento,
     FormatoNoPermitido,
     detectar_formato,
     guardar_documento,
     listar_documentos,
+    obtener_documento,
+)
+from orchestrator.ejecuciones import (
+    ID_EJECUCION,
+    Ejecucion,
+    EjecucionEnCurso,
+    EstadoEjecucion,
+    Evento,
+    RegistroEjecuciones,
+    trabajo_fase1,
 )
 from orchestrator.fases import FASES, Fase
+from orchestrator.llm import ProveedorLLM, crear_proveedor
 
 DASHBOARD = Path(__file__).resolve().parent.parent / "dashboard" / "dist"
 
@@ -141,6 +158,107 @@ async def cargar_documento(
 @app.get("/documentos", summary="Documentos cargados, del más reciente al más antiguo")
 def ver_documentos(carpeta: Carpeta) -> list[DocumentoCargado]:
     return listar_documentos(carpeta)
+
+
+# --- Ejecuciones y progreso (Server-Sent Events) ---------------------------------------------
+
+REGISTRO = RegistroEjecuciones()
+# Cada cuánto se revisan los eventos nuevos de una ejecución mientras hay un navegador conectado.
+INTERVALO_EVENTOS_S = 0.25
+
+
+def registro_ejecuciones() -> RegistroEjecuciones:
+    return REGISTRO
+
+
+def carpeta_requisitos() -> Path:
+    return obtener_configuracion().directorio_salida / "requisitos"
+
+
+def fabrica_llm() -> Callable[[], ProveedorLLM]:
+    return crear_proveedor
+
+
+class SolicitudEjecucion(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    documento: str = Field(pattern=ID_DOCUMENTO, description="Id de un documento cargado")
+
+
+@app.post(
+    "/ejecuciones",
+    status_code=201,
+    summary="Ejecutar la fase 1 con un documento cargado",
+    responses={
+        404: {"description": "No existe el documento"},
+        409: {"description": "Ya hay una ejecución en curso"},
+    },
+)
+def iniciar_ejecucion(
+    solicitud: SolicitudEjecucion,
+    carpeta: Carpeta,
+    destino: Annotated[Path, Depends(carpeta_requisitos)],
+    registro: Annotated[RegistroEjecuciones, Depends(registro_ejecuciones)],
+    crear_llm: Annotated[Callable[[], ProveedorLLM], Depends(fabrica_llm)],
+) -> EstadoEjecucion:
+    """Lanza la ejecución en segundo plano. El progreso se sigue en `/ejecuciones/{id}/eventos`."""
+    try:
+        documento, ruta = obtener_documento(carpeta, solicitud.documento)
+    except DocumentoNoEncontrado as error:
+        raise HTTPException(status_code=404, detail=str(error)) from error
+    try:
+        ejecucion = registro.iniciar(
+            documento.id, trabajo_fase1(documento, ruta, destino, crear_llm)
+        )
+    except EjecucionEnCurso as error:
+        raise HTTPException(status_code=409, detail=str(error)) from error
+    return ejecucion.resumen()
+
+
+def ejecucion_existente(
+    id_ejecucion: Annotated[str, ParametroRuta(pattern=ID_EJECUCION)],
+    registro: Annotated[RegistroEjecuciones, Depends(registro_ejecuciones)],
+) -> Ejecucion:
+    # Se comprueba en una dependencia porque, una vez abierto el flujo de eventos, ya no se
+    # puede responder con un 404.
+    ejecucion = registro.obtener(id_ejecucion)
+    if ejecucion is None:
+        raise HTTPException(status_code=404, detail="No existe la ejecución")
+    return ejecucion
+
+
+@app.get(
+    "/ejecuciones/{id_ejecucion}/eventos",
+    response_class=EventSourceResponse,
+    summary="Progreso de una ejecución en tiempo real (Server-Sent Events)",
+    responses={404: {"description": "No existe la ejecución"}},
+)
+async def eventos_de_ejecucion(
+    ejecucion: Annotated[Ejecucion, Depends(ejecucion_existente)],
+    last_event_id: Annotated[
+        int | None,
+        Header(ge=0, description="Último evento recibido; lo envía EventSource al reconectar"),
+    ] = None,
+) -> AsyncIterator[ServerSentEvent]:
+    """Envía los eventos de la ejecución (`data` es un `Evento` en JSON) hasta el evento «fin».
+
+    Quien se conecta tarde recibe primero todo lo ocurrido; quien se reconecta, solo lo que le
+    faltaba. FastAPI añade un comentario `: ping` cada 15 s para que la conexión no caduque.
+    """
+    enviados = last_event_id or 0
+    while True:
+        for evento in ejecucion.eventos_desde(enviados):
+            yield _evento_sse(evento)
+            enviados = evento.id
+            if evento.tipo == "fin":
+                return
+        if ejecucion.terminada and not ejecucion.eventos_desde(enviados):
+            return  # el navegador ya tenía el evento «fin»
+        await asyncio.sleep(INTERVALO_EVENTOS_S)
+
+
+def _evento_sse(evento: Evento) -> ServerSentEvent:
+    return ServerSentEvent(data=evento.model_dump(mode="json"), id=str(evento.id))
 
 
 def montar_dashboard(aplicacion: FastAPI, carpeta: Path = DASHBOARD) -> bool:

@@ -34,6 +34,8 @@ DOCX_MAX_DESCOMPRIMIDO = 100 * 1024 * 1024
 DOCX_OBLIGATORIOS = ("[Content_Types].xml", "word/document.xml")
 LARGO_MAXIMO_NOMBRE = 120
 _CONTROL = re.compile(r"[\x00-\x1f\x7f]")
+# Id que genera guardar_documento: uuid4 en hexadecimal.
+ID_DOCUMENTO = r"^[0-9a-f]{32}$"
 
 Formato = Literal["pdf", "docx", "txt", "md"]
 
@@ -51,6 +53,10 @@ class DocumentoDemasiadoGrande(ErrorDocumento):
 
 
 class ContenidoNoValido(ErrorDocumento):
+    pass
+
+
+class DocumentoNoEncontrado(ErrorDocumento):
     pass
 
 
@@ -156,3 +162,23 @@ def listar_documentos(carpeta: Path) -> list[DocumentoCargado]:
         except ValidationError:
             continue
     return sorted(documentos, key=lambda documento: documento.fecha, reverse=True)
+
+
+def obtener_documento(carpeta: Path, id_documento: str) -> tuple[DocumentoCargado, Path]:
+    """Ficha y ruta del documento cargado con ese id.
+
+    Cualquier cosa que no sea un id generado por el servidor podría ser una ruta, así que se
+    rechaza antes de tocar el disco (CWE-22).
+    """
+    if not re.fullmatch(ID_DOCUMENTO, id_documento):
+        raise DocumentoNoEncontrado("Id de documento no válido")
+    try:
+        ficha = DocumentoCargado.model_validate_json(
+            (carpeta / f"{id_documento}.json").read_bytes()
+        )
+    except (OSError, ValidationError) as error:
+        raise DocumentoNoEncontrado(f"No existe el documento {id_documento}") from error
+    ruta = carpeta / f"{id_documento}.{ficha.formato}"
+    if ficha.id != id_documento or not ruta.is_file():
+        raise DocumentoNoEncontrado(f"No existe el documento {id_documento}")
+    return ficha, ruta
