@@ -14,6 +14,9 @@ app = typer.Typer(
     help="Framework de desarrollo seguro guiado por conocimiento.",
     no_args_is_help=True,
     add_completion=False,
+    # Un error no controlado no debe imprimir las variables locales: entre ellas está la
+    # configuración, y un secreto pegado en una variable que no es SecretStr quedaría a la vista.
+    pretty_exceptions_show_locals=False,
 )
 
 
@@ -878,6 +881,7 @@ def requisitos_clasificar(
     ] = None,
 ) -> None:
     """Fase 1 completa: extrae, normaliza y clasifica con el LLM; guarda modelo_requisitos.json."""
+    import time
     from collections import Counter
 
     from orchestrator.ingest import (
@@ -887,7 +891,7 @@ def requisitos_clasificar(
         segmentar,
     )
     from orchestrator.ingest.clasificacion import clasificar_unidades
-    from orchestrator.llm import ErrorLLM, crear_proveedor
+    from orchestrator.llm import ErrorLLM, ProveedorEnCadena, crear_proveedor, describir_uso
 
     extraido, base = _extraer_documento(ruta, documento)
     unidades = segmentar(extraido.markdown)
@@ -896,9 +900,15 @@ def requisitos_clasificar(
     def avance(titulo: str, total: int) -> None:
         typer.echo(f"  Clasificando «{titulo}» ({total} unidades)")
 
+    def esperar(segundos: float) -> None:
+        typer.echo(f"  Límite de uso del LLM: se reintenta en {segundos:.0f} s")
+        time.sleep(segundos)
+
     try:
         llm = crear_proveedor(proveedor)
-        pares = clasificar_unidades(unidades, llm, al_avanzar=avance)
+        if isinstance(llm, ProveedorEnCadena):
+            llm.al_cambiar = lambda de, a, motivo: typer.echo(f"  {motivo}: la sección pasa a {a}")
+        pares = clasificar_unidades(unidades, llm, al_avanzar=avance, dormir=esperar)
         modelo = ModeloRequisitos(
             documento=DocumentoOrigen(
                 nombre=extraido.nombre, sha256=extraido.sha256, herramienta=extraido.herramienta
@@ -916,6 +926,7 @@ def requisitos_clasificar(
     etiquetas = Counter(e for r in modelo.requisitos for e in r.etiquetas)
     descartadas = sum(1 for _, c in pares if not c.es_requisito)
     typer.echo(f"Proveedor: {getattr(llm, 'nombre', proveedor)}")
+    typer.echo(f"Uso del LLM: {describir_uso(llm)}")
     typer.echo(
         f"Requisitos: {len(modelo.requisitos)} (funcionales: {tipos['funcional']}, "
         f"no funcionales: {tipos['no_funcional']}); unidades descartadas: {descartadas}"
@@ -1034,6 +1045,115 @@ def requisitos_listar(
             f"  {fila['id']:<7} [{fila['ubicacion']}] {fila['servicio_sugerido']} | {etiquetas}"
         )
         typer.echo(f"          {fila['texto'][:100]}")
+
+
+def _proveedor_principal(config) -> str:
+    """LLM_PROVIDER validado. Si no es un proveedor conocido, se sale sin mostrar su valor: podría
+    ser una clave pegada en la variable equivocada."""
+    from orchestrator.llm import PROVEEDORES
+
+    principal = config.llm_provider.strip().lower()
+    if principal not in PROVEEDORES:
+        typer.echo(
+            f"Error: LLM_PROVIDER no es un proveedor conocido ({', '.join(PROVEEDORES)}).", err=True
+        )
+        raise typer.Exit(1)
+    return principal
+
+
+llm_app = typer.Typer(
+    help="Proveedores de LLM: configuración, prueba de conexión y caché.", no_args_is_help=True
+)
+app.add_typer(llm_app, name="llm")
+
+
+@llm_app.command("estado")
+def llm_estado() -> None:
+    """Muestra el proveedor principal, el respaldo, las claves definidas y la caché."""
+    from orchestrator.llm import ErrorLLM
+    from orchestrator.llm.cache import estadisticas
+    from orchestrator.llm.fabrica import nombres_de_respaldo
+
+    config = obtener_configuracion()
+    principal = _proveedor_principal(config)
+    try:
+        respaldo = nombres_de_respaldo(config, principal)
+    except ErrorLLM as error:
+        typer.echo(f"Error: {error}", err=True)
+        raise typer.Exit(1) from error
+    claves = {
+        "groq": config.groq_api_key,
+        "gemini": config.gemini_api_key,
+        "claude": config.anthropic_api_key,
+    }
+    typer.echo(f"Proveedor principal: {principal}")
+    typer.echo(f"Respaldo: {', '.join(respaldo) or 'ninguno (LLM_RESPALDO vacío)'}")
+    for nombre in [principal, *respaldo]:
+        if nombre == "ollama":
+            typer.echo(f"  {nombre}: servidor local en {config.ollama_host}")
+        else:
+            definida = claves.get(nombre) is not None
+            typer.echo(f"  {nombre}: clave {'definida' if definida else 'NO definida'}")
+    typer.echo(
+        f"Esfuerzo de razonamiento (Groq): {config.llm_esfuerzo_razonamiento or 'el de Groq'}"
+    )
+    if config.llm_cache:
+        respuestas, tamano = estadisticas(config.llm_cache_dir)
+        typer.echo(
+            f"Caché: activa en {config.llm_cache_dir.as_posix()} "
+            f"({respuestas} respuestas, {tamano / 1024:.0f} KB)"
+        )
+    else:
+        typer.echo("Caché: desactivada (LLM_CACHE=false)")
+
+
+@llm_app.command("probar")
+def llm_probar() -> None:
+    """Envía una petición mínima a cada proveedor configurado, sin caché, y muestra si responde.
+
+    Gasta unos cientos de tokens de cada uno.
+    """
+    from pydantic import BaseModel
+
+    from orchestrator.llm import ErrorLimiteLLM, ErrorLLM, crear_adaptador, describir_uso
+    from orchestrator.llm.fabrica import nombres_de_respaldo
+
+    class Saludo(BaseModel):
+        respuesta: str
+
+    config = obtener_configuracion()
+    principal = _proveedor_principal(config)
+    fallos = 0
+    try:
+        respaldo = nombres_de_respaldo(config, principal)
+    except ErrorLLM as error:
+        typer.echo(f"Error: {error}", err=True)
+        raise typer.Exit(1) from error
+    for nombre in [principal, *respaldo]:
+        try:
+            proveedor = crear_adaptador(nombre, config, modelos_configurados=nombre == principal)
+            proveedor.generar_estructurado(
+                'Responde con el JSON {"respuesta": "ok"}.', Saludo, nivel="rapido"
+            )
+        except ErrorLimiteLLM as error:
+            fallos += 1
+            typer.echo(f"  {nombre}: sin cuota ahora mismo ({error})")
+        except ErrorLLM as error:
+            fallos += 1
+            typer.echo(f"  {nombre}: no responde ({error})")
+        else:
+            typer.echo(f"  {nombre}: responde ({describir_uso(proveedor)})")
+    if fallos:
+        raise typer.Exit(1)
+
+
+@llm_app.command("vaciar-cache")
+def llm_vaciar_cache() -> None:
+    """Borra las respuestas guardadas en la caché del LLM."""
+    from orchestrator.llm.cache import vaciar
+
+    carpeta = obtener_configuracion().llm_cache_dir
+    typer.echo(f"Respuestas borradas de {carpeta.as_posix()}: {vaciar(carpeta)}")
 
 
 if __name__ == "__main__":

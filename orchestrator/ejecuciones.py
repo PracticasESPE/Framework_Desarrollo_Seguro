@@ -39,7 +39,7 @@ from pydantic import BaseModel, Field
 from orchestrator.documentos import DocumentoCargado, ErrorDocumento
 from orchestrator.fases import FASES
 from orchestrator.ingest.requisito import Requisito
-from orchestrator.llm import ErrorLLM, ProveedorLLM
+from orchestrator.llm import ErrorLLM, ProveedorEnCadena, ProveedorLLM, describir_uso
 
 log = logging.getLogger(__name__)
 
@@ -351,6 +351,12 @@ def trabajo_fase1(
         avance(f"Texto normalizado: {len(unidades)} unidades", 0.15)
 
         llm = crear_llm()
+        if isinstance(llm, ProveedorEnCadena):
+
+            def al_cambiar(de: str, a: str, motivo: str) -> None:
+                ejecucion.publicar("avance", f"{motivo}: la sección pasa a {a}", fase=1)
+
+            llm.al_cambiar = al_cambiar
         hechas = 0
 
         def al_avanzar(titulo: str, total: int) -> None:
@@ -373,6 +379,7 @@ def trabajo_fase1(
             ejecucion.esperar(segundos)
 
         pares = clasificar_unidades(unidades, llm, al_avanzar=al_avanzar, dormir=dormir)
+        ejecucion.publicar("avance", f"Uso del LLM: {describir_uso(llm)}", fase=1)
         ejecucion.comprobar_cancelacion()
         requisitos = construir_requisitos(pares)
         if not requisitos:

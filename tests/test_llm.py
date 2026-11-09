@@ -11,6 +11,7 @@ from pydantic import BaseModel
 
 from orchestrator.config import Configuracion
 from orchestrator.llm import (
+    ErrorLimiteLLM,
     ErrorLLM,
     ErrorProveedorLLM,
     ErrorSalidaEstructurada,
@@ -131,7 +132,8 @@ def test_gemini_devuelve_el_esquema_validado():
     assert llamada["model"] == "gemini-3.5-flash-lite"
     assert llamada["contents"] == "extrae"
     assert llamada["config"]["response_mime_type"] == "application/json"
-    assert llamada["config"]["response_schema"] is Requisito
+    assert llamada["config"]["response_json_schema"] == Requisito.model_json_schema()
+    assert "response_schema" not in llamada["config"]
     assert llamada["config"]["temperature"] == 0.1
     assert llamada["config"]["system_instruction"] == "Eres analista"
 
@@ -159,9 +161,16 @@ def test_gemini_respuesta_vacia():
 
 
 def test_gemini_error_de_la_api():
+    error = errores_gemini.APIError(500, {"error": {"message": "fallo interno"}})
+    cliente, _ = _cliente_gemini(error)
+    with pytest.raises(ErrorProveedorLLM, match="500"):
+        ProveedorGemini(cliente=cliente).generar_estructurado("x", Requisito)
+
+
+def test_gemini_limite_de_uso():
     error = errores_gemini.APIError(429, {"error": {"message": "cuota agotada"}})
     cliente, _ = _cliente_gemini(error)
-    with pytest.raises(ErrorProveedorLLM, match="429"):
+    with pytest.raises(ErrorLimiteLLM, match="gemini: límite"):
         ProveedorGemini(cliente=cliente).generar_estructurado("x", Requisito)
 
 
@@ -232,7 +241,8 @@ def test_modelos_incompletos():
 
 
 def _config(**valores) -> Configuracion:
-    return Configuracion(_env_file=None, **valores)
+    # Sin caché: estas pruebas comprueban el adaptador que crea la fábrica.
+    return Configuracion(_env_file=None, **({"llm_cache": False} | valores))
 
 
 def test_fabrica_crea_cada_proveedor():
