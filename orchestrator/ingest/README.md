@@ -107,3 +107,32 @@ uv run python -m evaluation.fase1.evaluar salida/requisitos/requisitos-pdf.model
 El primero guarda `salida/requisitos/<nombre>.modelo_requisitos.json`. El segundo, que es parte de
 la evaluación y no del framework, lo compara con la referencia del dataset: requisitos
 encontrados, falsos positivos, acierto del tipo y precisión y exhaustividad de las etiquetas.
+
+## Registro en Neo4j
+
+Cada requisito del modelo se guarda como nodo `Requisito` de una ejecución, el inicio de la cadena
+de trazabilidad del plan técnico (`Requisito → Decision → Componente → Hallazgo → Iteracion`):
+
+```
+(:Ejecucion {documento, documento_sha256, herramienta_extraccion})
+  -[:TIENE_REQUISITO]->(:Requisito {ejecucion_id, id, tipo, texto, ubicacion, actor, accion,
+                                    entidades, servicio_sugerido, etiquetas, orden})
+```
+
+```bash
+uv run framework requisitos registrar salida/requisitos/requisitos-pdf.modelo_requisitos.json
+uv run framework requisitos listar
+```
+
+`registrar` crea una ejecución nueva (o usa `--ejecucion`) y la deja en
+`salida/gates/ejecucion.json` para que los gates del mismo pipeline se registren en ella.
+Registrar otra vez el mismo modelo no duplica nodos, y si el documento se volvió a clasificar,
+quita de la ejecución los requisitos que ya no están. Consulta en Neo4j Browser
+(http://localhost:7474):
+
+```cypher
+MATCH (e:Ejecucion)-[:TIENE_REQUISITO]->(r:Requisito)
+WHERE e.id = $ejecucion
+RETURN r.id, r.tipo, r.ubicacion, r.servicio_sugerido, r.etiquetas, r.texto
+ORDER BY r.orden
+```
