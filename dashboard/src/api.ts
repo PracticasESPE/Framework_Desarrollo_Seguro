@@ -88,6 +88,8 @@ export interface ResumenFase1 {
   descartadas: number
   etiquetas: Record<string, number>
   requisitos: Requisito[]
+  /** Ejecución de Neo4j con los nodos Requisito; null si no se registraron. */
+  ejecucion_neo4j: string | null
 }
 
 /** Lo que llega en cada evento de /ejecuciones/{id}/eventos (orchestrator/ejecuciones.py). */

@@ -5,6 +5,7 @@ El documento es Markdown, que se lee sin Docling, para que la fase 1 tarde milis
 """
 
 import json
+import os
 import re
 import threading
 import time
@@ -18,10 +19,12 @@ from orchestrator.api import (
     carpeta_documentos,
     carpeta_requisitos,
     fabrica_llm,
+    registrador_neo4j,
     registro_ejecuciones,
 )
 from orchestrator.documentos import DocumentoNoEncontrado, guardar_documento, obtener_documento
 from orchestrator.ejecuciones import Ejecucion, RegistroEjecuciones
+from orchestrator.knowledge import ErrorGrafo
 from orchestrator.llm import ErrorLimiteLLM, ErrorProveedorLLM, ProveedorEnCadena
 
 TEXTO = """\
@@ -84,6 +87,17 @@ def entorno(tmp_path: Path):
     registro = RegistroEjecuciones()
     app.dependency_overrides[registro_ejecuciones] = lambda: registro
     app.dependency_overrides[fabrica_llm] = lambda: lambda: estado["llm"]
+    # Neo4j simulado: las pruebas no dependen de que esté levantado ni escriben en el real.
+    registrados: list = []
+
+    def registrar(modelo):
+        if estado.get("neo4j_caido"):
+            raise ErrorGrafo("No se pudo conectar con Neo4j en bolt://localhost:7687.")
+        registrados.append(modelo)
+        return "ej-20261111-000000-abcdef"
+
+    estado["registrados"] = registrados
+    app.dependency_overrides[registrador_neo4j] = lambda: registrar
     documento = guardar_documento(TEXTO.encode("utf-8"), "requisitos.md", documentos)
     yield {
         "cliente": TestClient(app),
@@ -456,3 +470,105 @@ def test_el_progreso_muestra_el_respaldo_y_el_uso_del_llm(entorno):
     assert "groq: cuota diaria agotada; se renueva en 7 min: la sección pasa a simulado" in mensajes
     assert any(m.startswith("Uso del LLM: ") for m in mensajes)
     assert lista[-1]["estado"] == "completada"
+
+
+# --- Registro automático en Neo4j ------------------------------------------------------------
+
+
+def test_al_terminar_la_fase_1_los_requisitos_se_registran_en_neo4j(entorno):
+    id_ejecucion = iniciar(entorno)
+    lista = eventos(entorno["cliente"], id_ejecucion)
+
+    mensajes = [e["mensaje"] for e in lista]
+    registro = mensajes.index(
+        "Requisitos registrados en Neo4j: 2 (ejecución ej-20261111-000000-abcdef)"
+    )
+    resultado = next(i for i, e in enumerate(lista) if e["tipo"] == "resultado")
+    assert mensajes[registro - 1] == "Registrando los requisitos en Neo4j"
+    assert registro < resultado  # el resultado ya lleva la ejecución de Neo4j
+    assert lista[resultado]["resultado"]["ejecucion_neo4j"] == "ej-20261111-000000-abcdef"
+    assert lista[-1]["estado"] == "completada"
+
+    (modelo,) = entorno["estado"]["registrados"]
+    assert [r.id for r in modelo.requisitos] == ["RF-01", "RF-02"]
+    assert modelo.documento.nombre == "requisitos.md"
+    detalle = entorno["cliente"].get(f"/ejecuciones/{id_ejecucion}").json()
+    assert detalle["resultado"]["ejecucion_neo4j"] == "ej-20261111-000000-abcdef"
+
+
+def test_si_neo4j_no_esta_la_fase_1_termina_igual_y_lo_avisa(entorno):
+    entorno["estado"]["neo4j_caido"] = True
+    lista = eventos(entorno["cliente"], iniciar(entorno))
+
+    aviso = next(e["mensaje"] for e in lista if e["mensaje"].startswith("No se registraron"))
+    assert "No se pudo conectar con Neo4j" in aviso
+    assert "«framework requisitos registrar»" in aviso
+    resultado = next(e["resultado"] for e in lista if e["tipo"] == "resultado")
+    assert resultado["ejecucion_neo4j"] is None
+    assert lista[-1]["estado"] == "completada"
+    assert (entorno["requisitos"] / f"{entorno['documento'].id}.modelo_requisitos.json").exists()
+
+
+def test_un_error_inesperado_de_neo4j_no_pierde_la_clasificacion(entorno):
+    def registrar(_modelo):
+        raise RuntimeError(r"C:\interno\traza con detalles")
+
+    app.dependency_overrides[registrador_neo4j] = lambda: registrar
+    lista = eventos(entorno["cliente"], iniciar(entorno))
+
+    mensajes = [e["mensaje"] for e in lista]
+    assert any(m.startswith("No se registraron en Neo4j por un error interno") for m in mensajes)
+    assert all("traza con detalles" not in m for m in mensajes)
+    assert lista[-1]["estado"] == "completada"
+
+
+@pytest.mark.parametrize("motivo", ["llm", "cancelacion"])
+def test_no_se_registra_si_la_fase_1_no_termina(entorno, motivo):
+    if motivo == "llm":
+        entorno["estado"]["llm"] = LLMSimulado(error=ErrorProveedorLLM("groq: caído"))
+        lista = eventos(entorno["cliente"], iniciar(entorno))
+    else:
+        senal = threading.Event()
+        entorno["estado"]["llm"] = LLMSimulado(esperar=senal)
+        id_ejecucion = iniciar(entorno)
+        entorno["cliente"].post(f"/ejecuciones/{id_ejecucion}/cancelar")
+        senal.set()
+        lista = eventos(entorno["cliente"], id_ejecucion)
+    assert lista[-1]["estado"] in ("fallida", "cancelada")
+    assert entorno["estado"]["registrados"] == []
+    assert not any("Neo4j" in e["mensaje"] for e in lista)
+
+
+def test_sin_registrador_no_se_intenta_neo4j(entorno):
+    app.dependency_overrides[registrador_neo4j] = lambda: None
+    lista = eventos(entorno["cliente"], iniciar(entorno))
+    assert not any("Neo4j" in e["mensaje"] for e in lista)
+    resultado = next(e["resultado"] for e in lista if e["tipo"] == "resultado")
+    assert resultado["ejecucion_neo4j"] is None
+
+
+@pytest.mark.integracion
+@pytest.mark.skipif(
+    os.environ.get("NEO4J_INTEGRACION") != "1",
+    reason="Requiere Neo4j levantado y NEO4J_INTEGRACION=1",
+)
+def test_integracion_registrar_en_neo4j():
+    """Con Neo4j de verdad: lo que registra la fase 1 se lee con «requisitos listar»."""
+    from orchestrator.config import obtener_configuracion
+    from orchestrator.ejecuciones import registrar_en_neo4j
+    from orchestrator.knowledge import conectar, listar_requisitos
+    from tests.test_arquitectura import _modelo
+
+    ejecucion_id = registrar_en_neo4j(_modelo())
+    config = obtener_configuracion()
+    driver = conectar(config)
+    try:
+        filas = listar_requisitos(driver, ejecucion_id, config.neo4j_database)
+        assert [f["id"] for f in filas] == ["RF-01", "RF-02", "RF-03", "RNF-01"]
+    finally:
+        driver.execute_query(
+            "MATCH (n) WHERE n.id = $id OR n.ejecucion_id = $id DETACH DELETE n",
+            {"id": ejecucion_id},
+            database_=config.neo4j_database,
+        )
+        driver.close()

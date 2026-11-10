@@ -65,6 +65,15 @@ export function RequisitosIdentificados({ resumen }: { resumen: ResumenFase1 }) 
       <p className="vacio">
         Guardado en <code>salida/requisitos/{resumen.archivo}</code>
       </p>
+      {resumen.ejecucion_neo4j ? (
+        <p className="vacio">
+          Registrados en Neo4j en la ejecución <code>{resumen.ejecucion_neo4j}</code>
+        </p>
+      ) : (
+        <p className="vacio">
+          Sin registrar en Neo4j: el motivo está en el registro de eventos.
+        </p>
+      )}
     </section>
   )
 }

@@ -9,6 +9,7 @@ const RESUMEN = {
   descartadas: 0,
   etiquetas: {},
   requisitos: [],
+  ejecucion_neo4j: null,
 }
 
 describe('estadoDeFases', () => {

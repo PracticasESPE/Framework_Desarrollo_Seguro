@@ -38,7 +38,7 @@ from pydantic import BaseModel, Field
 
 from orchestrator.documentos import DocumentoCargado, ErrorDocumento
 from orchestrator.fases import FASES
-from orchestrator.ingest.requisito import Requisito
+from orchestrator.ingest.requisito import ModeloRequisitos, Requisito
 from orchestrator.llm import ErrorLLM, ProveedorEnCadena, ProveedorLLM, describir_uso
 
 log = logging.getLogger(__name__)
@@ -61,6 +61,10 @@ class ResumenFase1(BaseModel):
     descartadas: int = Field(description="Unidades del documento que no son requisitos")
     etiquetas: dict[str, int] = Field(description="Etiquetas de seguridad y cuántas veces salen")
     requisitos: list[Requisito]
+    ejecucion_neo4j: str | None = Field(
+        default=None,
+        description="Ejecución de Neo4j con los nodos Requisito; None si no se registraron",
+    )
 
 
 class Evento(BaseModel):
@@ -313,15 +317,22 @@ def _detener(ejecucion: Ejecucion, estado: Literal["fallida", "cancelada"], mens
 # --- Fase 1 --------------------------------------------------------------------------------------
 
 
+RegistrarEnNeo4j = Callable[["ModeloRequisitos"], str]
+
+
 def trabajo_fase1(
     documento: DocumentoCargado,
     ruta: Path,
     carpeta_requisitos: Path,
     crear_llm: Callable[[], ProveedorLLM],
+    registrar: RegistrarEnNeo4j | None = None,
 ) -> Trabajo:
     """Fase 1 completa, como `framework requisitos clasificar`: extraer, normalizar y clasificar.
 
-    Guarda el modelo en `carpeta_requisitos/<id del documento>.modelo_requisitos.json`.
+    Guarda el modelo en `carpeta_requisitos/<id del documento>.modelo_requisitos.json` y, si se
+    indica `registrar`, guarda los requisitos como nodos Requisito en Neo4j, como `framework
+    requisitos registrar`. Neo4j es opcional: si no está disponible, la fase termina igual y lo
+    avisa, porque el modelo ya quedó en disco y se puede registrar después con ese comando.
     """
 
     def trabajo(ejecucion: Ejecucion) -> None:
@@ -393,6 +404,9 @@ def trabajo_fase1(
         carpeta_requisitos.mkdir(parents=True, exist_ok=True)
         archivo = carpeta_requisitos / f"{documento.id}.modelo_requisitos.json"
         archivo.write_text(modelo.model_dump_json(indent=2), encoding="utf-8")
+        ejecucion_neo4j = (
+            _registrar_en_neo4j(ejecucion, registrar, modelo, archivo) if registrar else None
+        )
 
         tipos = Counter(r.tipo for r in requisitos)
         etiquetas = Counter(e for r in requisitos for e in r.etiquetas)
@@ -403,6 +417,7 @@ def trabajo_fase1(
             descartadas=sum(1 for _, c in pares if not c.es_requisito),
             etiquetas=dict(etiquetas.most_common()),
             requisitos=requisitos,
+            ejecucion_neo4j=ejecucion_neo4j,
         )
         ejecucion.publicar(
             "resultado",
@@ -417,3 +432,53 @@ def trabajo_fase1(
         )
 
     return trabajo
+
+
+def _registrar_en_neo4j(
+    ejecucion: Ejecucion, registrar: RegistrarEnNeo4j, modelo: ModeloRequisitos, archivo: Path
+) -> str | None:
+    """Registra los requisitos en Neo4j sin que un fallo detenga la fase: avisa y sigue."""
+    from orchestrator.knowledge import ErrorGrafo
+
+    ejecucion.publicar("avance", "Registrando los requisitos en Neo4j", fase=1)
+    pendiente = (
+        f"Los requisitos están en {archivo.name}; se pueden registrar después con "
+        "«framework requisitos registrar»."
+    )
+    try:
+        ejecucion_neo4j = registrar(modelo)
+    except ErrorGrafo as error:
+        ejecucion.publicar("avance", f"No se registraron en Neo4j: {error} {pendiente}", fase=1)
+        return None
+    except Exception:
+        # El registro es un extra de la fase: un error inesperado no debe perder la clasificación.
+        log.exception("No se pudieron registrar en Neo4j los requisitos de %s", ejecucion.id)
+        ejecucion.publicar(
+            "avance", f"No se registraron en Neo4j por un error interno. {pendiente}", fase=1
+        )
+        return None
+    ejecucion.publicar(
+        "avance",
+        f"Requisitos registrados en Neo4j: {len(modelo.requisitos)} (ejecución {ejecucion_neo4j})",
+        fase=1,
+    )
+    return ejecucion_neo4j
+
+
+def registrar_en_neo4j(modelo: ModeloRequisitos) -> str:
+    """Crea una ejecución en Neo4j y guarda en ella los requisitos; devuelve su id.
+
+    Es lo mismo que hace `framework requisitos registrar` sin `--ejecucion`.
+    """
+    from orchestrator.config import obtener_configuracion
+    from orchestrator.knowledge import conectar, crear_ejecucion, registrar_requisitos
+
+    config = obtener_configuracion()
+    driver = conectar(config)
+    try:
+        db = config.neo4j_database
+        ejecucion_id = crear_ejecucion(driver, documento=modelo.documento.nombre, base_datos=db)
+        registrar_requisitos(driver, ejecucion_id, modelo, base_datos=db)
+    finally:
+        driver.close()
+    return ejecucion_id
