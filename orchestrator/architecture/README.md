@@ -46,6 +46,33 @@ El texto de los requisitos viene del documento del cliente: va entre marcas con 
 aleatorio y el mensaje de sistema indica que es un dato, nunca una instrucción, como en la
 clasificación de la fase 1.
 
+## ADR en Markdown
+
+```bash
+uv run framework arquitectura adr salida/arquitectura/requisitos-docx.arquitectura.json \
+  --requisitos salida/requisitos/requisitos-docx.modelo_requisitos.json
+```
+
+Escribe en `docs/adr/` (o en `--destino`) un ADR por cada decisión de `arquitectura.json` y otro
+por cada patrón que infiere OPA, además del índice `README.md` con la validación.
+
+1. **Primero valida con OPA.** Si OPA rechaza la arquitectura, no genera nada y muestra los
+   motivos: un ADR registra una decisión aceptada.
+2. **Los hechos no pasan por el LLM.** Salen de datos ya validados: la decisión, la justificación,
+   los requisitos con su texto, los servicios afectados, los controles ASVS y las CWE con su nombre
+   (de la base de conocimiento).
+3. **El LLM rápido solo redacta** el contexto y las consecuencias (plan técnico, tabla 6.1).
+   - Si su texto cita requisitos, controles o CWE que no son de ese ADR, se descarta.
+   - Si el LLM falla o no hay (`--sin-llm`), se usa la plantilla del motor.
+   - Cada ADR indica en «Redacción» cómo se escribió.
+   - Ante el límite por minuto, espera lo que pide el proveedor, igual que la clasificación.
+4. **El texto se escapa antes de escribirlo.** Viene del documento del cliente y del LLM, así que
+   no puede abrir HTML, imágenes ni enlaces, ni romper las tablas.
+5. **Al regenerar** se borran solo los ADR que llevan la marca de generados; los escritos a mano se
+   conservan, y si uno coincide en nombre, no se pisa.
+
+Los ADR del documento 1 del dataset están en `docs/adr/`, con sus entradas en `docs/adr/entrada/`.
+
 ## Resultado con el documento 1
 
 Con `openai/gpt-oss-120b` en Groq, al primer intento: 6 servicios (`usuarios`, `catalogo`,

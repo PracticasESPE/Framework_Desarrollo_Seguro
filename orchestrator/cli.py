@@ -1251,5 +1251,94 @@ def arquitectura_esquema(
     typer.echo(f"JSON Schema guardado en {salida.as_posix()}")
 
 
+@arquitectura_app.command("adr")
+def arquitectura_adr(
+    arquitectura: Annotated[
+        Path, typer.Argument(help="arquitectura.json generado por «arquitectura proponer».")
+    ],
+    requisitos: Annotated[
+        Path,
+        typer.Option("--requisitos", help="modelo_requisitos.json del que salió la arquitectura."),
+    ],
+    destino: Annotated[
+        Path, typer.Option("--destino", help="Carpeta de los ADR; por defecto docs/adr.")
+    ] = Path("docs/adr"),
+    proveedor: Annotated[
+        str | None,
+        typer.Option("--proveedor", help="Proveedor de LLM que redacta; por defecto LLM_PROVIDER."),
+    ] = None,
+    sin_llm: Annotated[
+        bool, typer.Option("--sin-llm", help="Redacta con la plantilla del motor, sin LLM.")
+    ] = False,
+) -> None:
+    """Genera los ADR en Markdown: uno por decisión y otro por patrón que infiere OPA.
+
+    Antes valida la arquitectura con OPA y solo genera los ADR si la aprueba.
+    """
+    from pydantic import ValidationError
+
+    from orchestrator.architecture import Arquitectura, validar_arquitectura
+    from orchestrator.architecture.adr import ErrorADR, construir_adrs, escribir_adrs, redactar
+    from orchestrator.ingest import ModeloRequisitos
+    from orchestrator.llm import ErrorLLM, crear_proveedor, describir_uso
+    from orchestrator.opa import ErrorOPA
+
+    try:
+        datos = Arquitectura.model_validate_json(arquitectura.read_bytes())
+        modelo = ModeloRequisitos.model_validate_json(requisitos.read_bytes())
+    except OSError as error:
+        typer.echo(f"Error: no se pudo leer {error.filename}", err=True)
+        raise typer.Exit(1) from error
+    except ValidationError as error:
+        typer.echo(f"Error: un archivo no tiene el formato esperado.\n{error}", err=True)
+        raise typer.Exit(1) from error
+    if modelo.documento.sha256 != datos.documento.sha256:
+        typer.echo(
+            "Error: la arquitectura y el modelo de requisitos son de documentos distintos.",
+            err=True,
+        )
+        raise typer.Exit(1)
+
+    try:
+        decision = validar_arquitectura(datos)
+    except ErrorOPA as error:
+        typer.echo(f"Error: {error}", err=True)
+        raise typer.Exit(1) from error
+    typer.echo(f"OPA: {decision.justificacion}")
+    if not decision.aprobado:
+        for bloqueante in decision.bloqueantes:
+            typer.echo(f"  - {bloqueante.regla}: {bloqueante.motivo}", err=True)
+        typer.echo(
+            "No se generan ADR de una arquitectura rechazada: corrígela con «arquitectura "
+            "proponer» y vuelve a intentarlo.",
+            err=True,
+        )
+        raise typer.Exit(1)
+
+    llm = None
+    if not sin_llm:
+        try:
+            llm = crear_proveedor(proveedor)
+        except ErrorLLM as error:
+            typer.echo(f"Sin LLM ({error}); se redacta con la plantilla del motor.")
+
+    def al_redactar(adr, por: str) -> None:
+        typer.echo(f"  ADR-{adr.numero:04d} {adr.titulo}: {por}")
+
+    try:
+        adrs = construir_adrs(datos, decision, modelo)
+        redactar(adrs, llm, al_redactar=al_redactar)
+        escritos = escribir_adrs(adrs, datos, decision, destino)
+    except ErrorADR as error:
+        typer.echo(f"Error: {error}", err=True)
+        raise typer.Exit(1) from error
+
+    if llm is not None:
+        typer.echo(f"Uso del LLM: {describir_uso(llm)}")
+    typer.echo(f"{len(adrs)} ADR y el índice README.md escritos en {destino.as_posix()}")
+    for archivo in escritos:
+        typer.echo(f"  {archivo.name}")
+
+
 if __name__ == "__main__":
     app()

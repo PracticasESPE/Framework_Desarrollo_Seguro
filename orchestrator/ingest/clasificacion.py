@@ -161,7 +161,7 @@ def _secciones(unidades: list[UnidadTexto]) -> list[tuple[str, list[UnidadTexto]
     return grupos
 
 
-def _espera_por_limite(
+def espera_por_limite(
     error: ErrorProveedorLLM, esperas_s: tuple[float, ...], limites: int
 ) -> float | None:
     """Segundos que esperar antes de reintentar por el límite de uso, o None para no esperar.
@@ -199,7 +199,7 @@ def _clasificar_seccion(
             )
         except ErrorProveedorLLM as error:
             # Límite de uso del plan gratuito: se espera y se reintenta, sin gastar un intento.
-            espera = _espera_por_limite(error, esperas_s, limites)
+            espera = espera_por_limite(error, esperas_s, limites)
             if espera is None:
                 raise
             dormir(espera)

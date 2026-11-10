@@ -1,0 +1,454 @@
+{
+  "version_esquema": "1.0",
+  "documento": {
+    "nombre": "requisitos.docx",
+    "sha256": "0515668b00b815491f423ea5a507976c3c67e8bd6eb0bd8dde487f1b171dc72e",
+    "herramienta": "docling 2.148.0"
+  },
+  "requisitos": [
+    {
+      "actor": "cliente",
+      "accion": "registrarse con correo y contraseña, activar cuenta con confirmación de correo",
+      "entidades": [
+        "Cliente"
+      ],
+      "servicio_sugerido": "usuarios",
+      "etiquetas": [
+        "autenticacion"
+      ],
+      "id": "RF-01",
+      "tipo": "funcional",
+      "texto": "El cliente debe poder registrarse con su correo electrónico y una contraseña, y la cuenta solo se activa cuando confirma el correo desde el enlace que recibe.",
+      "ubicacion": "3.1"
+    },
+    {
+      "actor": "cliente",
+      "accion": "iniciar sesión con correo y contraseña, bloquear cuenta tras cinco intentos fallidos durante quince minutos",
+      "entidades": [
+        "Cliente"
+      ],
+      "servicio_sugerido": "usuarios",
+      "etiquetas": [
+        "autenticacion",
+        "limite_peticiones"
+      ],
+      "id": "RF-02",
+      "tipo": "funcional",
+      "texto": "Para entrar a su cuenta, el cliente usa su correo y su contraseña; después de cinco intentos fallidos seguidos, la cuenta queda bloqueada durante quince minutos.",
+      "ubicacion": "3.2"
+    },
+    {
+      "actor": "cliente",
+      "accion": "consultar y cambiar nombre, teléfono y direcciones de envío, sin poder cambiar tipo de usuario",
+      "entidades": [
+        "Cliente",
+        "Direccion"
+      ],
+      "servicio_sugerido": "usuarios",
+      "etiquetas": [
+        "control_acceso_recursos"
+      ],
+      "id": "RF-03",
+      "tipo": "funcional",
+      "texto": "El cliente puede consultar y cambiar su nombre, su teléfono y sus direcciones de envío, pero no puede cambiar por su cuenta el tipo de usuario que tiene.",
+      "ubicacion": "3.3"
+    },
+    {
+      "actor": "cliente",
+      "accion": "cerrar sesión, revocar acceso inmediato, requerir reidentificación para seguir comprando",
+      "entidades": [
+        "Cliente"
+      ],
+      "servicio_sugerido": "usuarios",
+      "etiquetas": [
+        "autenticacion"
+      ],
+      "id": "RF-04",
+      "tipo": "funcional",
+      "texto": "Cuando el cliente cierra la sesión, su acceso deja de servir de inmediato y debe volver a identificarse para seguir comprando.",
+      "ubicacion": "3.4"
+    },
+    {
+      "actor": "sistema",
+      "accion": "no guardar contraseñas en texto plano ni registrarlas en logs",
+      "entidades": [
+        "Cliente"
+      ],
+      "servicio_sugerido": "usuarios",
+      "etiquetas": [
+        "hash_password"
+      ],
+      "id": "RNF-01",
+      "tipo": "no_funcional",
+      "texto": "Las contraseñas nunca se guardan tal como las escribe el cliente ni aparecen en ningún registro del sistema.",
+      "ubicacion": "3.5"
+    },
+    {
+      "actor": "visitante",
+      "accion": "buscar productos por nombre o categoría con paginación de máximo 50 por página",
+      "entidades": [
+        "Producto"
+      ],
+      "servicio_sugerido": "catalogo",
+      "etiquetas": [],
+      "id": "RF-05",
+      "tipo": "funcional",
+      "texto": "Cualquier visitante puede buscar productos por nombre o por categoría, y los resultados se muestran por páginas de como máximo 50 productos.",
+      "ubicacion": "4.1"
+    },
+    {
+      "actor": "visitante",
+      "accion": "mostrar nombre, descripción, precio, fotos y disponibilidad de producto",
+      "entidades": [
+        "Producto"
+      ],
+      "servicio_sugerido": "catalogo",
+      "etiquetas": [],
+      "id": "RF-06",
+      "tipo": "funcional",
+      "texto": "Cada producto muestra su nombre, su descripción, su precio, sus fotos y si quedan unidades disponibles.",
+      "ubicacion": "4.2"
+    },
+    {
+      "actor": "administrador",
+      "accion": "crear, modificar y retirar productos, subir hasta 5 fotos JPG/PNG ≤2MB",
+      "entidades": [
+        "Producto"
+      ],
+      "servicio_sugerido": "catalogo",
+      "etiquetas": [
+        "validacion_entrada"
+      ],
+      "id": "RF-07",
+      "tipo": "funcional",
+      "texto": "El administrador crea, modifica y retira productos del catálogo, y puede subir hasta cinco fotos por producto en formato JPG o PNG de no más de 2 MB cada una.",
+      "ubicacion": "4.3"
+    },
+    {
+      "actor": "sistema",
+      "accion": "ocultar productos retirados del catálogo pero conservarlos en pedidos existentes",
+      "entidades": [
+        "Producto",
+        "Pedido"
+      ],
+      "servicio_sugerido": "catalogo",
+      "etiquetas": [],
+      "id": "RF-08",
+      "tipo": "funcional",
+      "texto": "Un producto retirado deja de aparecer en el catálogo, pero se conserva en los pedidos que ya lo incluían.",
+      "ubicacion": "4.4"
+    },
+    {
+      "actor": "cliente",
+      "accion": "agrega productos al carrito y elige cantidad",
+      "entidades": [
+        "Carrito",
+        "Producto"
+      ],
+      "servicio_sugerido": "carrito",
+      "etiquetas": [
+        "validacion_entrada"
+      ],
+      "id": "RF-09",
+      "tipo": "funcional",
+      "texto": "El cliente agrega productos a su carrito y elige la cantidad de cada uno, entre 1 y 10 unidades por producto.",
+      "ubicacion": "5.1"
+    },
+    {
+      "actor": "cliente",
+      "accion": "calcula precios y total usando catálogo, ignora importes enviados por navegador",
+      "entidades": [
+        "Pedido",
+        "Producto",
+        "Catalogo"
+      ],
+      "servicio_sugerido": "pedidos",
+      "etiquetas": [
+        "validacion_entrada"
+      ],
+      "id": "RF-10",
+      "tipo": "funcional",
+      "texto": "Al confirmar el pedido, el precio de cada producto y el total se calculan con los precios del catálogo, sin aceptar los importes que envíe el navegador.",
+      "ubicacion": "5.2"
+    },
+    {
+      "actor": "cliente",
+      "accion": "rechaza pedido y notifica productos no disponibles",
+      "entidades": [
+        "Pedido",
+        "Producto",
+        "Stock"
+      ],
+      "servicio_sugerido": "pedidos",
+      "etiquetas": [],
+      "id": "RF-11",
+      "tipo": "funcional",
+      "texto": "Si mientras el cliente confirma su pedido otro cliente compra las últimas unidades de un producto, el pedido no se acepta y se le indica qué productos ya no están disponibles.",
+      "ubicacion": "5.3"
+    },
+    {
+      "actor": "sistema",
+      "accion": "descarta unidades del stock al aceptar pedido",
+      "entidades": [
+        "Stock",
+        "Pedido",
+        "Producto"
+      ],
+      "servicio_sugerido": "inventario",
+      "etiquetas": [],
+      "id": "RF-12",
+      "tipo": "funcional",
+      "texto": "Al aceptarse un pedido, sus unidades se descuentan del stock disponible.",
+      "ubicacion": "5.4"
+    },
+    {
+      "actor": "cliente",
+      "accion": "visualiza lista de pedidos y detalle, restringe a propios pedidos",
+      "entidades": [
+        "Pedido",
+        "Cliente"
+      ],
+      "servicio_sugerido": "pedidos",
+      "etiquetas": [
+        "control_acceso_recursos"
+      ],
+      "id": "RF-13",
+      "tipo": "funcional",
+      "texto": "El cliente ve la lista de sus pedidos con el estado y el detalle de cada uno, y nunca puede ver los pedidos de otro cliente.",
+      "ubicacion": "5.5"
+    },
+    {
+      "actor": "sistema",
+      "accion": "no recibir ni guardar datos de tarjeta",
+      "entidades": [
+        "Tarjeta"
+      ],
+      "servicio_sugerido": "transversal",
+      "etiquetas": [],
+      "id": "RNF-02",
+      "tipo": "no_funcional",
+      "texto": "El pago con tarjeta se hace en una pasarela de pagos externa, y la tienda nunca recibe ni guarda el número de la tarjeta ni su código de seguridad.",
+      "ubicacion": "6.1"
+    },
+    {
+      "actor": "sistema",
+      "accion": "aceptar avisos de pago y actualizar pedido a pagado",
+      "entidades": [
+        "Pedido"
+      ],
+      "servicio_sugerido": "pagos",
+      "etiquetas": [
+        "validacion_entrada"
+      ],
+      "id": "RF-14",
+      "tipo": "funcional",
+      "texto": "La pasarela avisa a la tienda del resultado de cada pago, y la tienda solo acepta los avisos que demuestren venir de la pasarela; con un aviso válido de pago aprobado, el pedido pasa a «pagado».",
+      "ubicacion": "6.2"
+    },
+    {
+      "actor": "sistema",
+      "accion": "cancelar pedido no pagado en 30 minutos y restablecer stock",
+      "entidades": [
+        "Pedido",
+        "Stock"
+      ],
+      "servicio_sugerido": "ordenes",
+      "etiquetas": [],
+      "id": "RF-15",
+      "tipo": "funcional",
+      "texto": "Un pedido que no se paga en 30 minutos se cancela solo y sus unidades vuelven al stock disponible.",
+      "ubicacion": "6.3"
+    },
+    {
+      "actor": "cliente",
+      "accion": "recibe un correo",
+      "entidades": [
+        "Pedido"
+      ],
+      "servicio_sugerido": "avisos",
+      "etiquetas": [],
+      "id": "RF-16",
+      "tipo": "funcional",
+      "texto": "El cliente recibe un correo cuando su pedido se acepta, cuando se paga y cada vez que cambia de estado.",
+      "ubicacion": "7.1"
+    },
+    {
+      "actor": "administrador",
+      "accion": "cambia estado de pedidos pagados",
+      "entidades": [
+        "Pedido"
+      ],
+      "servicio_sugerido": "pedidos",
+      "etiquetas": [
+        "autorizacion"
+      ],
+      "id": "RF-17",
+      "tipo": "funcional",
+      "texto": "El administrador cambia el estado de los pedidos pagados siguiendo siempre el mismo orden: en preparación, enviado y entregado.",
+      "ubicacion": "8.1"
+    },
+    {
+      "actor": "administrador",
+      "accion": "obtiene reporte de ventas",
+      "entidades": [
+        "Venta"
+      ],
+      "servicio_sugerido": "reportes",
+      "etiquetas": [
+        "autorizacion"
+      ],
+      "id": "RF-18",
+      "tipo": "funcional",
+      "texto": "El administrador obtiene un reporte de las ventas entre dos fechas, con un rango máximo de un año.",
+      "ubicacion": "8.2"
+    },
+    {
+      "actor": "administrador",
+      "accion": "registra constancia de acciones",
+      "entidades": [
+        "Producto",
+        "Pedido"
+      ],
+      "servicio_sugerido": "auditoria",
+      "etiquetas": [
+        "auditoria"
+      ],
+      "id": "RNF-03",
+      "tipo": "no_funcional",
+      "texto": "Queda constancia de cada acción de un administrador sobre productos y pedidos, con quién la hizo, qué cambió y cuándo; esa constancia no se puede modificar y solo la consultan los administradores.",
+      "ubicacion": "8.3"
+    },
+    {
+      "actor": "cliente",
+      "accion": "no puede ser administrador",
+      "entidades": [
+        "Usuario"
+      ],
+      "servicio_sugerido": "usuarios",
+      "etiquetas": [
+        "autorizacion"
+      ],
+      "id": "RNF-04",
+      "tipo": "no_funcional",
+      "texto": "Solo el personal de la empresa puede ser administrador, y ninguna función de administración está disponible para los clientes.",
+      "ubicacion": "8.4"
+    },
+    {
+      "actor": "cliente",
+      "accion": "cancelar pedido",
+      "entidades": [
+        "Pedido"
+      ],
+      "servicio_sugerido": "pedidos",
+      "etiquetas": [
+        "autorizacion",
+        "validacion_entrada"
+      ],
+      "id": "RF-19",
+      "tipo": "funcional",
+      "texto": "Como cliente, quiero cancelar un pedido mientras todavía no se haya enviado, para no pagar algo que ya no necesito.",
+      "ubicacion": "9, viñeta 1"
+    },
+    {
+      "actor": "cliente",
+      "accion": "eliminar cuenta y datos personales",
+      "entidades": [
+        "Cliente"
+      ],
+      "servicio_sugerido": "clientes",
+      "etiquetas": [
+        "autenticacion",
+        "autorizacion",
+        "control_acceso_recursos"
+      ],
+      "id": "RF-20",
+      "tipo": "funcional",
+      "texto": "Como cliente, quiero eliminar mi cuenta y mis datos personales, salvo los que la ley obligue a conservar de mis compras, para dejar de figurar como cliente de la tienda.",
+      "ubicacion": "9, viñeta 2"
+    },
+    {
+      "actor": "sistema",
+      "accion": "cifrar comunicación y usar única dirección de entrada",
+      "entidades": [
+        "Tienda"
+      ],
+      "servicio_sugerido": "transversal",
+      "etiquetas": [
+        "cifrado_transito",
+        "punto_unico_acceso"
+      ],
+      "id": "RNF-05",
+      "tipo": "no_funcional",
+      "texto": "Toda la comunicación con la tienda debe viajar cifrada, y los clientes deben entrar siempre por una única dirección.",
+      "ubicacion": "10.1"
+    },
+    {
+      "actor": "cliente",
+      "accion": "limitar peticiones a 100/min por cliente o IP",
+      "entidades": [
+        "Cliente"
+      ],
+      "servicio_sugerido": "transversal",
+      "etiquetas": [
+        "limite_peticiones"
+      ],
+      "id": "RNF-06",
+      "tipo": "no_funcional",
+      "texto": "Un mismo cliente o una misma dirección IP no puede hacer más de 100 peticiones por minuto; si las supera, la tienda le pide que espere.",
+      "ubicacion": "10.2"
+    },
+    {
+      "actor": "cliente",
+      "accion": "mostrar mensaje claro sin detalles técnicos al fallar",
+      "entidades": [],
+      "servicio_sugerido": "transversal",
+      "etiquetas": [],
+      "id": "RNF-07",
+      "tipo": "no_funcional",
+      "texto": "Cuando algo falla, el cliente ve un mensaje claro y sin detalles técnicos internos.",
+      "ubicacion": "10.3"
+    },
+    {
+      "actor": "cliente",
+      "accion": "responder búsqueda en <1s con 200 clientes conectados",
+      "entidades": [
+        "Catalogo"
+      ],
+      "servicio_sugerido": "catalogo",
+      "etiquetas": [],
+      "id": "RNF-08",
+      "tipo": "no_funcional",
+      "texto": "La búsqueda en el catálogo debe responder en menos de un segundo con 200 clientes conectados a la vez.",
+      "ubicacion": "10.4"
+    },
+    {
+      "actor": "sistema",
+      "accion": "actualizar y crecer por separado sin dependencia entre catálogo, pedidos y pagos",
+      "entidades": [
+        "Catalogo",
+        "Pedido",
+        "Pago"
+      ],
+      "servicio_sugerido": "transversal",
+      "etiquetas": [],
+      "id": "RNF-09",
+      "tipo": "no_funcional",
+      "texto": "El catálogo, los pedidos y los pagos deben poder actualizarse y crecer por separado, cada uno con sus propios datos, sin que la caída de uno detenga a los demás.",
+      "ubicacion": "10.5"
+    },
+    {
+      "actor": "sistema",
+      "accion": "no hardcodear claves de pasarela de pagos y bases de datos",
+      "entidades": [
+        "PasarelaPago",
+        "BaseDatos"
+      ],
+      "servicio_sugerido": "transversal",
+      "etiquetas": [],
+      "id": "RNF-10",
+      "tipo": "no_funcional",
+      "texto": "Las claves de la pasarela de pagos y de las bases de datos no pueden estar escritas en el código.",
+      "ubicacion": "10.6"
+    }
+  ]
+}
