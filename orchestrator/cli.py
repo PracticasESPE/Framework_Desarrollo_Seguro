@@ -1047,7 +1047,6 @@ def requisitos_listar(
         typer.echo(f"          {fila['texto'][:100]}")
 
 
-<<<<<<< Updated upstream
 def _proveedor_principal(config) -> str:
     """LLM_PROVIDER validado. Si no es un proveedor conocido, se sale sin mostrar su valor: podría
     ser una clave pegada en la variable equivocada."""
@@ -1155,7 +1154,8 @@ def llm_vaciar_cache() -> None:
 
     carpeta = obtener_configuracion().llm_cache_dir
     typer.echo(f"Respuestas borradas de {carpeta.as_posix()}: {vaciar(carpeta)}")
-=======
+
+
 arquitectura_app = typer.Typer(
     help="Fase 2: propuesta arquitectónica (servicios, contextos y decisiones).",
     no_args_is_help=True,
@@ -1249,7 +1249,6 @@ def arquitectura_esquema(
         return
     salida.write_text(esquema + "\n", encoding="utf-8")
     typer.echo(f"JSON Schema guardado en {salida.as_posix()}")
->>>>>>> Stashed changes
 
 
 if __name__ == "__main__":
