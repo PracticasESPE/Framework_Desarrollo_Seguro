@@ -62,6 +62,7 @@ const RESUMEN: ResumenFase1 = {
       etiquetas: ['autenticacion'],
     },
   ],
+  ejecucion_neo4j: 'ej-20261111-000000-abcdef',
 }
 
 interface Simulacion {
@@ -145,6 +146,7 @@ describe('App', () => {
     expect(screen.getByRole('heading', { name: 'Requisitos identificados' })).toBeInTheDocument()
     expect(screen.getByRole('cell', { name: /El cliente se registra/ })).toBeInTheDocument()
     expect(screen.getByText('RF-01')).toBeInTheDocument()
+    expect(screen.getByText('ej-20261111-000000-abcdef')).toBeInTheDocument()
     expect(fase1).toHaveTextContent('Completada')
     expect(fuente.readyState).toBe(EventSourceSimulado.CLOSED)
     expect(screen.getByRole('button', { name: 'Procesar tienda.docx' })).toBeEnabled()

@@ -28,6 +28,11 @@ necesita servidor propio ni CORS. No forma parte de lo que genera el framework.
 - **Requisitos identificados.** Al terminar, se muestran los requisitos con su tipo (RF o RNF),
   el servicio sugerido y las etiquetas de seguridad. El modelo queda en
   `salida/requisitos/<id del documento>.modelo_requisitos.json`.
+- **Registro en Neo4j.** Al terminar la fase 1, los requisitos se guardan solos como nodos
+  `Requisito` de una ejecución nueva, como `framework requisitos registrar`. La tarjeta muestra el
+  id de esa ejecución, que se puede consultar con `framework requisitos listar`.
+  - Si Neo4j no está levantado, la fase termina igual y el registro de eventos lo avisa.
+  - Los requisitos se pueden registrar después con `framework requisitos registrar`.
 
 Cada evento lleva un número correlativo. Si se corta la conexión, EventSource se reconecta solo
 con `Last-Event-ID` y el motor le reenvía lo que faltaba. Las fases 2 a 11 aparecen pendientes

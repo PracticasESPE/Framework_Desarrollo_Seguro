@@ -39,7 +39,9 @@ from orchestrator.ejecuciones import (
     Estado,
     EstadoEjecucion,
     Evento,
+    RegistrarEnNeo4j,
     RegistroEjecuciones,
+    registrar_en_neo4j,
     trabajo_fase1,
 )
 from orchestrator.fases import FASES, Fase
@@ -272,6 +274,11 @@ def fabrica_llm() -> Callable[[], ProveedorLLM]:
     return crear_proveedor
 
 
+def registrador_neo4j() -> RegistrarEnNeo4j | None:
+    """Al terminar la fase 1, los requisitos se guardan como nodos Requisito en Neo4j."""
+    return registrar_en_neo4j
+
+
 Registro = Annotated[RegistroEjecuciones, Depends(registro_ejecuciones)]
 
 
@@ -301,6 +308,7 @@ def iniciar_ejecucion(
     destino: CarpetaRequisitos,
     registro: Registro,
     crear_llm: Annotated[Callable[[], ProveedorLLM], Depends(fabrica_llm)],
+    registrar: Annotated[RegistrarEnNeo4j | None, Depends(registrador_neo4j)],
 ) -> EstadoEjecucion:
     """Lanza la ejecución en segundo plano y responde enseguida.
 
@@ -314,7 +322,7 @@ def iniciar_ejecucion(
     try:
         ejecucion = registro.iniciar(
             documento.id,
-            trabajo_fase1(documento, ruta, destino, crear_llm),
+            trabajo_fase1(documento, ruta, destino, crear_llm, registrar),
             nombre_documento=documento.nombre,
         )
     except EjecucionEnCurso as error:
