@@ -1047,6 +1047,7 @@ def requisitos_listar(
         typer.echo(f"          {fila['texto'][:100]}")
 
 
+<<<<<<< Updated upstream
 def _proveedor_principal(config) -> str:
     """LLM_PROVIDER validado. Si no es un proveedor conocido, se sale sin mostrar su valor: podría
     ser una clave pegada en la variable equivocada."""
@@ -1154,6 +1155,101 @@ def llm_vaciar_cache() -> None:
 
     carpeta = obtener_configuracion().llm_cache_dir
     typer.echo(f"Respuestas borradas de {carpeta.as_posix()}: {vaciar(carpeta)}")
+=======
+arquitectura_app = typer.Typer(
+    help="Fase 2: propuesta arquitectónica (servicios, contextos y decisiones).",
+    no_args_is_help=True,
+)
+app.add_typer(arquitectura_app, name="arquitectura")
+
+
+@arquitectura_app.command("proponer")
+def arquitectura_proponer(
+    modelo: Annotated[
+        Path, typer.Argument(help="modelo_requisitos.json generado por «requisitos clasificar».")
+    ],
+    proveedor: Annotated[
+        str | None,
+        typer.Option("--proveedor", help="Proveedor de LLM; por defecto LLM_PROVIDER."),
+    ] = None,
+    nivel: Annotated[
+        str,
+        typer.Option("--nivel", help="Modelo del proveedor: razonamiento (por defecto) o rapido."),
+    ] = "razonamiento",
+    destino: Annotated[
+        Path | None,
+        typer.Option("--destino", help="Carpeta de salida; por defecto salida/arquitectura."),
+    ] = None,
+) -> None:
+    """Propone con el LLM los servicios, contextos y decisiones; guarda arquitectura.json."""
+    from pydantic import ValidationError
+
+    from orchestrator.architecture import proponer_arquitectura
+    from orchestrator.ingest import ModeloRequisitos
+    from orchestrator.llm import ErrorLLM, crear_proveedor
+
+    if nivel not in ("razonamiento", "rapido"):
+        raise typer.BadParameter("usa «razonamiento» o «rapido»", param_hint="--nivel")
+    if not modelo.is_file():
+        raise typer.BadParameter(f"no existe el archivo '{modelo}'", param_hint="MODELO")
+    try:
+        datos = ModeloRequisitos.model_validate_json(modelo.read_bytes())
+    except ValidationError as error:
+        typer.echo(f"Error: {modelo.name} no es un modelo de requisitos válido.\n{error}", err=True)
+        raise typer.Exit(1) from error
+
+    def reintento(intento: int, problemas: list[str]) -> None:
+        typer.echo(f"  Intento {intento} rechazado por el motor; se vuelve a pedir:")
+        for problema in problemas:
+            typer.echo(f"    - {problema}")
+
+    typer.echo(f"Documento: {datos.documento.nombre}, {len(datos.requisitos)} requisitos")
+    try:
+        llm = crear_proveedor(proveedor)
+        arquitectura = proponer_arquitectura(datos, llm, nivel=nivel, al_reintentar=reintento)
+    except (ErrorLLM, ValueError) as error:
+        typer.echo(f"Error: {error}", err=True)
+        raise typer.Exit(1) from error
+
+    base = modelo.name.removesuffix(".json").removesuffix(".modelo_requisitos") or "documento"
+    carpeta = destino or obtener_configuracion().directorio_salida / "arquitectura"
+    carpeta.mkdir(parents=True, exist_ok=True)
+    archivo = carpeta / f"{base}.arquitectura.json"
+    archivo.write_text(arquitectura.model_dump_json(indent=2), encoding="utf-8")
+
+    typer.echo(f"Proveedor: {getattr(llm, 'nombre', proveedor)} ({nivel})")
+    typer.echo(f"Servicios: {len(arquitectura.servicios)}")
+    for s in arquitectura.servicios:
+        dependencias = ", ".join(f"{d.servicio} ({d.tipo})" for d in s.depende_de) or "ninguna"
+        typer.echo(
+            f"  {s.nombre} [{s.contexto}]: {len(s.requisitos)} requisitos, "
+            f"base {s.base_datos}, depende de {dependencias}"
+        )
+    typer.echo(f"Transversales: {len(arquitectura.transversales)} requisitos")
+    typer.echo(f"Decisiones: {len(arquitectura.decisiones)}")
+    for d in arquitectura.decisiones:
+        typer.echo(f"  {d.id} {d.titulo}")
+    typer.echo(f"Arquitectura guardada en {archivo.as_posix()}")
+
+
+@arquitectura_app.command("esquema")
+def arquitectura_esquema(
+    salida: Annotated[
+        Path | None, typer.Option("--salida", help="Archivo donde guardar el JSON Schema.")
+    ] = None,
+) -> None:
+    """Muestra el JSON Schema de arquitectura.json."""
+    import json
+
+    from orchestrator.architecture import Arquitectura
+
+    esquema = json.dumps(Arquitectura.model_json_schema(), indent=2, ensure_ascii=False)
+    if salida is None:
+        typer.echo(esquema)
+        return
+    salida.write_text(esquema + "\n", encoding="utf-8")
+    typer.echo(f"JSON Schema guardado en {salida.as_posix()}")
+>>>>>>> Stashed changes
 
 
 if __name__ == "__main__":
