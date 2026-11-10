@@ -14,9 +14,11 @@ from orchestrator.architecture.propuesta import (
     problemas_de_la_propuesta,
     proponer_arquitectura,
 )
+from orchestrator.architecture.validacion import DecisionArquitectura, validar_arquitectura
 
 __all__ = [
     "Arquitectura",
+    "DecisionArquitectura",
     "DecisionPropuesta",
     "Dependencia",
     "ErrorPropuesta",
@@ -26,4 +28,5 @@ __all__ = [
     "construir_arquitectura",
     "problemas_de_la_propuesta",
     "proponer_arquitectura",
+    "validar_arquitectura",
 ]

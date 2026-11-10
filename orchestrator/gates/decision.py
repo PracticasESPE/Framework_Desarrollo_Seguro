@@ -6,8 +6,6 @@ con su justificación: los bloqueantes, las advertencias y el resultado de cada 
 """
 
 import json
-import shutil
-import subprocess
 from pathlib import Path
 from typing import Any
 
@@ -15,6 +13,7 @@ from pydantic import BaseModel
 
 from orchestrator.gates.hallazgos import Hallazgo
 from orchestrator.gates.sarif import ErrorSarif, leer_sarif
+from orchestrator.opa import ErrorOPA, consultar
 
 RAIZ = Path(__file__).resolve().parents[2]
 POLITICAS_POR_DEFECTO = RAIZ / "policies" / "gates"
@@ -38,7 +37,7 @@ FASE_DEL_GATE = {1: 4, 2: 8, 3: 11}
 _DAST = {"zap", "nuclei"}
 
 
-class ErrorDecision(Exception):
+class ErrorDecision(ErrorOPA):
     """No se pudo obtener la decisión de OPA."""
 
 
@@ -147,37 +146,10 @@ def evaluar(
     entrada: EntradaGate, politicas: Path = POLITICAS_POR_DEFECTO, opa: str | None = None
 ) -> DecisionGate:
     """Pide a OPA la decisión del gate (data.gates.gateN.decision)."""
-    ejecutable = opa or shutil.which("opa")
-    if ejecutable is None:
-        raise ErrorDecision("No se encontró OPA. Instálalo (winget install open-policy-agent.opa)")
-    consulta = f"data.gates.gate{entrada.gate}.decision"
     try:
-        proceso = subprocess.run(
-            [
-                ejecutable,
-                "eval",
-                "--format",
-                "json",
-                "--data",
-                str(politicas),
-                "--stdin-input",
-                consulta,
-            ],
-            input=json.dumps(entrada.datos),
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
-            timeout=60,
-            check=False,
-        )
-    except (OSError, subprocess.TimeoutExpired) as error:
-        raise ErrorDecision(f"No se pudo ejecutar OPA: {error}") from error
-    if proceso.returncode != 0:
-        raise ErrorDecision(f"OPA falló al evaluar {consulta}: {proceso.stderr.strip()}")
-    try:
-        valor = json.loads(proceso.stdout)["result"][0]["expressions"][0]["value"]
-    except (json.JSONDecodeError, KeyError, IndexError) as error:
-        raise ErrorDecision(f"OPA no devolvió una decisión para {consulta}") from error
+        valor = consultar(f"data.gates.gate{entrada.gate}.decision", entrada.datos, politicas, opa)
+    except ErrorOPA as error:
+        raise ErrorDecision(str(error)) from error
     return DecisionGate.model_validate(valor)
 
 
