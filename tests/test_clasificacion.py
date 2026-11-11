@@ -152,6 +152,24 @@ def test_reintenta_si_faltan_ubicaciones_y_falla_al_agotar_los_intentos():
         clasificar_unidades(unidades, llm, intentos=3)
 
 
+def test_una_unidad_repetida_por_el_llm_se_toma_una_vez():
+    """Si una unidad trae dos requisitos, el LLM puede devolverla dos veces: vale la primera."""
+    unidades = [u for u in segmentar(TEXTO) if u.seccion == "3"]
+    repetida = ClasificacionSeccion.model_validate(
+        {
+            "clasificaciones": [
+                _clasificacion("3.1"),
+                _clasificacion("3.1", tipo="no_funcional"),
+                _clasificacion("3.2"),
+            ]
+        }
+    )
+    llm = LLMSimulado([repetida])
+    pares = clasificar_unidades(unidades, llm)
+    assert [c.tipo for _, c in pares] == ["funcional", "funcional"]
+    assert len(llm.llamadas) == 1
+
+
 def test_espera_cuando_el_proveedor_alcanza_su_limite():
     limite = ErrorProveedorLLM("groq: límite de peticiones alcanzado")
     esperas: list[float] = []

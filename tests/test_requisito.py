@@ -122,6 +122,34 @@ def test_segmentar_texto_sin_marcas_de_titulo():
     ]
 
 
+def test_una_conversacion_no_toma_las_preguntas_como_titulos():
+    texto = (
+        "Reunión con el cliente\n\n"
+        "Analista: ¿Quiénes usarían el sistema?\n\n"
+        "Cliente: Los jugadores y la recepción.\n\n"
+        "Analista: ¡Perfecto!\n\n"
+        "Cliente: Cada jugador ve solo sus reservas.\n"
+    )
+    unidades = segmentar(texto)
+    assert [(u.ubicacion, u.titulo_seccion) for u in unidades] == [
+        ("0, párrafo 1", "Reunión con el cliente"),
+        ("0, párrafo 2", "Reunión con el cliente"),
+        ("0, párrafo 3", "Reunión con el cliente"),
+        ("0, párrafo 4", "Reunión con el cliente"),
+    ]
+    assert unidades[0].texto == "Analista: ¿Quiénes usarían el sistema?"
+
+
+def test_titulos_sin_numero_no_repiten_ubicaciones():
+    texto = "Inicio\n\nPrimer párrafo.\n\nOtro tema\n\nSegundo párrafo.\n\n3. Cuenta\n\n1. Uno.\n"
+    unidades = segmentar(texto)
+    assert [(u.ubicacion, u.titulo_seccion) for u in unidades] == [
+        ("0, párrafo 1", "Inicio"),
+        ("0, párrafo 2", "Otro tema"),
+        ("3.1", "Cuenta"),
+    ]
+
+
 def test_un_texto_sin_estructura_se_divide_en_oraciones():
     """Un correo de un solo párrafo mezcla varios requisitos: cada oración es una unidad."""
     oraciones = [
