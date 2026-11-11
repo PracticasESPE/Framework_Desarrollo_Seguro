@@ -114,7 +114,8 @@ def _titulo(
     # termina como una frase. Así «3. Cuentas y acceso» es un título y «1. Las cuentas...» no.
     if anterior or siguiente or not linea or len(linea) > _LARGO_MAXIMO_TITULO:
         return None
-    if linea.endswith((".", ":", ";", ",")) or _es_fila_de_tabla(linea):
+    # Una pregunta o una exclamación es una frase, no un título (p. ej. en una conversación).
+    if linea.endswith((".", ":", ";", ",", "?", "!")) or _es_fila_de_tabla(linea):
         return None
     return _numero_del_titulo(linea)
 
@@ -142,7 +143,12 @@ class _Segmentador:
 
     def titulo(self, numero: str | None, texto: str) -> None:
         self.cerrar_bloque()
-        self.seccion, self.titulo_seccion, self.contadores = numero, texto, {}
+        # La numeración de párrafos, viñetas y tablas vuelve a empezar solo si cambia el número de
+        # sección: dos títulos sin número seguidos comparten la sección 0 y sus ubicaciones no
+        # deben repetirse («0, párrafo 1» una sola vez en todo el documento).
+        if numero != self.seccion:
+            self.contadores = {}
+        self.seccion, self.titulo_seccion = numero, texto
 
     def punto(self, numero: int, texto: str) -> None:
         self.cerrar_bloque()
