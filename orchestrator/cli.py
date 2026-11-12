@@ -1340,5 +1340,95 @@ def arquitectura_adr(
         typer.echo(f"  {archivo.name}")
 
 
+@arquitectura_app.command("diagrama")
+def arquitectura_diagrama(
+    arquitectura: Annotated[
+        Path, typer.Argument(help="arquitectura.json generado por «arquitectura proponer».")
+    ],
+    requisitos: Annotated[
+        Path,
+        typer.Option("--requisitos", help="modelo_requisitos.json del que salió la arquitectura."),
+    ],
+    salida: Annotated[
+        Path,
+        typer.Option("--salida", help="Documento a escribir; por defecto docs/arquitectura.md."),
+    ] = Path("docs/arquitectura.md"),
+    adr: Annotated[
+        Path,
+        typer.Option("--adr", help="Carpeta de los ADR, para enlazar cada patrón con el suyo."),
+    ] = Path("docs/adr"),
+    nombre: Annotated[
+        str | None,
+        typer.Option("--nombre", help="Nombre del sistema; por defecto, el del documento."),
+    ] = None,
+) -> None:
+    """Escribe la arquitectura con su diagrama C4 en Mermaid (contexto y contenedores).
+
+    Antes valida la arquitectura con OPA y solo la dibuja si la aprueba. No usa LLM.
+    """
+    from datetime import date
+
+    from pydantic import ValidationError
+
+    from orchestrator.architecture import Arquitectura, validar_arquitectura
+    from orchestrator.architecture.adr import construir_adrs
+    from orchestrator.architecture.c4 import (
+        ErrorDiagrama,
+        actores,
+        documento_arquitectura,
+        enlaces_adr,
+        escribir_documento,
+    )
+    from orchestrator.ingest import ModeloRequisitos
+    from orchestrator.opa import ErrorOPA
+
+    try:
+        datos = Arquitectura.model_validate_json(arquitectura.read_bytes())
+        modelo = ModeloRequisitos.model_validate_json(requisitos.read_bytes())
+    except OSError as error:
+        typer.echo(f"Error: no se pudo leer {error.filename}", err=True)
+        raise typer.Exit(1) from error
+    except ValidationError as error:
+        typer.echo(f"Error: un archivo no tiene el formato esperado.\n{error}", err=True)
+        raise typer.Exit(1) from error
+    if modelo.documento.sha256 != datos.documento.sha256:
+        typer.echo(
+            "Error: la arquitectura y el modelo de requisitos son de documentos distintos.",
+            err=True,
+        )
+        raise typer.Exit(1)
+
+    try:
+        decision = validar_arquitectura(datos)
+    except ErrorOPA as error:
+        typer.echo(f"Error: {error}", err=True)
+        raise typer.Exit(1) from error
+    typer.echo(f"OPA: {decision.justificacion}")
+
+    try:
+        enlaces = (
+            enlaces_adr(construir_adrs(datos, decision, modelo), adr, salida)
+            if decision.aprobado
+            else {}
+        )
+        contenido = documento_arquitectura(
+            datos, modelo, decision, date.today(), enlaces, nombre=nombre
+        )
+        escribir_documento(contenido, salida)
+    except ErrorDiagrama as error:
+        for bloqueante in decision.bloqueantes:
+            typer.echo(f"  - {bloqueante.regla}: {bloqueante.motivo}", err=True)
+        typer.echo(f"Error: {error}", err=True)
+        raise typer.Exit(1) from error
+
+    typer.echo(f"Actores: {', '.join(actores(modelo)) or 'ninguno'}")
+    typer.echo(
+        f"Contenedores: {len(datos.servicios)} servicios con su base de datos; "
+        f"patrones: {', '.join(p.patron for p in decision.patrones) or 'ninguno'}"
+    )
+    typer.echo(f"ADR enlazados: {len(enlaces)} de {len(decision.patrones)} patrones")
+    typer.echo(f"Documento escrito en {salida.as_posix()}")
+
+
 if __name__ == "__main__":
     app()

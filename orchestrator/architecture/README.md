@@ -73,6 +73,34 @@ por cada patrón que infiere OPA, además del índice `README.md` con la validac
 
 Los ADR del documento 1 del dataset están en `docs/adr/`, con sus entradas en `docs/adr/entrada/`.
 
+## Diagrama C4 en Mermaid
+
+```bash
+uv run framework arquitectura diagrama salida/arquitectura/requisitos-docx.arquitectura.json \
+  --requisitos salida/requisitos/requisitos-docx.modelo_requisitos.json --nombre "Tienda en línea"
+```
+
+Escribe `docs/arquitectura.md` (o `--salida`), que GitHub dibuja sin herramientas adicionales:
+
+1. **Contexto** (C4 nivel 1, sintaxis `C4Context`): las personas que usan el sistema, sacadas de
+   los actores de los requisitos.
+2. **Contenedores** (C4 nivel 2):
+   - qué contiene: el gateway, la identidad y el bus de eventos, solo si la arquitectura los
+     necesita; cada microservicio con su base de datos; y las dependencias, síncronas (HTTP,
+     flecha continua) o asíncronas (eventos, flecha punteada);
+   - cómo se dibuja: con un `flowchart` con los colores y las formas de C4, porque la sintaxis
+     `C4Container` coloca las piezas en una rejilla fija y, con una base de datos por servicio,
+     las flechas se superponen hasta no poder leerse.
+3. **Tablas** de servicios y dependencias, los patrones de OPA con enlace a su ADR (`--adr`,
+   por defecto `docs/adr`) y la validación.
+
+Como los ADR, valida antes con OPA y no dibuja una arquitectura rechazada. No usa LLM: dibuja
+exactamente lo que se validó. El texto que escribió el LLM (responsabilidades y motivos) va sin
+comillas, saltos de línea ni `<>|#;`, así que no puede romper el diagrama ni añadir instrucciones
+de Mermaid. Si `docs/arquitectura.md` no lo generó el framework, no se pisa.
+
+El de `docs/arquitectura.md` se dibujó con Mermaid 11 y 12 antes de subirlo.
+
 ## Resultado con el documento 1
 
 Con `openai/gpt-oss-120b` en Groq, al primer intento: 6 servicios (`usuarios`, `catalogo`,
