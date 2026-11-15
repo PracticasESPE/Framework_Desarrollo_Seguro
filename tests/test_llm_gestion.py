@@ -626,3 +626,60 @@ def test_una_clave_invalida_se_explica_sin_el_cuerpo_del_proveedor():
     with pytest.raises(ErrorProveedorLLM) as capturado:
         ProveedorGroq(cliente=cliente).generar_estructurado("x", Requisito)
     assert str(capturado.value) == "groq: la clave GROQ_API_KEY no es válida (401)"
+
+
+def test_gemini_reintenta_los_errores_pasajeros_del_servidor():
+    """Caso real del 15/11: «503: This model is currently experiencing high demand»."""
+    from google.genai import errors as errores_gemini
+
+    demanda = errores_gemini.APIError(503, {"error": {"message": "high demand"}})
+    respuesta = SimpleNamespace(text=VALIDO, usage_metadata=None)
+    pendientes = [demanda, demanda, respuesta]
+
+    def generate_content(**_):
+        siguiente = pendientes.pop(0)
+        if isinstance(siguiente, Exception):
+            raise siguiente
+        return siguiente
+
+    esperas: list[float] = []
+    gemini = ProveedorGemini(
+        cliente=SimpleNamespace(models=SimpleNamespace(generate_content=generate_content)),
+        dormir=esperas.append,
+    )
+    assert gemini.generar_estructurado("x", Requisito) == ESPERADO
+    assert esperas == [3.0, 10.0]
+
+
+def test_gemini_no_reintenta_los_errores_que_no_pasan_solos():
+    from google.genai import errors as errores_gemini
+
+    llamadas: list[int] = []
+
+    def generate_content(**_):
+        llamadas.append(1)
+        raise errores_gemini.APIError(400, {"error": {"message": "solicitud no válida"}})
+
+    gemini = ProveedorGemini(
+        cliente=SimpleNamespace(models=SimpleNamespace(generate_content=generate_content)),
+        dormir=pytest.fail,
+    )
+    with pytest.raises(ErrorProveedorLLM, match="400"):
+        gemini.generar_estructurado("x", Requisito)
+    assert len(llamadas) == 1
+
+
+def test_gemini_se_rinde_si_el_error_pasajero_persiste():
+    from google.genai import errors as errores_gemini
+
+    def generate_content(**_):
+        raise errores_gemini.APIError(503, {"error": {"message": "high demand"}})
+
+    esperas: list[float] = []
+    gemini = ProveedorGemini(
+        cliente=SimpleNamespace(models=SimpleNamespace(generate_content=generate_content)),
+        dormir=esperas.append,
+    )
+    with pytest.raises(ErrorProveedorLLM, match="503"):
+        gemini.generar_estructurado("x", Requisito)
+    assert esperas == [3.0, 10.0]

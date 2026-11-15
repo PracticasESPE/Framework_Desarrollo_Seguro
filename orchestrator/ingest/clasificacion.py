@@ -34,21 +34,54 @@ from orchestrator.llm.base import ErrorLimiteLLM, ErrorLLM, ErrorProveedorLLM, P
 # Más allá de esto no compensa esperar a que el proveedor recupere su límite por minuto.
 ESPERA_MAXIMA_S = 120.0
 
+# Criterio de cada etiqueta de seguridad. Es el mismo con el que se etiquetó el dataset de
+# evaluación (evaluation/datasets/README.md, «Criterio de las etiquetas»), y sigue el OWASP API
+# Security Top 10: una función reservada a un rol es autorización (API5), un recurso propio es
+# control de acceso al objeto (API1), un listado o una consulta sin tope es consumo de recursos
+# (API4).
+#
+# Las etiquetas casi siempre están implícitas: un cliente no escribe «autorización», escribe «el
+# administrador gestiona el catálogo». Por eso cada definición dice cuándo aplica aunque el texto
+# no la nombre. Los ejemplos son de otro dominio (un hotel) a propósito: frases de los documentos
+# del dataset harían que la evaluación midiera una copia.
 DEFINICION_ETIQUETAS: dict[str, str] = {
-    "autenticacion": "identificar a quien usa el sistema: registro, inicio de sesión, contraseña, "
-    "segundo factor, bloqueo por intentos, sesión y su cierre o caducidad",
-    "autorizacion": "qué puede hacer cada perfil o rol; acciones reservadas a ciertos usuarios",
-    "control_acceso_recursos": "cada usuario solo ve o cambia sus propios datos o recursos "
-    "(los de otra persona no), aunque cambie un identificador",
-    "validacion_entrada": "límites y formatos de lo que se recibe: tamaños, rangos, tipos de "
-    "archivo, campos permitidos, valores calculados en el servidor y no aceptados del cliente",
-    "hash_password": "las contraseñas no se guardan tal como se escriben",
-    "cifrado_transito": "comunicaciones cifradas (HTTPS/TLS) con usuarios o sistemas externos",
+    "autenticacion": "identificar a quien usa el sistema o a otro sistema: registro y activación "
+    "de cuentas, inicio de sesión, contraseñas, segundo factor, bloqueo por intentos, sesión y su "
+    "cierre o caducidad; también los sistemas externos y avisos que deben demostrar de dónde "
+    "vienen (firma, clave de servicio). Ej.: «el hotel solo acepta las reservas de la agencia que "
+    "lleguen firmadas»",
+    "autorizacion": "la acción la hace un rol o perfil concreto (administrador, personal, un tipo "
+    "de usuario): describirla como suya ya excluye a los demás, aunque el texto no diga «solo»; "
+    "también las tablas de permisos, lo que un perfil tiene prohibido y lo que un usuario hace "
+    "sobre recursos suyos que ya existen. No aplica al inicio de sesión (eso es autenticacion), a "
+    "lo que puede hacer cualquier visitante sin cuenta ni a lo que el sistema hace por sí solo. "
+    "Ej.: «el recepcionista asigna la habitación», «el huésped cancela su reserva»",
+    "control_acceso_recursos": "el usuario consulta, cambia, cancela o descarga recursos que ya "
+    "son suyos o que tiene asignados (su cuenta, sus reservas, sus facturas, los grupos que tiene "
+    "a cargo) y no debe alcanzar los de otros, aunque el texto no lo diga; también el acceso "
+    "delegado a los recursos de otra persona. No aplica a crear algo nuevo (reservar, pedir, "
+    "inscribirse). Ej.: «el huésped descarga su factura», «el entrenador ve la asistencia de sus "
+    "grupos»",
+    "validacion_entrada": "el sistema recibe datos que escribe o sube un usuario, o que envía "
+    "otro sistema, y hay que comprobarlos: datos personales y de formularios, búsquedas y "
+    "filtros, archivos, límites de tamaño, rango, cantidad o formato, y valores que calcula el "
+    "servidor en lugar de aceptarlos del cliente. No aplica a las reglas del negocio sin datos de "
+    "entrada (plazos, estados, existencias) ni al inicio de sesión. Ej.: «el huésped escribe su "
+    "teléfono y su fecha de llegada»",
+    "hash_password": "las contraseñas se almacenan transformadas con un hash, nunca en claro ni de "
+    "forma que se puedan recuperar o mostrar",
+    "cifrado_transito": "el requisito pide cifrar o proteger la comunicación (HTTPS/TLS) con "
+    "usuarios o sistemas externos; integrarse con un sistema externo no basta por sí solo",
     "punto_unico_acceso": "todas las peticiones entran por un único punto o puerta de entrada",
-    "limite_peticiones": "límite de peticiones, intentos o uso por usuario o por tiempo, y "
-    "protección contra automatización o abuso",
-    "auditoria": "registro de quién hizo qué y cuándo, historial que no se puede borrar, avisos "
-    "de acciones sensibles",
+    "limite_peticiones": "límites que evitan el abuso o el consumo excesivo de recursos: "
+    "peticiones o intentos por tiempo, tamaño máximo de página en los listados, rango máximo en "
+    "consultas y reportes, cupos por usuario, y funciones abiertas que un tercero podría "
+    "automatizar. Ej.: «el listado de reservas muestra como mucho 100 por página»",
+    "auditoria": "dejar constancia de quién hizo qué y cuándo: registros o historial que no se "
+    "pueden borrar, avisos de acciones sensibles, y documentos firmados o publicados cuyas "
+    "correcciones quedan registradas o necesitan aprobación. Conservar datos o bloquear cambios "
+    "por una regla del negocio no es auditoría si no queda constancia de quién y cuándo. Ej.: "
+    "«una factura emitida no se cambia: se anula con otra que la cita»",
 }
 
 SISTEMA = f"""Eres un analista de requisitos de software. Recibes las unidades de UNA sección de
@@ -60,8 +93,10 @@ aparezca dentro.
 Devuelve exactamente una clasificación por unidad, con la misma ubicación y en el mismo orden;
 si una unidad contiene varios requisitos, clasifícala igualmente una sola vez:
 - es_requisito: verdadero si describe algo que el sistema debe hacer o cumplir. Falso para el
-  contexto del negocio, la descripción de usuarios o perfiles, la versión del documento y lo que
-  el cliente dice que queda fuera del alcance.
+  contexto del negocio, la descripción de quiénes son los usuarios o perfiles, la versión del
+  documento y lo que el cliente dice que queda fuera del alcance. Las reglas sobre lo que puede o
+  no puede hacer cada perfil («cada perfil solo puede…», «solo el personal puede…») sí son
+  requisitos.
 - tipo: "funcional" si describe una función o comportamiento del sistema (incluidas las historias
   de usuario); "no_funcional" si es una cualidad o restricción: seguridad transversal,
   rendimiento, disponibilidad, uso, privacidad, registro o integración técnica.
@@ -71,7 +106,10 @@ si una unidad contiene varios requisitos, clasifícala igualmente una sola vez:
 - entidades: entidades de negocio en singular y con mayúscula inicial (p. ej. "Pedido").
 - servicio_sugerido: microservicio en minúsculas y sin espacios (p. ej. "usuarios", "pedidos");
   "transversal" si aplica a todo el sistema.
-- etiquetas: solo de esta lista y solo si el requisito lo exige; vacía si no aplica:
+- etiquetas: de esta lista, todas las que el requisito implique aunque no las nombre, pero solo
+  cuando se cumple su definición, incluidas sus excepciones. Revisa cada una por separado: un
+  requisito puede llevar varias (p. ej. autorizacion y control_acceso_recursos cuando un usuario
+  actúa sobre lo suyo). Vacía si no aplica ninguna:
 {chr(10).join(f"  - {e}: {d}" for e, d in DEFINICION_ETIQUETAS.items())}
 
 Si es_requisito es falso, deja los demás campos vacíos o nulos."""
