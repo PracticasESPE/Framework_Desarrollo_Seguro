@@ -1,0 +1,23 @@
+{
+  "documento": "01_tienda_en_linea",
+  "referencia": 30,
+  "modelo": 31,
+  "encontrados": 30,
+  "exhaustividad": 1.0,
+  "falsos_positivos": 1,
+  "fuera_de_alcance_como_requisito": 0,
+  "tipo_correcto": 27,
+  "acierto_tipo": 0.9,
+  "etiquetas_precision": 0.909,
+  "etiquetas_exhaustividad": 0.625,
+  "etiquetas_f1": 0.741,
+  "no_encontrados": [],
+  "tipo_incorrecto": [
+    "RF-14: no_funcional (esperado funcional)",
+    "RF-20: no_funcional (esperado funcional)",
+    "RF-21: no_funcional (esperado funcional)"
+  ],
+  "falsos_positivos_texto": [
+    "RF-01 [1, párrafo 2] La empresa quiere que sus clientes compren a cualquier hora, que el stock se act"
+  ]
+}

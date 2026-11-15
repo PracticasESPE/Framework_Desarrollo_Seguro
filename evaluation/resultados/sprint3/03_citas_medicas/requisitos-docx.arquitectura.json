@@ -1,0 +1,305 @@
+{
+  "version_esquema": "1.0",
+  "documento": {
+    "nombre": "requisitos.docx",
+    "sha256": "97afabd99b91abe8183d883c744e6d69a550ef2cfeac07a10fe29e9aad8eebd4",
+    "herramienta": "docling 2.148.0"
+  },
+  "servicios": [
+    {
+      "nombre": "usuarios",
+      "contexto": "Gestión de usuarios y autenticación",
+      "responsabilidad": "Registro de pacientes, gestión de credenciales, MFA para personal, control de sesiones, corrección de datos personales y separación de frontends para pacientes y personal.",
+      "entidades": [
+        "Paciente",
+        "Personal",
+        "Cuenta",
+        "Sesion",
+        "DatosPersonales"
+      ],
+      "requisitos": [
+        "RF-02",
+        "RF-28",
+        "RF-29",
+        "RNF-02",
+        "RNF-03",
+        "RNF-04"
+      ],
+      "base_datos": "usuarios_db",
+      "depende_de": [],
+      "etiquetas": [
+        "autenticacion",
+        "validacion_entrada",
+        "control_acceso_recursos",
+        "limite_peticiones"
+      ]
+    },
+    {
+      "nombre": "citas",
+      "contexto": "Gestión de citas y agenda",
+      "responsabilidad": "Búsqueda y reserva de horarios, gestión de citas de pacientes y sus hijos, evitar solapamientos, límites de citas pendientes, reglas de no‑show, cancelación y cambios, integración con pagos, teleconsulta, vista diaria del médico y envío de recordatorios.",
+      "entidades": [
+        "Cita",
+        "Horario",
+        "Especialidad",
+        "Medico",
+        "Sede",
+        "Paciente",
+        "Hijo",
+        "Recordatorio"
+      ],
+      "requisitos": [
+        "RF-01",
+        "RF-03",
+        "RF-04",
+        "RF-05",
+        "RF-06",
+        "RF-07",
+        "RF-08",
+        "RF-09",
+        "RF-10",
+        "RF-23",
+        "RF-26",
+        "RF-27"
+      ],
+      "base_datos": "citas_db",
+      "depende_de": [
+        {
+          "servicio": "pagos",
+          "tipo": "asincrona",
+          "motivo": "Actualizar estado de reserva al confirmar o revertir el pago"
+        }
+      ],
+      "etiquetas": [
+        "control_acceso_recursos"
+      ]
+    },
+    {
+      "nombre": "historia_clinica",
+      "contexto": "Historia clínica electrónica",
+      "responsabilidad": "Almacenar y compartir historias clínicas entre sedes, registro de consultas, notas, auditoría de accesos, control de acceso basado en citas, generación de PDF, recetas electrónicas, retención y cifrado de datos.",
+      "entidades": [
+        "HistoriaClinica",
+        "NotaConsulta",
+        "RecetaElectronica",
+        "Paciente",
+        "Medico",
+        "DireccionMedica",
+        "Persona"
+      ],
+      "requisitos": [
+        "RF-11",
+        "RF-12",
+        "RF-13",
+        "RF-14",
+        "RF-15",
+        "RF-16",
+        "RF-17",
+        "RNF-01",
+        "RNF-05"
+      ],
+      "base_datos": "historia_clinica_db",
+      "depende_de": [
+        {
+          "servicio": "usuarios",
+          "tipo": "sincrona",
+          "motivo": "Validar identidad del paciente y permisos de acceso"
+        }
+      ],
+      "etiquetas": [
+        "autorizacion",
+        "auditoria",
+        "control_acceso_recursos"
+      ]
+    },
+    {
+      "nombre": "pagos",
+      "contexto": "Gestión de pagos y reembolsos",
+      "responsabilidad": "Procesar pagos de copago mediante pasarela externa sin almacenar datos de tarjeta, recibir notificaciones de pagos, manejar reembolsos automáticos y validar notificaciones de la pasarela.",
+      "entidades": [
+        "Pago",
+        "Cita",
+        "PasarelaPago"
+      ],
+      "requisitos": [
+        "RF-20",
+        "RF-21",
+        "RF-22",
+        "RNF-07"
+      ],
+      "base_datos": "pagos_db",
+      "depende_de": [
+        {
+          "servicio": "usuarios",
+          "tipo": "sincrona",
+          "motivo": "Verificar cuenta del paciente antes de iniciar el pago"
+        }
+      ],
+      "etiquetas": [
+        "validacion_entrada"
+      ]
+    },
+    {
+      "nombre": "laboratorio",
+      "contexto": "Integración de resultados de laboratorio",
+      "responsabilidad": "Recepción segura de resultados de exámenes del laboratorio externo, almacenamiento de PDFs, disponibilidad resiliente y notificación a médicos y pacientes tras revisión.",
+      "entidades": [
+        "Examen",
+        "Resultado",
+        "Laboratorio"
+      ],
+      "requisitos": [
+        "RF-18",
+        "RNF-06"
+      ],
+      "base_datos": "laboratorio_db",
+      "depende_de": [],
+      "etiquetas": [
+        "autenticacion",
+        "validacion_entrada"
+      ]
+    },
+    {
+      "nombre": "administracion",
+      "contexto": "Gestión administrativa y reportes",
+      "responsabilidad": "Gestión de médicos y sus especialidades/sedes, generación de indicadores y reportes de ocupación, envío de notificaciones de resultados, control de acceso a reportes y auditoría de accesos urgentes, cumplimiento de políticas de contenido de recordatorios.",
+      "entidades": [
+        "Medico",
+        "Especialidad",
+        "Sede",
+        "Indicador",
+        "Agenda",
+        "DireccionMedica",
+        "Notificacion"
+      ],
+      "requisitos": [
+        "RF-19",
+        "RF-24",
+        "RF-25",
+        "RNF-08"
+      ],
+      "base_datos": "administracion_db",
+      "depende_de": [
+        {
+          "servicio": "historia_clinica",
+          "tipo": "asincrona",
+          "motivo": "Recibir evento de acceso urgente a historia clínica para notificar a dirección médica"
+        }
+      ],
+      "etiquetas": [
+        "control_acceso_recursos",
+        "autorizacion"
+      ]
+    }
+  ],
+  "transversales": [
+    "RF-30",
+    "RNF-09",
+    "RNF-10",
+    "RNF-11",
+    "RNF-12",
+    "RNF-13",
+    "RNF-14"
+  ],
+  "etiquetas_transversales": [
+    "cifrado_transito",
+    "punto_unico_acceso",
+    "limite_peticiones"
+  ],
+  "decisiones": [
+    {
+      "id": "D-01",
+      "titulo": "División en microservicios",
+      "decision": "Se definieron seis microservicios (usuarios, citas, historia_clinica, pagos, laboratorio y administracion) para agrupar funcionalidades cohesivas y evitar servicios diminutos.",
+      "justificacion": "Los requisitos funcionales y no funcionales se agrupan naturalmente en estos dominios; el número de servicios (6) está dentro del rango recomendado (3‑7) y permite independencia de datos y despliegues.",
+      "requisitos": [
+        "RF-01",
+        "RF-02",
+        "RF-03",
+        "RF-04",
+        "RF-05",
+        "RF-06",
+        "RF-07",
+        "RF-08",
+        "RF-09",
+        "RF-10",
+        "RF-11",
+        "RF-12",
+        "RF-13",
+        "RF-14",
+        "RF-15",
+        "RF-16",
+        "RF-17",
+        "RF-18",
+        "RF-19",
+        "RF-20",
+        "RF-21",
+        "RF-22",
+        "RF-23",
+        "RF-24",
+        "RF-25",
+        "RF-26",
+        "RF-27",
+        "RF-28",
+        "RF-29",
+        "RF-30",
+        "RNF-01",
+        "RNF-02",
+        "RNF-03",
+        "RNF-04",
+        "RNF-05",
+        "RNF-06",
+        "RNF-07",
+        "RNF-08",
+        "RNF-09",
+        "RNF-10",
+        "RNF-11",
+        "RNF-12",
+        "RNF-13",
+        "RNF-14"
+      ]
+    },
+    {
+      "id": "D-02",
+      "titulo": "Comunicación entre servicios",
+      "decision": "Se utiliza comunicación síncrona (HTTP) solo para validaciones críticas (p.ej. usuarios‑pagos) y eventos asíncronos vía RabbitMQ para todo lo demás (p.ej. confirmación de pago, notificaciones de resultados).",
+      "justificacion": "Los requisitos de consistencia inmediata son pocos (validar cuenta antes de pagar); el resto se beneficia de la resiliencia y desacoplamiento de eventos, cumpliendo RNF‑06 y RNF‑10.",
+      "requisitos": [
+        "RF-21",
+        "RF-19",
+        "RNF-06",
+        "RNF-10"
+      ]
+    },
+    {
+      "id": "D-03",
+      "titulo": "Seguridad y autenticación",
+      "decision": "Keycloak será el IdP único; todos los microservicios validan tokens JWT y usan autorización basada en roles. Las comunicaciones internas se cifran TLS y los secretos se almacenan en Vault.",
+      "justificacion": "Cumple RNF‑09 (cifrado en tránsito y punto único de acceso) y RNF‑13 (almacén de secretos).",
+      "requisitos": [
+        "RNF-09",
+        "RNF-13"
+      ]
+    },
+    {
+      "id": "D-04",
+      "titulo": "Base de datos por servicio",
+      "decision": "Cada microservicio posee su propia base PostgreSQL aislada, sin compartir esquemas.",
+      "justificacion": "Garantiza independencia de datos y permite cumplir RF‑30 (actualizaciones independientes) y RNF‑05 (cifrado y retención por dominio).",
+      "requisitos": [
+        "RF-30",
+        "RNF-05"
+      ]
+    },
+    {
+      "id": "D-05",
+      "titulo": "Manejo de errores y monitoreo",
+      "decision": "Se implementa manejo genérico de errores sin exponer detalles internos y se centraliza el logging y métricas en ELK + Prometheus; los mensajes de error cumplen RNF‑12.",
+      "justificacion": "Evita fuga de información sensible y facilita el cumplimiento del SLA (RNF‑11).",
+      "requisitos": [
+        "RNF-12",
+        "RNF-11"
+      ]
+    }
+  ]
+}

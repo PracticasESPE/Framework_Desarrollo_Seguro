@@ -1,0 +1,36 @@
+{
+  "documento": "01_tienda_en_linea",
+  "servicios_propuestos": [
+    "usuarios",
+    "catalogo",
+    "pedidos",
+    "pagos",
+    "ventas"
+  ],
+  "servicios_referencia": [
+    "usuarios",
+    "catalogo",
+    "pedidos",
+    "pagos",
+    "notificaciones"
+  ],
+  "nombres_coincidentes": [
+    "catalogo",
+    "pagos",
+    "pedidos",
+    "usuarios"
+  ],
+  "requisitos_emparejados": 30,
+  "requisitos_referencia": 30,
+  "pares_precision": 0.831,
+  "pares_exhaustividad": 0.831,
+  "pares_f1": 0.831,
+  "correspondencia": {
+    "catalogo": "catalogo",
+    "notificaciones": "pedidos",
+    "pagos": "pagos",
+    "pedidos": "pedidos",
+    "transversal": "transversal",
+    "usuarios": "usuarios"
+  }
+}
