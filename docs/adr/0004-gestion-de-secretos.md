@@ -4,14 +4,14 @@
 | Campo | Valor |
 |---|---|
 | Estado | Aceptada |
-| Fecha | 2026-11-10 |
+| Fecha | 2026-11-15 |
 | Origen | Decisión D-04 de la propuesta arquitectónica, validada por OPA |
 | Documento de requisitos | requisitos.docx (SHA-256 `0515668b00b8`) |
 | Redacción | LLM (groq), revisada por el motor |
 
 ## Contexto
 
-El sistema requiere evitar que las claves de pasarela y credenciales de bases de datos queden en el código fuente, por lo que se decide usar Vault para su almacenamiento y acceso seguro.
+El sistema necesita evitar que las claves de la pasarela de pagos y las credenciales de las bases de datos queden expuestas en el código fuente. Para cumplir con RNF-10, se decide centralizar los secretos en Vault y exponerlos a los microservicios mediante variables de entorno seguras. Esta medida garantiza la separación de la configuración sensible del código y facilita la rotación de credenciales.
 
 ## Decisión
 
@@ -25,15 +25,15 @@ Cumple RNF-10 que prohíbe hardcode de claves.
 
 Positivas:
 
-- Mejora la seguridad al eliminar la exposición de secretos en repositorios y despliegues.
-- Facilita la rotación y revocación de credenciales sin modificar el código.
-- Cumple con el requisito RNF-10 y reduce riesgos de cumplimiento.
+- Reducción del riesgo de exposición accidental de credenciales, cumpliendo con RNF-10 y mejorando la postura de seguridad.
+- Facilita la rotación y revocación de secretos sin necesidad de redeployar los servicios, lo que mejora la operatividad.
+- Centraliza la gestión de secretos, permitiendo auditorías y trazabilidad de accesos a través de Vault.
 
 Negativas:
 
-- Incrementa la complejidad operativa al requerir la gestión y mantenimiento de Vault.
-- Introduce latencia adicional en la inicialización de servicios al recuperar secretos en tiempo de arranque.
-- Puede convertirse en un punto único de falla si Vault no está disponible, afectando la disponibilidad de todos los microservicios.
+- Incrementa la complejidad operativa al requerir la configuración y mantenimiento de Vault, así como la gestión de certificados TLS.
+- Introduce una dependencia de red adicional; la disponibilidad de Vault es crítica y su caída puede bloquear el despliegue de microservicios.
+- Requiere que los contenedores tengan acceso a Vault, lo que implica la configuración de políticas de acceso y la gestión de tokens de autenticación.
 
 ## Trazabilidad
 

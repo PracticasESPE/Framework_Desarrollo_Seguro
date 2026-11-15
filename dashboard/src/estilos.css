@@ -57,6 +57,9 @@ p {
 code {
   font-family: ui-monospace, 'Cascadia Code', Consolas, monospace;
   font-size: 0.88em;
+  /* Rutas e identificadores largos (salida/requisitos/<id>.json) no tienen espacios: sin esto
+     ensanchan la página en el móvil. */
+  overflow-wrap: anywhere;
 }
 
 .oculto {
@@ -152,6 +155,9 @@ code {
   box-shadow: var(--sombra);
   padding: 20px;
   display: grid;
+  /* minmax(0, 1fr): sin esto, la columna crece hasta el ancho de la tabla de requisitos y en el
+     móvil la página se desborda; así la tabla se desplaza dentro de su contenedor. */
+  grid-template-columns: minmax(0, 1fr);
   gap: 14px;
   min-width: 0;
 }
@@ -678,6 +684,9 @@ progress::-moz-progress-bar {
 /* Tabla de documentos */
 .tabla-contenedor {
   overflow-x: auto;
+  /* Referencia de posición para los textos ocultos de la tabla (.oculto es absoluto): sin esto,
+     el encabezado «Acción» se salía del contenedor y ensanchaba la página en el móvil. */
+  position: relative;
 }
 
 .tabla {

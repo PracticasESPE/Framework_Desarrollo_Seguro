@@ -4,14 +4,14 @@
 | Campo | Valor |
 |---|---|
 | Estado | Aceptada |
-| Fecha | 2026-11-10 |
+| Fecha | 2026-11-15 |
 | Origen | Decisión D-05 de la propuesta arquitectónica, validada por OPA |
 | Documento de requisitos | requisitos.docx (SHA-256 `0515668b00b8`) |
 | Redacción | LLM (groq), revisada por el motor |
 
 ## Contexto
 
-Para cumplir con RNF-09, cada microservicio debe manejar su propia base de datos PostgreSQL. Esto permite que el catálogo, los pedidos y los pagos escalen y fallen de forma independiente. La separación de esquemas evita que la caída de un servicio afecte a los demás. Así se garantiza la disponibilidad continua del sistema.
+Para cumplir con RNF-09, cada microservicio debe poder escalar y fallar de forma independiente, evitando que la caída de uno afecte a los demás.
 
 ## Decisión
 
@@ -25,17 +25,17 @@ RNF-09 exige que cada componente pueda escalar y fallar independientemente.
 
 Positivas:
 
-- Escalabilidad independiente: cada servicio puede aumentar su capacidad de almacenamiento sin afectar a los demás.
-- Resiliencia mejorada: fallos en una base de datos no provocan caídas en otros servicios.
-- Seguridad de datos: la separación de esquemas reduce el riesgo de exposición de información sensible entre servicios.
-- Mantenimiento simplificado: cambios de esquema se realizan localmente sin requerir coordinación global.
+- Permite escalar cada servicio según su carga sin afectar a los demás.
+- Mejora la resiliencia al aislar fallos y evitar cascadas de errores.
+- Facilita la aplicación de políticas de seguridad específicas por servicio.
+- Simplifica el mantenimiento y despliegue al tratar cada base de datos como un módulo autónomo.
 
 Negativas:
 
-- Mayor consumo de recursos: cada microservicio necesita su propia instancia de PostgreSQL, aumentando el uso de CPU y memoria.
-- Complejidad operativa: la gestión de múltiples bases de datos requiere más tareas de monitoreo, backup y actualización.
-- Limitaciones en consultas transaccionales: no se pueden realizar transacciones distribuidas entre servicios sin mecanismos adicionales.
-- Duplicación de costos de backup y replicación: cada base necesita su propio esquema de respaldo, incrementando el esfuerzo y el almacenamiento.
+- Incrementa el consumo de recursos (memoria, CPU, almacenamiento) por servicio.
+- Aumenta la complejidad operativa al gestionar múltiples bases de datos y sus backups.
+- Complica las consultas que requieran datos de varios servicios, ya que deben orquestarse a través de eventos o APIs.
+- Genera mayores costes de operación y monitoreo al duplicar infraestructuras de base de datos.
 
 ## Trazabilidad
 

@@ -4,14 +4,14 @@
 | Campo | Valor |
 |---|---|
 | Estado | Aceptada |
-| Fecha | 2026-11-10 |
+| Fecha | 2026-11-15 |
 | Origen | Patrón arq.basedatos.001 inferido por OPA (rasgos: autonomia\_de\_datos) |
 | Documento de requisitos | requisitos.docx (SHA-256 `0515668b00b8`) |
 | Redacción | LLM (groq), revisada por el motor |
 
 ## Contexto
 
-El sistema está compuesto por múltiples microservicios, cada uno con su propia base de datos PostgreSQL. Para garantizar la independencia y la seguridad de los datos, se decide aplicar el patrón Database per Service. Con esta arquitectura, cada microservicio es propietario de su base de datos y no permite el acceso directo desde otros servicios. Esta decisión facilita la gestión de permisos y reduce la superficie de ataque, alineándose con los controles &lt;requisito-CODIGO ASVS-V4.1.3&gt;Se aplica el principio de mínimo privilegio; cada usuario solo accede a los recursos para los que tiene autorización específica;&lt;/requisito-CODIGO&gt; y &lt;requisito-CODIGO ASVS-V13.1.4&gt;Las decisiones de autorización se toman tanto en la ruta (URI) como en el recurso;&lt;/requisito-CODIGO&gt;, así como con los CWE &lt;requisito-CODIGO CWE-284&gt;Improper Access Control;&lt;/requisito-CODIGO&gt; y &lt;requisito-CODIGO CWE-668&gt;Exposure of Resource to Wrong Sphere;&lt;/requisito-CODIGO&gt;.
+El sistema está compuesto por múltiples microservicios, cada uno con su propia base de datos PostgreSQL. Se decide aplicar el patrón Database per Service para garantizar la independencia de datos y la seguridad mediante el principio de mínimo privilegio.
 
 ## Decisión
 
@@ -25,15 +25,17 @@ Cada servicio tiene su propia base de datos
 
 Positivas:
 
-- Mayor aislamiento de datos, reduciendo la posibilidad de que un fallo en un servicio afecte a otros.
-- Facilita la escalabilidad independiente de cada microservicio, ya que cada base de datos puede crecer según sus necesidades.
-- Mejora la seguridad al aplicar el principio de mínimo privilegio, limitando el acceso a los datos solo al servicio propietario.
+- Aislamiento de datos reduce el riesgo de filtraciones entre servicios y facilita la aplicación de controles de acceso específicos por servicio.
+- Escalabilidad independiente de cada servicio, permitiendo ajustar recursos según la carga sin afectar a los demás.
+- Facilita la gestión de cambios de esquema, ya que cada microservicio puede evolucionar su base de datos sin coordinar con otros.
+- Mejora la trazabilidad y auditoría de acceso a datos, ya que cada servicio registra sus propias operaciones de manera aislada.
 
 Negativas:
 
-- Incrementa la complejidad operativa, ya que se deben gestionar y respaldar múltiples bases de datos PostgreSQL.
-- Aumenta el consumo de recursos (memoria, CPU, almacenamiento) al duplicar la infraestructura de base de datos.
-- Complica la gestión de transacciones distribuidas y la consistencia de datos entre servicios.
+- Incrementa la complejidad operativa al gestionar múltiples bases de datos PostgreSQL, requiriendo más tareas de mantenimiento y monitoreo.
+- Aumenta el consumo de recursos y costos de infraestructura, ya que cada servicio necesita su propia instancia de base de datos.
+- Dificulta la realización de consultas transversales entre servicios, ya que los datos están aislados y no se pueden unir directamente.
+- Requiere más esfuerzo en la configuración de backups, replicación y políticas de retención, ya que cada base de datos debe ser gestionada de forma independiente.
 
 ## Controles de seguridad
 

@@ -1,7 +1,7 @@
 <!-- Generado por el framework (framework arquitectura adr). Se regenera: no lo edites. -->
 # Decisiones arquitectónicas (ADR)
 
-Generadas el 2026-11-10 por el framework a partir de `arquitectura.json` y de la validación de OPA, para el documento requisitos.docx (SHA-256 `0515668b00b8`).
+Generadas el 2026-11-15 por el framework a partir de `arquitectura.json` y de la validación de OPA, para el documento requisitos.docx (SHA-256 `0515668b00b8`).
 
 Para regenerarlas:
 
@@ -16,7 +16,7 @@ Arquitectura aprobada: cumple los 4 criterios; patrones inferidos: api\_gateway,
 | Regla | Cumple | Detalle |
 |---|---|---|
 | `arquitectura.base_datos_propia` | sí | Cada servicio tiene su propia base de datos (Database per Service) |
-| `arquitectura.sin_ciclos` | sí | Las dependencias entre servicios no forman ciclos |
+| `arquitectura.sin_ciclos` | sí | Las llamadas síncronas entre servicios no forman ciclos |
 | `arquitectura.dependencias_conocidas` | sí | Cada dependencia apunta a otro servicio de la arquitectura |
 | `arquitectura.servicios_unicos` | sí | Hay al menos un servicio y no hay nombres repetidos |
 

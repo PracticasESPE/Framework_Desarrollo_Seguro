@@ -127,6 +127,10 @@ Escribe `docs/arquitectura.md` (o `--salida`), que GitHub dibuja sin herramienta
 
 1. **Contexto** (C4 nivel 1, sintaxis `C4Context`): las personas que usan el sistema, sacadas de
    los actores de los requisitos.
+   - Las variantes del mismo actor se unen: «medico» y «médico» cuentan como una sola persona y se
+     muestran con tilde.
+   - «perfil» no se dibuja, porque nombra la tabla de roles y no una persona.
+   - Los actores de un solo requisito se agrupan en «Otros actores».
 2. **Contenedores** (C4 nivel 2):
    - qué contiene: el gateway, la identidad y el bus de eventos, solo si la arquitectura los
      necesita; cada microservicio con su base de datos; y las dependencias, síncronas (HTTP,

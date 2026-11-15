@@ -245,6 +245,6 @@ describe('App', () => {
     render(<App />)
 
     expect(await screen.findByText('Motor sin conexión')).toBeInTheDocument()
-    expect(screen.getByRole('alert')).toHaveTextContent('uv run framework api')
+    expect(screen.getByRole('alert')).toHaveTextContent('uv run python -m orchestrator.cli api')
   })
 })

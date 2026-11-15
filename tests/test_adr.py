@@ -411,3 +411,41 @@ def test_ante_el_limite_por_minuto_espera_y_reintenta():
     redactar(adrs, LLMConLimite(), dormir=esperas.append)
     assert esperas == [6.0]
     assert all(a.redactado_por.startswith("LLM") for a in adrs)
+
+
+class LLMQueCopiaMarcas(LLMRedactor):
+    """Copia las marcas del prompt en el contexto las primeras `veces` respuestas."""
+
+    def __init__(self, veces: int):
+        super().__init__()
+        self.veces = veces
+
+    def generar_estructurado(self, prompt, esquema, nivel="rapido", sistema=None):
+        if self.veces > 0:
+            self.veces -= 1
+            codigo = re.search(r"<requisito-([0-9a-f]{8})", prompt).group(1)
+            self.contexto = (
+                f'Lo pide <requisito-{codigo} id="RF-01">el registro</requisito-{codigo}>.'
+            )
+        else:
+            self.contexto = "La tienda necesita separar responsabilidades por contexto."
+        return super().generar_estructurado(prompt, esquema, nivel, sistema)
+
+
+def test_si_el_llm_copia_las_marcas_se_le_pide_otra_vez():
+    (adr, *_) = construir_adrs(_arquitectura(), _decision(), _modelo())
+    llm = LLMQueCopiaMarcas(veces=1)
+    redactar([adr], llm)
+
+    assert adr.redactado_por == "LLM (simulado), revisada por el motor"
+    assert "requisito-" not in adr.redaccion.contexto
+    assert len(llm.prompts) == 2
+    assert "se descartó porque copia las marcas internas del prompt" in llm.prompts[1]
+
+
+def test_si_vuelve_a_copiarlas_se_usa_la_plantilla():
+    (adr, *_) = construir_adrs(_arquitectura(), _decision(), _modelo())
+    redactar([adr], LLMQueCopiaMarcas(veces=2))
+    assert adr.redactado_por.startswith("plantilla del motor (se descartó la de simulado:")
+    assert "copia las marcas internas del prompt" in adr.redactado_por
+    assert "requisito-" not in adr.redaccion.contexto
