@@ -115,28 +115,56 @@ test_dos_servicios_no_comparten_base_de_datos if {
 	contains(d.justificacion, "incumple 2 de 4 criterios")
 }
 
-test_un_ciclo_de_dos_servicios_bloquea if {
+test_un_ciclo_de_llamadas_sincronas_bloquea_y_nombra_las_dependencias if {
 	arq := con_servicios([
 		servicio("pedidos", ["RF-01"], [["pagos", "sincrona"]], []),
-		servicio("pagos", ["RF-02"], [["pedidos", "asincrona"]], []),
+		servicio("pagos", ["RF-02"], [["pedidos", "sincrona"]], []),
 		servicio("catalogo", ["RF-03"], [], []),
 	])
 	d := decision(arq)
 	not d.aprobado
-	"arquitectura.sin_ciclos" in reglas(d.bloqueantes)
+	some b in d.bloqueantes
+	b.regla == "arquitectura.sin_ciclos"
+	startswith(b.motivo, "Llamadas síncronas circulares entre pagos, pedidos (pagos -> pedidos (sincrona), pedidos -> pagos (sincrona)):")
 	arquitectura.en_ciclo == {"pagos", "pedidos"} with input as entrada(arq)
 }
 
-test_un_ciclo_de_tres_servicios_bloquea if {
+test_un_ciclo_sincrono_de_tres_servicios_bloquea if {
 	arq := con_servicios([
 		servicio("a", ["RF-01"], [["b", "sincrona"]], []),
-		servicio("b", ["RF-02"], [["c", "asincrona"]], []),
-		servicio("c", ["RF-03"], [["a", "asincrona"]], []),
+		servicio("b", ["RF-02"], [["c", "sincrona"]], []),
+		servicio("c", ["RF-03"], [["a", "sincrona"]], []),
 		servicio("d", ["RF-04"], [["a", "sincrona"]], []),
 	])
 	some b in decision(arq).bloqueantes
 	b.regla == "arquitectura.sin_ciclos"
-	startswith(b.motivo, "Dependencias circulares entre a, b, c:")
+	startswith(b.motivo, "Llamadas síncronas circulares entre a, b, c (")
+}
+
+test_un_ciclo_de_eventos_es_una_saga_y_solo_avisa if {
+	# pedidos publica «pedido creado» y escucha «pago confirmado»: saga coreografiada.
+	arq := con_servicios([
+		servicio("pedidos", ["RF-01"], [["pagos", "asincrona"], ["catalogo", "sincrona"]], []),
+		servicio("pagos", ["RF-02"], [["pedidos", "asincrona"]], []),
+		servicio("catalogo", ["RF-03"], [], []),
+	])
+	d := decision(arq)
+	d.aprobado
+	not "arquitectura.sin_ciclos" in reglas(d.bloqueantes)
+	some a in d.advertencias
+	a.regla == "arquitectura.ciclo_de_eventos"
+	startswith(a.motivo, "pagos, pedidos dependen unos de otros en círculo (pagos -> pedidos (asincrona), pedidos -> pagos (asincrona)): es una saga coreografiada")
+}
+
+test_un_ciclo_con_una_sola_llamada_sincrona_tambien_es_de_eventos if {
+	arq := con_servicios([
+		servicio("a", ["RF-01"], [["b", "sincrona"]], []),
+		servicio("b", ["RF-02"], [["c", "asincrona"]], []),
+		servicio("c", ["RF-03"], [["a", "asincrona"]], []),
+	])
+	d := decision(arq)
+	d.aprobado
+	"arquitectura.ciclo_de_eventos" in reglas(d.advertencias)
 }
 
 test_sin_ciclo_no_bloquea_aunque_dos_dependan_del_mismo if {

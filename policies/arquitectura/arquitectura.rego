@@ -38,11 +38,34 @@ dependencias_sincronas(nombre) := {d.servicio |
 	d.tipo == "sincrona"
 }
 
-# Grafo de dependencias por nombre de servicio, sin las del servicio consigo mismo.
+# Grafos de dependencias por nombre de servicio, sin las del servicio consigo mismo: todas las
+# dependencias y solo las llamadas síncronas.
 grafo := {nombre: vecinos |
 	some nombre in nombres
 	vecinos := dependencias(nombre) - {nombre}
 }
+
+grafo_sincrono := {nombre: vecinos |
+	some nombre in nombres
+	vecinos := dependencias_sincronas(nombre) - {nombre}
+}
+
+# Servicios que están en un ciclo del grafo indicado.
+en_ciclo_de(g) := {nombre |
+	some nombre in nombres
+	some vecino in g[nombre]
+	nombre in graph.reachable(g, {vecino})
+}
+
+# Dependencias entre los servicios de un ciclo, para que el motivo diga cuáles cambiar.
+aristas_entre(ciclo, tipos) := sort([sprintf("%s -> %s (%s)", [s.nombre, d.servicio, d.tipo]) |
+	some s in servicios
+	s.nombre in ciclo
+	some d in object.get(s, "depende_de", [])
+	d.servicio in ciclo
+	d.servicio != s.nombre
+	d.tipo in tipos
+])
 
 # --- Reglas que bloquean ------------------------------------------------------------------------
 
@@ -64,20 +87,18 @@ bloqueantes contains b if {
 	}
 }
 
-# Sin dependencias circulares: un servicio no puede depender, directa o indirectamente, de sí mismo.
-en_ciclo contains nombre if {
-	some nombre in nombres
-	some vecino in grafo[nombre]
-	nombre in graph.reachable(grafo, {vecino})
-}
+# Sin ciclos de llamadas síncronas: un servicio no puede esperar, directa o indirectamente, la
+# respuesta de sí mismo (bloqueos y fallos en cascada). Un ciclo de eventos asíncronos no bloquea:
+# es una saga coreografiada (p. ej. pedidos publica «pedido creado» y escucha «pago confirmado").
+en_ciclo := en_ciclo_de(grafo_sincrono)
 
 bloqueantes contains b if {
 	count(en_ciclo) > 0
 	b := {
 		"regla": "arquitectura.sin_ciclos",
 		"motivo": sprintf(
-			"Dependencias circulares entre %s: rompe el ciclo con un evento asíncrono o moviendo la responsabilidad",
-			[concat(", ", sort(en_ciclo))],
+			"Llamadas síncronas circulares entre %s (%s): cambia una de ellas por un evento asíncrono o mueve la responsabilidad",
+			[concat(", ", sort(en_ciclo)), concat(", ", aristas_entre(en_ciclo, {"sincrona"}))],
 		),
 	}
 }
@@ -130,6 +151,20 @@ advertencias contains a if {
 		"motivo": sprintf(
 			"%s concentra %d de %d requisitos; conviene revisar si mezcla varios contextos",
 			[s.nombre, count(s.requisitos), total_requisitos],
+		),
+	}
+}
+
+# Servicios que se escuchan mutuamente por eventos (el ciclo incluye alguna dependencia asíncrona).
+en_ciclo_de_eventos := en_ciclo_de(grafo) - en_ciclo
+
+advertencias contains a if {
+	count(en_ciclo_de_eventos) > 0
+	a := {
+		"regla": "arquitectura.ciclo_de_eventos",
+		"motivo": sprintf(
+			"%s dependen unos de otros en círculo (%s): es una saga coreografiada; documenta sus eventos y la compensación si un paso falla",
+			[concat(", ", sort(en_ciclo_de_eventos)), concat(", ", aristas_entre(en_ciclo_de_eventos, {"sincrona", "asincrona"}))],
 		),
 	}
 }
@@ -270,7 +305,7 @@ criterios := [
 	{
 		"regla": "arquitectura.sin_ciclos",
 		"cumple": cumple("arquitectura.sin_ciclos"),
-		"detalle": "Las dependencias entre servicios no forman ciclos",
+		"detalle": "Las llamadas síncronas entre servicios no forman ciclos",
 	},
 	{
 		"regla": "arquitectura.dependencias_conocidas",
