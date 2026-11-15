@@ -1,0 +1,40 @@
+{
+  "documento": "02_gestion_academica",
+  "servicios_propuestos": [
+    "usuarios",
+    "catalogo",
+    "matriculas",
+    "notas",
+    "asistencia",
+    "certificados",
+    "notificaciones"
+  ],
+  "servicios_referencia": [
+    "usuarios",
+    "oferta",
+    "matriculas",
+    "calificaciones",
+    "certificados",
+    "notificaciones"
+  ],
+  "nombres_coincidentes": [
+    "certificados",
+    "matriculas",
+    "notificaciones",
+    "usuarios"
+  ],
+  "requisitos_emparejados": 38,
+  "requisitos_referencia": 38,
+  "pares_precision": 0.616,
+  "pares_exhaustividad": 0.565,
+  "pares_f1": 0.589,
+  "correspondencia": {
+    "calificaciones": "notas",
+    "certificados": "certificados",
+    "matriculas": "matriculas",
+    "notificaciones": "notificaciones",
+    "oferta": "catalogo",
+    "transversal": "transversal",
+    "usuarios": "usuarios"
+  }
+}

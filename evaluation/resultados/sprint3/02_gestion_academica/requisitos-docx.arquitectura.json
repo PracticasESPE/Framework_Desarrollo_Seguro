@@ -1,0 +1,302 @@
+{
+  "version_esquema": "1.0",
+  "documento": {
+    "nombre": "requisitos.docx",
+    "sha256": "16229f92f9915de13e2034d8a2d537bc321a91a39e7637bca70b9157d89be410",
+    "herramienta": "docling 2.148.0"
+  },
+  "servicios": [
+    {
+      "nombre": "usuarios",
+      "contexto": "Gestión de Identidad y Acceso",
+      "responsabilidad": "Gestiona la creación, autenticación, autorización y sesión de usuarios, aplica políticas de contraseñas, 2FA y controla perfiles y permisos.",
+      "entidades": [
+        "Usuario",
+        "Perfil",
+        "Sesion"
+      ],
+      "requisitos": [
+        "RF-02",
+        "RF-03",
+        "RF-04",
+        "RF-05",
+        "RF-06",
+        "RNF-01"
+      ],
+      "base_datos": "usuarios_db",
+      "depende_de": [],
+      "etiquetas": [
+        "autorizacion",
+        "autenticacion",
+        "hash_password",
+        "validacion_entrada"
+      ]
+    },
+    {
+      "nombre": "catalogo",
+      "contexto": "Catálogo Académico",
+      "responsabilidad": "Administra estudiantes, asignaturas, paralelos, horarios, requisitos previos, materiales y la integración con la biblioteca. Provee la oferta académica y permite la carga masiva de estudiantes.",
+      "entidades": [
+        "Estudiante",
+        "Docente",
+        "PersonalAdministrativo",
+        "Asignatura",
+        "Paralelo",
+        "Horario",
+        "Material",
+        "Curso",
+        "PeriodoAcademico",
+        "Consulta"
+      ],
+      "requisitos": [
+        "RF-01",
+        "RF-07",
+        "RF-08",
+        "RF-09",
+        "RF-10",
+        "RF-26",
+        "RF-28",
+        "RF-29",
+        "RF-32",
+        "RF-23"
+      ],
+      "base_datos": "catalogo_db",
+      "depende_de": [
+        {
+          "servicio": "usuarios",
+          "tipo": "sincrona",
+          "motivo": "Validar token y permisos del usuario que realiza operaciones"
+        }
+      ],
+      "etiquetas": [
+        "validacion_entrada",
+        "control_acceso_recursos"
+      ]
+    },
+    {
+      "nombre": "matriculas",
+      "contexto": "Matrículas y Pago",
+      "responsabilidad": "Controla la inscripción de estudiantes en paralelos, verifica cupos, valida requisitos previos y horarios, gestiona cambios limitados y confirma la matrícula tras verificación de pago.",
+      "entidades": [
+        "Matrícula",
+        "Cupo",
+        "Pago",
+        "Periodo"
+      ],
+      "requisitos": [
+        "RF-11",
+        "RF-12",
+        "RF-13",
+        "RF-14",
+        "RNF-02"
+      ],
+      "base_datos": "matriculas_db",
+      "depende_de": [
+        {
+          "servicio": "usuarios",
+          "tipo": "sincrona",
+          "motivo": "Autenticar al estudiante"
+        },
+        {
+          "servicio": "catalogo",
+          "tipo": "sincrona",
+          "motivo": "Obtener información de asignaturas, paralelos y requisitos"
+        }
+      ],
+      "etiquetas": [
+        "validacion_entrada",
+        "limite_peticiones"
+      ]
+    },
+    {
+      "nombre": "notas",
+      "contexto": "Gestión de Calificaciones",
+      "responsabilidad": "Permite a los docentes registrar notas parciales, calcular promedios, publicar notas, auditar cambios, bloquear notas al cierre del periodo y generar reportes de desempeño.",
+      "entidades": [
+        "Nota",
+        "Estudiante",
+        "Asignatura",
+        "Requisito",
+        "Horario"
+      ],
+      "requisitos": [
+        "RF-16",
+        "RF-17",
+        "RF-18",
+        "RF-19",
+        "RF-20",
+        "RF-27"
+      ],
+      "base_datos": "notas_db",
+      "depende_de": [
+        {
+          "servicio": "usuarios",
+          "tipo": "sincrona",
+          "motivo": "Verificar permisos del docente"
+        },
+        {
+          "servicio": "catalogo",
+          "tipo": "sincrona",
+          "motivo": "Consultar asignaturas y paralelos"
+        },
+        {
+          "servicio": "matriculas",
+          "tipo": "sincrona",
+          "motivo": "Confirmar que el estudiante está matriculado"
+        }
+      ],
+      "etiquetas": [
+        "validacion_entrada",
+        "autorizacion",
+        "auditoria",
+        "control_acceso_recursos"
+      ]
+    },
+    {
+      "nombre": "asistencia",
+      "contexto": "Control de Asistencia",
+      "responsabilidad": "Registra la asistencia de los estudiantes a las clases de los paralelos asignados y permite consultas de asistencia individual.",
+      "entidades": [
+        "Clase",
+        "Paralelo",
+        "Asistencia"
+      ],
+      "requisitos": [
+        "RF-15"
+      ],
+      "base_datos": "asistencia_db",
+      "depende_de": [
+        {
+          "servicio": "usuarios",
+          "tipo": "sincrona",
+          "motivo": "Validar identidad del docente"
+        },
+        {
+          "servicio": "catalogo",
+          "tipo": "sincrona",
+          "motivo": "Obtener información de paralelos asignados"
+        }
+      ],
+      "etiquetas": []
+    },
+    {
+      "nombre": "certificados",
+      "contexto": "Emisión y Verificación de Certificados",
+      "responsabilidad": "Genera certificados de matrícula y notas en PDF, incluye código de verificación y permite a terceros validar su autenticidad.",
+      "entidades": [
+        "Certificado"
+      ],
+      "requisitos": [
+        "RF-21",
+        "RF-22"
+      ],
+      "base_datos": "certificados_db",
+      "depende_de": [
+        {
+          "servicio": "usuarios",
+          "tipo": "sincrona",
+          "motivo": "Asegurar que el solicitante está autenticado"
+        },
+        {
+          "servicio": "notas",
+          "tipo": "sincrona",
+          "motivo": "Obtener notas para el certificado"
+        },
+        {
+          "servicio": "matriculas",
+          "tipo": "sincrona",
+          "motivo": "Obtener estado de matrícula"
+        }
+      ],
+      "etiquetas": []
+    },
+    {
+      "nombre": "notificaciones",
+      "contexto": "Notificaciones y Mensajería",
+      "responsabilidad": "Envía correos electrónicos a estudiantes y docentes en eventos relevantes (publicación de notas, confirmación de matrícula, recordatorios).",
+      "entidades": [
+        "Correo"
+      ],
+      "requisitos": [
+        "RF-24",
+        "RF-25"
+      ],
+      "base_datos": "notificaciones_db",
+      "depende_de": [
+        {
+          "servicio": "notas",
+          "tipo": "asincrona",
+          "motivo": "Escucha evento de publicación de notas"
+        },
+        {
+          "servicio": "matriculas",
+          "tipo": "asincrona",
+          "motivo": "Escucha evento de confirmación de matrícula"
+        },
+        {
+          "servicio": "certificados",
+          "tipo": "asincrona",
+          "motivo": "Escucha evento de generación de certificado"
+        }
+      ],
+      "etiquetas": []
+    }
+  ],
+  "transversales": [
+    "RNF-03",
+    "RNF-04",
+    "RNF-05",
+    "RNF-06",
+    "RNF-07",
+    "RF-30",
+    "RF-31"
+  ],
+  "etiquetas_transversales": [
+    "cifrado_transito",
+    "punto_unico_acceso",
+    "limite_peticiones"
+  ],
+  "decisiones": [
+    {
+      "id": "D-01",
+      "titulo": "División en 7 microservicios",
+      "decision": "Se crean siete microservicios (usuarios, catalogo, matriculas, notas, asistencia, certificados, notificaciones) alineados a bounded contexts del dominio académico y de seguridad.",
+      "justificacion": "Los requisitos funcionales están agrupados por áreas de negocio (identidad, catálogo académico, matrícula, notas, asistencia, certificados y notificaciones). Esta división evita servicios diminutos y permite que cada servicio sea dueño de sus entidades, cumpliendo con RF-01, RF-03, RF-11, RF-16, RF-15, RF-21 y RF-24.",
+      "requisitos": [
+        "RF-01",
+        "RF-03",
+        "RF-07",
+        "RF-11",
+        "RF-16",
+        "RF-15",
+        "RF-21",
+        "RF-24"
+      ]
+    },
+    {
+      "id": "D-02",
+      "titulo": "Comunicación síncrona vs asíncrona",
+      "decision": "Se usa comunicación síncrona (HTTP) entre servicios que requieren datos consistentes en tiempo real (p.ej., matriculas‑>catalogo, notas‑>catalogo) y eventos asíncronos (RabbitMQ) para notificaciones y auditorías.",
+      "justificacion": "Los requisitos de rendimiento (RNF-04) y la necesidad de que fallos en certificados no bloqueen matrículas (RF-30) favorecen el desacoplamiento mediante eventos. Las notificaciones (RF-24, RF-25) se implementan como consumidores de eventos para no afectar la latencia de los flujos críticos.",
+      "requisitos": [
+        "RF-30",
+        "RNF-04",
+        "RF-24",
+        "RF-25"
+      ]
+    },
+    {
+      "id": "D-03",
+      "titulo": "Seguridad y gestión de secretos",
+      "decision": "Se integra Keycloak como IdP para autenticación y autorización, se usan JWT firmados, TLS en todo el tráfico y los secretos (contraseñas DB, claves API) se almacenan en Vault, nunca en código.",
+      "justificacion": "Cumple RNF-03 (cifrado en tránsito y punto único de acceso), RNF-06 (no exponer detalles internos en errores) y RNF-07 (no hardcodear claves). Además soporta los requisitos de autenticación multifactor (RF-05) y expiración de sesión (RF-06).",
+      "requisitos": [
+        "RF-05",
+        "RF-06",
+        "RNF-03",
+        "RNF-06",
+        "RNF-07"
+      ]
+    }
+  ]
+}
