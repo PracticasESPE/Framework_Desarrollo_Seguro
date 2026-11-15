@@ -4,14 +4,14 @@
 | Campo | Valor |
 |---|---|
 | Estado | Aceptada |
-| Fecha | 2026-11-10 |
+| Fecha | 2026-11-15 |
 | Origen | Patrón arq.resiliencia.001 inferido por OPA (rasgos: dependencia\_sincrona\_externa) |
 | Documento de requisitos | requisitos.docx (SHA-256 `0515668b00b8`) |
 | Redacción | LLM (groq), revisada por el motor |
 
 ## Contexto
 
-El sistema realiza llamadas síncronas entre microservicios, lo que puede provocar fallos en cascada cuando un servicio falla. Para mitigar este riesgo se decide aplicar el patrón Circuit Breaker, interrumpiendo las llamadas a servicios que presentan fallos repetidos. Esta medida garantiza la disponibilidad y la estabilidad del ecosistema de servicios. &lt;requisito-CODIGO ASVS-V11.1.4&gt;Hay controles contra la automatización que protegen de llamadas excesivas, robo masivo de datos y denegación de servicio&lt;/requisito-CODIGO&gt; &lt;requisito-CODIGO CWE-400&gt;Uncontrolled Resource Consumption&lt;/requisito-CODIGO&gt; &lt;requisito-CODIGO CWE-770&gt;Allocation of Resources Without Limits or Throttling&lt;/requisito-CODIGO&gt;
+El sistema microservicio utiliza llamadas síncronas entre servicios (pagos→usuarios, pedidos→catalogo). Cuando un servicio falla, las peticiones se propagan y pueden saturar la arquitectura, provocando caídas en cascada. Para mitigar este riesgo se decide aplicar el patrón Circuit Breaker, interrumpiendo las llamadas a servicios que presentan fallos repetidos y evitando la sobrecarga de recursos.
 
 ## Decisión
 
@@ -25,15 +25,17 @@ Llamadas síncronas entre servicios: pagos -&gt; usuarios, pedidos -&gt; catalog
 
 Positivas:
 
-- Reduce la propagación de fallos, evitando que un servicio caído afecte a los demás y manteniendo la disponibilidad del sistema.
-- Mejora la experiencia del usuario al evitar tiempos de espera prolongados y errores inesperados en la interfaz.
-- Facilita la observabilidad y el monitoreo, ya que los estados de los circuit breakers se pueden exponer y alertar.
+- Reduce la propagación de fallos y mejora la resiliencia del sistema.
+- Evita la sobrecarga de recursos y mejora la disponibilidad de los servicios.
+- Facilita la detección temprana de servicios defectuosos y permite la recuperación automática.
+- Cumple con los controles ASVS-V11.1.4 y mitiga CWE-400 y CWE-770.
 
 Negativas:
 
-- Aumenta la complejidad del código y la configuración, requiriendo interceptores y lógica adicional en cada microservicio.
-- Puede introducir latencia adicional al evaluar el estado del circuito antes de cada llamada.
-- Requiere un mecanismo de persistencia o sincronización del estado del circuito para evitar inconsistencias en entornos distribuidos.
+- Incrementa la complejidad de la implementación y el mantenimiento de los interceptores.
+- Puede introducir latencia adicional en las llamadas exitosas debido a la lógica de circuit breaker.
+- Requiere configuración y monitorización de umbrales de fallo y tiempo de espera.
+- Si mal configurado, puede bloquear servicios válidos y generar falsos positivos.
 
 ## Controles de seguridad
 

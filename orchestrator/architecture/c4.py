@@ -28,6 +28,7 @@ from __future__ import annotations
 
 import os
 import re
+import unicodedata
 from datetime import date
 from pathlib import Path
 
@@ -37,7 +38,10 @@ from orchestrator.architecture.validacion import DecisionArquitectura
 from orchestrator.ingest.requisito import ModeloRequisitos
 
 # Actores que no son personas: el propio sistema no se dibuja como usuario.
-ACTORES_NO_PERSONA = {"sistema", "el sistema", "transversal"}
+# Lo que no es una persona: el propio sistema, y «perfil», que en los requisitos nombra la tabla
+# de roles («cada perfil solo puede…»), no a quien usa el sistema.
+ACTORES_NO_PERSONA = {"sistema", "el sistema", "transversal", "perfil", "perfiles"}
+MINIMO_REQUISITOS_ACTOR = 2
 LARGO_ETIQUETA = 90
 
 
@@ -64,14 +68,44 @@ def _alias(prefijo: str, nombre: str) -> str:
     return f"{prefijo}_{re.sub(r'[^a-z0-9_]', '_', nombre.lower())}"
 
 
-def actores(modelo: ModeloRequisitos) -> list[str]:
-    """Actores personas de los requisitos, del más frecuente al menos frecuente."""
+def _clave(actor: str) -> str:
+    """Para agrupar variantes del mismo actor: sin tildes, en minúsculas y sin espacios de más."""
+    sin_tildes = unicodedata.normalize("NFKD", actor).encode("ascii", "ignore").decode()
+    return " ".join(sin_tildes.lower().split())
+
+
+def actores(modelo: ModeloRequisitos) -> list[tuple[str, int]]:
+    """Actores personas de los requisitos con cuántos requisitos tiene cada uno.
+
+    Une las variantes del mismo actor («medico» y «médico») y muestra la forma con tildes, que es
+    la correcta en español. Van del más frecuente al menos frecuente.
+    """
     cuentas: dict[str, int] = {}
+    formas: dict[str, str] = {}
     for requisito in modelo.requisitos:
-        actor = " ".join(requisito.actor.split()).lower()
-        if actor and actor not in ACTORES_NO_PERSONA:
-            cuentas[actor] = cuentas.get(actor, 0) + 1
-    return sorted(cuentas, key=lambda a: (-cuentas[a], a))
+        forma = " ".join(requisito.actor.split()).lower()
+        clave = _clave(forma)
+        if not clave or clave in ACTORES_NO_PERSONA:
+            continue
+        cuentas[clave] = cuentas.get(clave, 0) + 1
+        # Entre variantes, la que lleva tildes (ocupa más bytes en UTF-8).
+        if clave not in formas or len(forma.encode()) > len(formas[clave].encode()):
+            formas[clave] = forma
+    orden = sorted(cuentas, key=lambda c: (-cuentas[c], c))
+    return [(formas[c], cuentas[c]) for c in orden]
+
+
+def personas_del_contexto(modelo: ModeloRequisitos) -> tuple[list[tuple[str, int]], list[str]]:
+    """Actores que se dibujan uno a uno y los que se agrupan en «Otros actores».
+
+    Se dibujan aparte los que aparecen en al menos MINIMO_REQUISITOS_ACTOR requisitos; los demás
+    suelen ser menciones sueltas («cualquier empresa puede comprobar…») y llenarían el diagrama.
+    Si ninguno llega al mínimo (documentos cortos), se dibujan todos.
+    """
+    todos = actores(modelo)
+    principales = [(a, n) for a, n in todos if n >= MINIMO_REQUISITOS_ACTOR] or todos
+    otros = [a for a, n in todos if (a, n) not in principales]
+    return principales, otros
 
 
 def _patrones(decision: DecisionArquitectura) -> set[str]:
@@ -105,18 +139,25 @@ def diagrama_contexto(
         "C4Context",
         f"    title Contexto: {sistema}",
     ]
-    for actor in actores(modelo):
-        cantidad = sum(1 for r in modelo.requisitos if r.actor.strip().lower() == actor)
+    principales, otros = personas_del_contexto(modelo)
+    alias = [_alias("p", _clave(actor)) for actor, _ in principales]
+    for (actor, cantidad), nombre in zip(principales, alias, strict=True):
         lineas.append(
-            f'    Person({_alias("p", actor)}, "{texto_mermaid(actor.capitalize())}", '
+            f'    Person({nombre}, "{texto_mermaid(actor.capitalize())}", '
             f'"Aparece en {cantidad} requisito(s)")'
+        )
+    if otros:
+        alias.append("p_otros")
+        lineas.append(
+            '    Person(p_otros, "Otros actores", '
+            f'"{texto_mermaid(", ".join(otros), 120)}: un requisito cada uno")'
         )
     lineas.append(
         f'    System(sistema, "{sistema}", '
         f'"{texto_mermaid(f"{len(arquitectura.servicios)} microservicios: {servicios}", 140)}")'
     )
-    for actor in actores(modelo):
-        lineas.append(f'    Rel({_alias("p", actor)}, sistema, "Usa", "HTTPS")')
+    for nombre in alias:
+        lineas.append(f'    Rel({nombre}, sistema, "Usa", "HTTPS")')
     return "\n".join(lineas)
 
 

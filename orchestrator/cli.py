@@ -1529,7 +1529,8 @@ def arquitectura_diagrama(
         typer.echo(f"Error: {error}", err=True)
         raise typer.Exit(1) from error
 
-    typer.echo(f"Actores: {', '.join(actores(modelo)) or 'ninguno'}")
+    lista = ", ".join(f"{actor} ({n})" for actor, n in actores(modelo))
+    typer.echo(f"Actores: {lista or 'ninguno'}")
     typer.echo(
         f"Contenedores: {len(datos.servicios)} servicios con su base de datos; "
         f"patrones: {', '.join(p.patron for p in decision.patrones) or 'ninguno'}"

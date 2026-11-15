@@ -4,14 +4,14 @@
 | Campo | Valor |
 |---|---|
 | Estado | Aceptada |
-| Fecha | 2026-11-10 |
+| Fecha | 2026-11-15 |
 | Origen | Patrón arq.gateway.001 inferido por OPA (rasgos: autenticacion\_centralizada, punto\_unico\_acceso) |
 | Documento de requisitos | requisitos.docx (SHA-256 `0515668b00b8`) |
 | Redacción | LLM (groq), revisada por el motor |
 
 ## Contexto
 
-Se necesita un punto único de entrada para centralizar la autenticación y aplicar límites de tasa, cumpliendo con los requisitos de seguridad y rendimiento. El gateway permite que los clientes se autentiquen una sola vez y que la comunicación sea cifrada y dirigida a una única dirección. Además, facilita la gestión de políticas de acceso y la introducción de nuevos microservicios sin duplicar lógica.
+El sistema necesita un punto único de entrada para centralizar autenticación, autorización y limitación de peticiones, garantizando que los clientes se autentiquen una sola vez y que la comunicación sea cifrada y controlada. El uso de un API Gateway permite aplicar controles de acceso y rate limiting de forma consistente en todos los microservicios, reduciendo la complejidad de cada servicio individual.
 
 ## Decisión
 
@@ -25,17 +25,15 @@ Hay requisitos de autenticación y varios servicios: se autentica una sola vez, 
 
 Positivas:
 
-- Centraliza la autenticación, evitando duplicar lógica en cada microservicio y reduciendo la superficie de ataque.
-- Facilita la aplicación de límites de tasa y políticas de seguridad en un solo lugar, cumpliendo con RNF-06.
-- Garantiza que todas las comunicaciones viajen cifradas y que los clientes accedan siempre a través de una única dirección, cumpliendo RNF-05.
-- Simplifica la introducción de nuevos microservicios, ya que solo necesitan registrarse en el gateway sin modificar la lógica de autenticación.
+- Centraliza la autenticación y autorización, reduciendo la duplicación de lógica en cada microservicio y simplificando la gestión de credenciales.
+- Facilita la aplicación de políticas de rate limiting y auditoría, mejorando la seguridad y la experiencia del usuario al evitar abusos.
+- Permite la implementación de TLS y la redirección a una única URL, cumpliendo requisitos de cifrado y punto único de entrada.
 
 Negativas:
 
-- Conviértelo en un punto único de falla; si el gateway cae, todos los servicios quedan inaccesibles.
-- Añade latencia adicional al enrutar cada solicitud a través del gateway, lo que puede afectar el rendimiento bajo carga.
-- Requiere una configuración y mantenimiento más complejos, especialmente al escalar horizontalmente el gateway.
-- Si no se dimensiona correctamente, el gateway puede convertirse en un cuello de botella, limitando el número de peticiones concurrentes.
+- Introduce un punto único de falla; si el gateway cae, todos los servicios quedan inaccesibles.
+- Aumenta la latencia de las peticiones al agregar una capa adicional de enrutamiento y procesamiento.
+- Requiere mantenimiento y configuración adicional (Traefik, certificados TLS, reglas de rate limiting), incrementando la carga operativa.
 
 ## Controles de seguridad
 

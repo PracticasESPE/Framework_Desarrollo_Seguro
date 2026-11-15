@@ -1,7 +1,7 @@
 <!-- Generado por el framework (framework arquitectura adr). Se regenera: no lo edites. -->
 # Arquitectura: Tienda en línea
 
-Generada el 2026-11-11 por el framework a partir de `arquitectura.json`, validada por OPA, para el documento requisitos.docx (SHA-256 `0515668b00b8`). Los diagramas siguen el modelo C4 y GitHub los dibuja a partir del texto Mermaid.
+Generada el 2026-11-15 por el framework a partir de `arquitectura.json`, validada por OPA, para el documento requisitos.docx (SHA-256 `0515668b00b8`). Los diagramas siguen el modelo C4 y GitHub los dibuja a partir del texto Mermaid.
 
 Para regenerarla:
 
@@ -133,6 +133,6 @@ Arquitectura aprobada: cumple los 4 criterios; patrones inferidos: api\_gateway,
 | Regla | Cumple | Detalle |
 |---|---|---|
 | `arquitectura.base_datos_propia` | sí | Cada servicio tiene su propia base de datos (Database per Service) |
-| `arquitectura.sin_ciclos` | sí | Las dependencias entre servicios no forman ciclos |
+| `arquitectura.sin_ciclos` | sí | Las llamadas síncronas entre servicios no forman ciclos |
 | `arquitectura.dependencias_conocidas` | sí | Cada dependencia apunta a otro servicio de la arquitectura |
 | `arquitectura.servicios_unicos` | sí | Hay al menos un servicio y no hay nombres repetidos |

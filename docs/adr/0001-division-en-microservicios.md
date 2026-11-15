@@ -4,14 +4,14 @@
 | Campo | Valor |
 |---|---|
 | Estado | Aceptada |
-| Fecha | 2026-11-10 |
+| Fecha | 2026-11-15 |
 | Origen | Decisión D-01 de la propuesta arquitectónica, validada por OPA |
 | Documento de requisitos | requisitos.docx (SHA-256 `0515668b00b8`) |
 | Redacción | LLM (groq), revisada por el motor |
 
 ## Contexto
 
-El sistema debe permitir a los clientes registrarse, iniciar sesión y gestionar su perfil, cumpliendo los requisitos &lt;requisito-f845ef5a id="RF-01"&gt;El cliente debe poder registrarse con su correo electrónico y una contraseña, y la cuenta solo se activa cuando confirma el correo desde el enlace que recibe.&lt;/requisito-f845ef5a&gt; y &lt;requisito-f845ef5a id="RF-02"&gt;Para entrar a su cuenta, el cliente usa su correo y su contraseña; después de cinco intentos fallidos seguidos, la cuenta queda bloqueada durante quince minutos.&lt;/requisito-f845ef5a&gt;. Además, la búsqueda y visualización de productos debe responder en menos de un segundo, según &lt;requisito-f845ef5a id="RNF-08"&gt;La búsqueda en el catálogo debe responder en menos de un segundo con 200 clientes conectados a la vez.&lt;/requisito-f845ef5a&gt;. Para garantizar la disponibilidad y escalabilidad, cada dominio debe poder crecer y actualizarse de forma independiente, tal como exige &lt;requisito-f845ef5a id="RNF-09"&gt;El catálogo, los pedidos y los pagos deben poder actualizarse y crecer por separado, cada uno con sus propios datos, sin que la caída de uno detenga a los demás.&lt;/requisito-f845ef5a&gt;
+El sistema debe soportar distintas funcionalidades (usuarios, catálogo, inventario, pedidos, pagos, avisos y reportes) que evolucionan de forma independiente y requieren aislamiento de datos. Dividir en microservicios permite escalar, desplegar y mantener cada dominio sin afectar a los demás, cumpliendo los requisitos de independencia de datos y disponibilidad.
 
 ## Decisión
 
@@ -25,13 +25,17 @@ Los requisitos están agrupados por dominios (gestión de usuarios, catálogo, s
 
 Positivas:
 
-- Mayor independencia de datos y despliegue, permitiendo actualizaciones sin afectar a otros dominios.
-- Escalabilidad horizontal más sencilla, ya que cada servicio puede escalar según su carga.
+- Aislamiento de datos y lógica de negocio por dominio, facilitando cambios y despliegues independientes.
+- Escalabilidad horizontal: cada servicio puede escalar según su carga específica (p. ej., catálogo bajo alta demanda de búsqueda).
+- Resiliencia: fallos en un servicio no interrumpen los demás, cumpliendo el requisito de independencia de datos.
+- Mejor mantenibilidad y claridad de responsabilidades, reduciendo la complejidad de código y facilitando pruebas unitarias.
 
 Negativas:
 
-- Mayor complejidad operativa y costos de mantenimiento de múltiples contenedores y bases de datos.
-- Incremento en la latencia de interacciones entre servicios, especialmente en transacciones de pedidos que requieren coordinación entre inventario y pagos.
+- Mayor complejidad operativa: gestión de múltiples contenedores, redes y orquestación de servicios.
+- Incremento de latencia inter-servicios por llamadas HTTP/RabbitMQ, afectando la experiencia de usuario en operaciones críticas.
+- Desafíos de consistencia eventual: actualizaciones de stock y pedidos requieren coordinación para evitar sobreventas.
+- Coste de monitoreo y trazabilidad: se necesita un sistema de logging y tracing distribuido para diagnosticar fallos.
 
 ## Trazabilidad
 

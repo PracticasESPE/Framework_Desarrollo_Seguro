@@ -99,7 +99,50 @@ def test_los_actores_salen_de_los_requisitos_sin_el_sistema():
     modelo.requisitos[2].actor = "sistema"
     modelo.requisitos[1].actor = "Administrador "
     # «Administrador » se normaliza; «cliente» va primero porque aparece en más requisitos.
-    assert actores(modelo) == ["cliente", "administrador"]
+    assert actores(modelo) == [("cliente", 2), ("administrador", 1)]
+
+
+def _con_actores(*nombres: str):
+    """Modelo con un requisito por actor indicado (se repite el actor para darle más)."""
+    modelo = _modelo()
+    base = modelo.requisitos[0]
+    modelo.requisitos = [
+        base.model_copy(update={"id": f"RF-{i:02d}", "actor": actor})
+        for i, actor in enumerate(nombres, start=1)
+    ]
+    return modelo
+
+
+def test_variantes_con_y_sin_tilde_son_el_mismo_actor():
+    """Caso real del documento 3: el LLM escribió «medico» y «médico»."""
+    modelo = _con_actores("medico", "médico", "Médico", "paciente", "paciente")
+    assert actores(modelo) == [("médico", 3), ("paciente", 2)]
+
+
+def test_perfil_no_es_una_persona():
+    """Caso real: «Cada perfil solo puede hacer lo que indica la tabla»."""
+    modelo = _con_actores("perfil", "estudiante", "estudiante")
+    assert actores(modelo) == [("estudiante", 2)]
+
+
+def test_los_actores_sueltos_se_agrupan_en_otros():
+    modelo = _con_actores(
+        "estudiante", "estudiante", "docente", "docente", "empresa", "coordinador"
+    )
+    diagrama = diagrama_contexto(_arquitectura(), modelo)
+    assert 'Person(p_estudiante, "Estudiante", "Aparece en 2 requisito(s)")' in diagrama
+    assert 'Person(p_otros, "Otros actores", "coordinador, empresa: un requisito cada uno")' in (
+        diagrama
+    )
+    assert 'Rel(p_otros, sistema, "Usa", "HTTPS")' in diagrama
+    assert "p_empresa" not in diagrama
+
+
+def test_si_ninguno_llega_al_minimo_se_dibujan_todos():
+    modelo = _con_actores("estudiante", "docente")
+    diagrama = diagrama_contexto(_arquitectura(), modelo)
+    assert "p_estudiante" in diagrama and "p_docente" in diagrama
+    assert "p_otros" not in diagrama
 
 
 def test_diagrama_de_contexto():

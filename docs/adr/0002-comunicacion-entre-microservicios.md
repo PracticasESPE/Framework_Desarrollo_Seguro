@@ -4,14 +4,14 @@
 | Campo | Valor |
 |---|---|
 | Estado | Aceptada |
-| Fecha | 2026-11-10 |
+| Fecha | 2026-11-15 |
 | Origen | Decisión D-02 de la propuesta arquitectónica, validada por OPA |
 | Documento de requisitos | requisitos.docx (SHA-256 `0515668b00b8`) |
 | Redacción | LLM (groq), revisada por el motor |
 
 ## Contexto
 
-Para garantizar que el precio calculado al confirmar un pedido sea siempre el actual del catálogo, se requiere una llamada síncrona. Al mismo tiempo, los cambios de estado y las notificaciones deben ser desacoplados para evitar dependencias y ciclos. Por ello, se decide usar HTTP síncrono para lecturas críticas y RabbitMQ para eventos asíncronos.
+El sistema necesita garantizar que el precio de cada producto se calcule con los valores actuales del catálogo al confirmar un pedido (RF-10), mientras que los cambios de estado de los pedidos (RF-12, RF-14) y las notificaciones al cliente (RF-16) deben manejarse de forma desacoplada para permitir la escalabilidad y la resiliencia de los microservicios.
 
 ## Decisión
 
@@ -25,17 +25,17 @@ Requisitos de consistencia al crear pedidos requieren precios actuales (RF-10) �
 
 Positivas:
 
-- Garantiza la consistencia de precios al confirmar pedidos, cumpliendo RF-10.
-- Desacopla los servicios de notificación y actualización de stock, mejorando la resiliencia y permitiendo que cada microservicio crezca de forma independiente (RNF-09).
-- Reduce la latencia de los flujos críticos al evitar la sobrecarga de eventos para lecturas de precio.
-- Facilita la trazabilidad de eventos de estado a través de RabbitMQ, mejorando la observabilidad.
+- Se asegura la consistencia de los precios al momento de la compra mediante llamadas HTTP síncronas, cumpliendo RF-10 y evitando fraudes de precios.
+- Se mejora la resiliencia del sistema al usar eventos RabbitMQ para actualizaciones de stock y notificaciones, permitiendo que cada servicio crezca de forma independiente (RNF-09).
+- Se reduce la latencia de las operaciones críticas de lectura, ya que las lecturas de precio se realizan en tiempo real sin esperar colas asíncronas.
+- Se facilita la trazabilidad y auditoría de los cambios de estado de los pedidos a través de eventos publicados en RabbitMQ, lo que simplifica la depuración y el monitoreo.
 
 Negativas:
 
-- Introduce latencia adicional en la confirmación de pedidos debido a la llamada HTTP síncrona, lo que puede afectar la experiencia del usuario.
-- Requiere manejo de timeouts y circuit breakers para evitar bloqueos cuando el catálogo no responde, aumentando la complejidad del código.
-- La dependencia de RabbitMQ añade un punto de fallo y requiere monitoreo y mantenimiento de la cola.
-- El uso de dos patrones de comunicación complica la arquitectura y la documentación de los flujos de datos.
+- La introducción de dos patrones de comunicación aumenta la complejidad arquitectónica, requiriendo más código de manejo de errores y pruebas específicas.
+- El uso de RabbitMQ implica un riesgo de pérdida de mensajes o desorden en la entrega, lo que puede afectar la consistencia de stock (RF-12) y el estado de los pedidos (RF-14).
+- Se incrementa la carga operativa y el mantenimiento de un broker de mensajes adicional, lo que puede generar costos de operación y requerir monitoreo especializado.
+- Las llamadas HTTP síncronas pueden introducir latencia en la experiencia del usuario, especialmente si el servicio de catálogo presenta tiempos de respuesta variables, lo que podría afectar la satisfacción del cliente.
 
 ## Trazabilidad
 

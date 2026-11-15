@@ -84,7 +84,8 @@ export default function App() {
 
       {conexion.tipo === 'sin-conexion' && (
         <p className="aviso aviso--error" role="alert">
-          No se pudo conectar con la API del motor. Levántala con <code>uv run framework api</code>.
+          No se pudo conectar con la API del motor. Levántala desde la carpeta del proyecto con{" "}
+          <code>uv run python -m orchestrator.cli api</code>.
         </p>
       )}
 

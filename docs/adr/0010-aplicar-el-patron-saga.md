@@ -4,14 +4,14 @@
 | Campo | Valor |
 |---|---|
 | Estado | Aceptada |
-| Fecha | 2026-11-10 |
+| Fecha | 2026-11-15 |
 | Origen | Patrón arq.transaccion.001 inferido por OPA (rasgos: transaccion\_entre\_servicios) |
 | Documento de requisitos | requisitos.docx (SHA-256 `0515668b00b8`) |
 | Redacción | LLM (groq), revisada por el motor |
 
 ## Contexto
 
-El sistema requiere coordinar pagos con otros microservicios sin bloquear transacciones globales. El patrón Saga permite dividir la operación en pasos locales con compensación, manteniendo consistencia. Se implementará sobre RabbitMQ para orquestar los eventos. Esta decisión responde a la necesidad de evitar bloqueos y garantizar la integridad de los datos.
+El sistema requiere coordinar transacciones que abarcan varios microservicios, especialmente en el flujo de pagos. El patrón Saga permite dividir la operación en pasos locales con compensaciones, evitando bloqueos de bases de datos distribuidas. Esta solución mantiene la consistencia sin sacrificar la escalabilidad de la arquitectura.
 
 ## Decisión
 
@@ -25,17 +25,17 @@ pagos coordina operaciones que involucran a otros servicios
 
 Positivas:
 
-- Garantiza consistencia eventual sin bloqueos de base de datos, reduciendo riesgo de deadlocks.
-- Permite que cada microservicio gestione su propia lógica de compensación, facilitando la recuperación ante fallos.
-- Mejora la escalabilidad al permitir que los servicios se ejecuten de forma asíncrona y paralela.
-- Facilita la trazabilidad de transacciones distribuidas mediante eventos RabbitMQ.
+- Garantiza la consistencia eventual de los datos entre los servicios involucrados, evitando estados inconsistentes.
+- Permite que cada microservicio mantenga su autonomía y escale de forma independiente, ya que la coordinación se realiza a través de eventos.
+- Facilita la recuperación ante fallos mediante pasos de compensación, reduciendo la necesidad de rollbacks complejos.
+- Reduce la dependencia de transacciones distribuidas de base de datos, lo que simplifica la infraestructura y mejora el rendimiento.
 
 Negativas:
 
-- Incrementa la complejidad arquitectónica y de desarrollo al manejar compensaciones y orquestación.
-- Aumenta la latencia total de la operación debido a la comunicación asíncrona entre servicios.
-- Requiere mecanismos de idempotencia y manejo de errores más robustos para evitar inconsistencias.
-- Necesita monitoreo y alertas adicionales para detectar y resolver fallos de compensación.
+- Incrementa la complejidad del diseño y la implementación, requiriendo lógica adicional para manejar compensaciones y estados.
+- Aumenta la latencia total del flujo de negocio, ya que cada paso debe esperar la confirmación del siguiente.
+- Requiere que los servicios sean idempotentes y manejen correctamente los mensajes duplicados, lo que añade esfuerzo de desarrollo.
+- Existe riesgo de inconsistencias temporales si una compensación falla, lo que puede requerir monitoreo y reintentos manuales.
 
 ## Controles de seguridad
 
