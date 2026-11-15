@@ -47,6 +47,34 @@ y el servicio `transversal`.
 | `servicio`, `servicios`, `patrones` | Comparación de la propuesta arquitectónica de la fase 2 |
 | `fuera_de_alcance` | Falsos positivos de la fase 1 |
 
+## Criterio de las etiquetas
+
+Las referencias etiquetan lo que el requisito **implica**, no solo lo que nombra. Un cliente casi
+nunca escribe «autorización»: escribe «el administrador gestiona el catálogo». El criterio sigue el
+OWASP API Security Top 10, y la fase 1 usa el mismo en su prompt (`DEFINICION_ETIQUETAS` en
+`orchestrator/ingest/clasificacion.py`), con ejemplos de otro dominio para no copiar el dataset.
+
+| Etiqueta | Se pone cuando… | No se pone cuando… |
+|---|---|---|
+| `autenticacion` | Hay registro, inicio de sesión, contraseñas, segundo factor, bloqueo, sesión o su caducidad, o un sistema externo debe demostrar su origen (firma, clave). | El usuario ya identificado solo usa una función. |
+| `autorizacion` | La acción es de un rol concreto (describirla como suya excluye a los demás aunque no diga «solo»), hay una tabla de permisos o un usuario actúa sobre recursos suyos que ya existen (API5). | Es el inicio de sesión, la puede hacer cualquier visitante o la hace el sistema solo. |
+| `control_acceso_recursos` | Se consulta, cambia, cancela o descarga algo propio o asignado, que no debe alcanzar a los de otros, incluido el acceso delegado (API1). | Se crea algo nuevo (pedir, reservar, inscribirse). |
+| `validacion_entrada` | Entran datos de un usuario o de otro sistema: formularios, búsquedas, archivos, límites de tamaño o formato, valores que calcula el servidor (API3, API8). | Son reglas del negocio sin datos de entrada (plazos, estados, existencias). |
+| `hash_password` | Las contraseñas se guardan con un hash y nunca se pueden recuperar ni mostrar. | — |
+| `cifrado_transito` | Se pide proteger la comunicación (HTTPS/TLS). | Solo hay una integración externa, sin pedir cifrado. |
+| `punto_unico_acceso` | Todas las peticiones entran por un único punto. | — |
+| `limite_peticiones` | Hay límites de abuso o de consumo: peticiones por tiempo, tamaño de página, rango de consultas y reportes, cupos, funciones abiertas automatizables (API4, API6). | — |
+| `auditoria` | Queda constancia de quién hizo qué y cuándo: registros que no se borran, avisos de acciones sensibles, documentos cuyas correcciones se registran. | Solo se conservan datos o se bloquean cambios por una regla del negocio. |
+
+Un requisito puede llevar varias: «el cliente cancela su pedido» es `autorizacion` y
+`control_acceso_recursos`.
+
+**Cuidado con el sobreajuste.** Las definiciones del prompt se ajustaron el 15/11/2026 mirando los
+errores sobre estos tres documentos: el F1 de las etiquetas pasó de 0,61–0,74 a 0,71–0,91 con
+Gemini (dos ejecuciones sin caché). No comparten frases con el dataset, pero los documentos ya no
+son del todo ciegos para esta parte. Para el resultado final conviene medir además con un documento
+nuevo que no se haya usado para ajustar el prompt.
+
 ## Los tres documentos
 
 | | 1. Tienda en línea | 2. Gestión académica | 3. Citas médicas |

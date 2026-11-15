@@ -161,9 +161,9 @@ def test_gemini_respuesta_vacia():
 
 
 def test_gemini_error_de_la_api():
-    error = errores_gemini.APIError(500, {"error": {"message": "fallo interno"}})
+    error = errores_gemini.APIError(400, {"error": {"message": "solicitud no válida"}})
     cliente, _ = _cliente_gemini(error)
-    with pytest.raises(ErrorProveedorLLM, match="500"):
+    with pytest.raises(ErrorProveedorLLM, match="400"):
         ProveedorGemini(cliente=cliente).generar_estructurado("x", Requisito)
 
 
