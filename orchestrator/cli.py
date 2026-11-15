@@ -1180,13 +1180,46 @@ def arquitectura_proponer(
         Path | None,
         typer.Option("--destino", help="Carpeta de salida; por defecto salida/arquitectura."),
     ] = None,
+    intentos: Annotated[
+        int,
+        typer.Option("--intentos", min=1, max=5, help="Intentos del ciclo LLM ↔ OPA."),
+    ] = 3,
+    desde: Annotated[
+        Path | None,
+        typer.Option(
+            "--desde",
+            help="Empezar por esta arquitectura.json (p. ej. corregida a mano) en vez de pedirla.",
+        ),
+    ] = None,
+    grafo: Annotated[
+        bool | None,
+        typer.Option(
+            "--grafo/--sin-grafo",
+            help="Registrar las decisiones en Neo4j. Por defecto, solo si NEO4J_PASSWORD existe.",
+        ),
+    ] = None,
+    ejecucion: Annotated[
+        str | None,
+        typer.Option(
+            "--ejecucion",
+            help="Ejecución de Neo4j; por defecto la que tiene los requisitos de este documento.",
+        ),
+    ] = None,
 ) -> None:
-    """Propone con el LLM los servicios, contextos y decisiones; guarda arquitectura.json."""
+    """Ciclo LLM ↔ OPA: el LLM propone y OPA valida; guarda arquitectura.json si OPA aprueba."""
+    from functools import partial
+
     from pydantic import ValidationError
 
-    from orchestrator.architecture import proponer_arquitectura
+    from orchestrator.architecture import (
+        Arquitectura,
+        IntentoArquitectura,
+        ciclo_llm_opa,
+        proponer_arquitectura,
+    )
     from orchestrator.ingest import ModeloRequisitos
     from orchestrator.llm import ErrorLLM, crear_proveedor
+    from orchestrator.opa import ErrorOPA
 
     if nivel not in ("razonamiento", "rapido"):
         raise typer.BadParameter("usa «razonamiento» o «rapido»", param_hint="--nivel")
@@ -1197,39 +1230,114 @@ def arquitectura_proponer(
     except ValidationError as error:
         typer.echo(f"Error: {modelo.name} no es un modelo de requisitos válido.\n{error}", err=True)
         raise typer.Exit(1) from error
+    inicial = None
+    if desde is not None:
+        try:
+            inicial = Arquitectura.model_validate_json(desde.read_bytes())
+        except (OSError, ValidationError) as error:
+            typer.echo(f"Error: no se pudo leer la arquitectura de {desde}: {error}", err=True)
+            raise typer.Exit(1) from error
 
-    def reintento(intento: int, problemas: list[str]) -> None:
-        typer.echo(f"  Intento {intento} rechazado por el motor; se vuelve a pedir:")
+    def reintento_del_motor(intento: int, problemas: list[str]) -> None:
+        typer.echo(f"    La propuesta {intento} no pasó las comprobaciones del motor:")
         for problema in problemas:
-            typer.echo(f"    - {problema}")
+            typer.echo(f"      - {problema}")
+
+    def mostrar(intento: IntentoArquitectura) -> None:
+        origen = "arquitectura inicial" if intento.origen == "inicial" else "propuesta del LLM"
+        typer.echo(f"  Intento {intento.numero} ({origen}): {intento.decision.justificacion}")
+        for bloqueante in intento.decision.bloqueantes:
+            typer.echo(f"    OPA rechaza: {bloqueante.motivo}")
+        for aviso in intento.decision.advertencias:
+            typer.echo(f"    Aviso: {aviso.motivo}")
+        if not intento.decision.aprobado and intento.numero < intentos:
+            typer.echo("    Se vuelve a pedir al LLM con estos motivos.")
 
     typer.echo(f"Documento: {datos.documento.nombre}, {len(datos.requisitos)} requisitos")
+    typer.echo(f"Ciclo LLM ↔ OPA (máximo {intentos} intentos):")
     try:
         llm = crear_proveedor(proveedor)
-        arquitectura = proponer_arquitectura(datos, llm, nivel=nivel, al_reintentar=reintento)
-    except (ErrorLLM, ValueError) as error:
+        resultado = ciclo_llm_opa(
+            datos,
+            llm,
+            intentos=intentos,
+            nivel=nivel,
+            inicial=inicial,
+            al_intento=mostrar,
+            proponer=partial(proponer_arquitectura, al_reintentar=reintento_del_motor),
+        )
+    except (ErrorLLM, ErrorOPA, ValueError) as error:
         typer.echo(f"Error: {error}", err=True)
         raise typer.Exit(1) from error
 
     base = modelo.name.removesuffix(".json").removesuffix(".modelo_requisitos") or "documento"
     carpeta = destino or obtener_configuracion().directorio_salida / "arquitectura"
     carpeta.mkdir(parents=True, exist_ok=True)
-    archivo = carpeta / f"{base}.arquitectura.json"
-    archivo.write_text(arquitectura.model_dump_json(indent=2), encoding="utf-8")
+    registro = carpeta / f"{base}.intentos.json"
+    registro.write_text(resultado.model_dump_json(indent=2), encoding="utf-8")
+    typer.echo(f"Registro de intentos guardado en {registro.as_posix()}")
 
-    typer.echo(f"Proveedor: {getattr(llm, 'nombre', proveedor)} ({nivel})")
-    typer.echo(f"Servicios: {len(arquitectura.servicios)}")
-    for s in arquitectura.servicios:
-        dependencias = ", ".join(f"{d.servicio} ({d.tipo})" for d in s.depende_de) or "ninguna"
+    final = resultado.final
+    if resultado.aprobada:
+        arquitectura = final.arquitectura
+        archivo = carpeta / f"{base}.arquitectura.json"
+        archivo.write_text(arquitectura.model_dump_json(indent=2), encoding="utf-8")
+        typer.echo(f"Servicios: {len(arquitectura.servicios)}")
+        for s in arquitectura.servicios:
+            dependencias = ", ".join(f"{d.servicio} ({d.tipo})" for d in s.depende_de)
+            typer.echo(
+                f"  {s.nombre} [{s.contexto}]: {len(s.requisitos)} requisitos, "
+                f"base {s.base_datos}, depende de {dependencias or 'ninguna'}"
+            )
+        typer.echo(f"Transversales: {len(arquitectura.transversales)} requisitos")
+        typer.echo(f"Decisiones: {len(arquitectura.decisiones)}")
+        for d in arquitectura.decisiones:
+            typer.echo(f"  {d.id} {d.titulo}")
+        typer.echo(f"Patrones inferidos por OPA: {len(final.decision.patrones)}")
+        for p in final.decision.patrones:
+            typer.echo(f"  {p.patron} ({p.id}): {p.motivo}")
+        typer.echo(f"Arquitectura aprobada guardada en {archivo.as_posix()}")
+
+    config = obtener_configuracion()
+    usar_grafo = grafo if grafo is not None else config.neo4j_password is not None
+    if usar_grafo:
+        _registrar_decisiones_en_neo4j(config, resultado, datos, ejecucion)
+
+    if not resultado.aprobada:
         typer.echo(
-            f"  {s.nombre} [{s.contexto}]: {len(s.requisitos)} requisitos, "
-            f"base {s.base_datos}, depende de {dependencias}"
+            f"OPA no aprobó ninguna propuesta en {len(resultado.intentos)} intentos: "
+            "la arquitectura queda para revisión humana.",
+            err=True,
         )
-    typer.echo(f"Transversales: {len(arquitectura.transversales)} requisitos")
-    typer.echo(f"Decisiones: {len(arquitectura.decisiones)}")
-    for d in arquitectura.decisiones:
-        typer.echo(f"  {d.id} {d.titulo}")
-    typer.echo(f"Arquitectura guardada en {archivo.as_posix()}")
+        raise typer.Exit(1)
+
+
+def _registrar_decisiones_en_neo4j(config, resultado, modelo, ejecucion: str | None) -> None:
+    """Guarda las decisiones del ciclo en la ejecución con los requisitos del documento.
+
+    Si no hay ninguna, crea una y registra los requisitos, para que las decisiones queden
+    enlazadas a ellos. Un fallo de Neo4j avisa pero no invalida la arquitectura.
+    """
+    from orchestrator.knowledge import ErrorGrafo, conectar, crear_ejecucion, registrar_requisitos
+    from orchestrator.knowledge.registro import ejecucion_de_documento, registrar_decisiones
+
+    db = config.neo4j_database
+    try:
+        driver = conectar(config)
+        try:
+            ejecucion_id = ejecucion or ejecucion_de_documento(driver, modelo.documento.sha256, db)
+            if ejecucion_id is None:
+                ejecucion_id = crear_ejecucion(
+                    driver, documento=modelo.documento.nombre, base_datos=db
+                )
+                registrar_requisitos(driver, ejecucion_id, modelo, base_datos=db)
+            registradas = registrar_decisiones(driver, ejecucion_id, resultado, base_datos=db)
+        finally:
+            driver.close()
+    except ErrorGrafo as error:
+        typer.echo(f"Sin registro en Neo4j: {error}", err=True)
+        return
+    typer.echo(f"Decisiones registradas en Neo4j: {registradas} (ejecución {ejecucion_id})")
 
 
 @arquitectura_app.command("esquema")

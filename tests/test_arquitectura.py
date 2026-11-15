@@ -5,6 +5,7 @@ El LLM se simula con respuestas fijas: las pruebas no gastan cuota ni dependen d
 
 import json
 import re
+import shutil
 from pathlib import Path
 
 import pytest
@@ -265,6 +266,7 @@ def archivo_modelo(tmp_path):
     return archivo
 
 
+@pytest.mark.skipif(shutil.which("opa") is None, reason="Requiere el ejecutable opa")
 def test_comando_proponer_guarda_la_arquitectura(archivo_modelo, tmp_path, monkeypatch):
     llm = LLMSimulado(_propuesta(transversales=[]), _propuesta())
     monkeypatch.setattr("orchestrator.llm.crear_proveedor", lambda nombre=None: llm)
@@ -274,7 +276,7 @@ def test_comando_proponer_guarda_la_arquitectura(archivo_modelo, tmp_path, monke
     )
 
     assert resultado.exit_code == 0, resultado.output
-    assert "Intento 1 rechazado por el motor" in resultado.output
+    assert "La propuesta 1 no pasó las comprobaciones del motor" in resultado.output
     assert "Servicios: 3" in resultado.output
     assert "pedidos [Pedidos]: 1 requisitos, base pedidos_db, depende de usuarios (sincrona)" in (
         resultado.output

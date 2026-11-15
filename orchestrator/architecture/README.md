@@ -1,18 +1,62 @@
 # Propuesta arquitectónica (fase 2)
 
 A partir del modelo de requisitos de la fase 1, el LLM de razonamiento propone los bounded
-contexts, la división en microservicios y las decisiones arquitectónicas con su justificación
-(plan técnico, sección 7.2, paso 1). El resultado es `arquitectura.json`.
+contexts, la división en microservicios y las decisiones arquitectónicas con su justificación, y
+OPA las valida (plan técnico, sección 7.2, pasos 1 a 4). El resultado es `arquitectura.json`.
 
 ```bash
-uv run framework arquitectura proponer salida/requisitos/requisitos-pdf.modelo_requisitos.json --proveedor groq
+uv run framework arquitectura proponer salida/requisitos/requisitos-pdf.modelo_requisitos.json
 uv run python -m evaluation.fase2.evaluar salida/arquitectura/requisitos-pdf.arquitectura.json salida/requisitos/requisitos-pdf.modelo_requisitos.json evaluation/datasets/01_tienda_en_linea
 ```
 
-El primero guarda `salida/arquitectura/<nombre>.arquitectura.json`. `--nivel rapido` usa el
-modelo rápido del proveedor si el de razonamiento no está disponible. El segundo, que es parte de
-la evaluación y no del framework, compara la propuesta con los servicios de la referencia del
-dataset.
+El segundo, que es parte de la evaluación y no del framework, compara la propuesta con los
+servicios de la referencia del dataset.
+
+## Ciclo LLM ↔ OPA
+
+```
+LLM propone ──► OPA valida ──► ¿aprobada? ── sí ──► arquitectura.json + nodos Decision
+     ▲                              │
+     └──── motivos del rechazo ◄─── no   (como mucho 3 intentos)
+```
+
+`arquitectura proponer` (`ciclo.py`):
+
+1. Pide la propuesta al LLM y la valida con OPA (`policies/arquitectura`).
+2. Si OPA la rechaza, vuelve a pedirla con los motivos de **todos** los rechazos anteriores, para
+   que el LLM no reintroduzca un problema ya corregido.
+3. Guarda el **registro de intentos** en `salida/arquitectura/<nombre>.intentos.json`: por cada
+   intento, la fecha, los motivos que recibió el LLM, su propuesta y la decisión de OPA.
+4. Solo si OPA aprueba guarda `<nombre>.arquitectura.json`. Si no aprueba en 3 intentos, termina
+   con error y la arquitectura queda para revisión humana.
+5. Si hay Neo4j (`--grafo`, por defecto cuando existe `NEO4J_PASSWORD`), registra las decisiones en
+   la ejecución que tiene los requisitos del documento (la busca por la huella SHA-256; si no hay,
+   la crea con los requisitos):
+
+```
+(:Ejecucion)-[:TIENE_DECISION]->(:Decision {id, tipo, estado, titulo, justificacion, intentos})
+(:Requisito)-[:ORIGINA]->(:Decision)                        plan técnico, listing 5.5
+(:Decision)-[:BASADA_EN {cumple, detalle, motivos}]->(:Regla {id: "arquitectura.sin_ciclos"})
+(:Decision)-[:APLICA]->(:Patron {id: "arq.gateway.001"})
+```
+
+| tipo | Qué es |
+|---|---|
+| `arquitectura` | Una decisión del LLM aprobada por OPA, enlazada a sus requisitos y a las reglas que cumple |
+| `patron` | Un patrón que OPA infirió, enlazado a su patrón de la base de conocimiento |
+| `rechazo` | OPA no aprobó ninguna propuesta: los motivos y las reglas incumplidas, para revisión humana |
+
+Opciones: `--intentos` (1 a 5), `--desde <arquitectura.json>` para empezar por una arquitectura
+existente (p. ej. corregida a mano: el LLM solo interviene si OPA la rechaza), `--ejecucion` y
+`--nivel rapido` si el modelo de razonamiento no está disponible.
+
+Consulta de las decisiones en Neo4j Browser:
+
+```cypher
+MATCH p = (:Ejecucion {id: $ejecucion})-[:TIENE_DECISION]->(d:Decision)
+OPTIONAL MATCH q = (d)-[:BASADA_EN|APLICA]->()
+RETURN p, q
+```
 
 ## Qué contiene `arquitectura.json`
 
@@ -38,9 +82,8 @@ uv run framework arquitectura esquema --salida docs/esquemas/arquitectura.schema
 - El motor exige que cada requisito quede asignado exactamente una vez (a un servicio o como
   transversal), que no aparezcan ids inventados y que cada dependencia apunte a otro servicio de
   la propuesta. Si algo falla, vuelve a pedir la propuesta con los motivos, hasta tres intentos.
-- Las reglas arquitectónicas y la inferencia de patrones son de OPA (`policies/arquitectura`).
-  `proponer_arquitectura` acepta los motivos de un rechazo anterior (`retroalimentacion`) para el
-  ciclo LLM ↔ OPA.
+- Las reglas arquitectónicas y la inferencia de patrones son de OPA (`policies/arquitectura`), en
+  el ciclo LLM ↔ OPA.
 
 El texto de los requisitos viene del documento del cliente: va entre marcas con un código
 aleatorio y el mensaje de sistema indica que es un dato, nunca una instrucción, como en la
@@ -108,3 +151,8 @@ Con `openai/gpt-oss-120b` en Groq, al primer intento: 6 servicios (`usuarios`, `
 Los 5 servicios de la referencia aparecen con el mismo nombre; la agrupación de requisitos por
 pares tiene precisión 100 %, exhaustividad 94 % y F1 0.97. La diferencia: el LLM separa la
 auditoría en su propio servicio.
+
+Ciclo LLM ↔ OPA partiendo de esa arquitectura con un error a propósito (pagos con la base de datos
+de pedidos): OPA la rechaza en el intento 1 (`arquitectura.base_datos_propia`), el LLM la corrige
+y OPA aprueba el intento 2, con un aviso de saga coreografiada entre pedidos, pagos y
+notificaciones. Quedan 11 decisiones en Neo4j: 6 de arquitectura y 5 de patrones.

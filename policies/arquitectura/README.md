@@ -10,7 +10,7 @@ patrones de la base de conocimiento que aplican, con su justificación (plan té
 | Regla | Qué exige |
 |---|---|
 | `arquitectura.base_datos_propia` | Cada servicio tiene su propia base de datos (Database per Service) |
-| `arquitectura.sin_ciclos` | Las dependencias entre servicios no forman ciclos, directos o indirectos |
+| `arquitectura.sin_ciclos` | Las llamadas síncronas entre servicios no forman ciclos, directos o indirectos; el motivo nombra las dependencias del ciclo |
 | `arquitectura.dependencias_conocidas` | Cada dependencia apunta a otro servicio de la arquitectura |
 | `arquitectura.servicios_unicos` | Hay al menos un servicio y ningún nombre se repite |
 
@@ -20,6 +20,7 @@ Los motivos de los bloqueantes vuelven al LLM para que corrija la propuesta (cic
 
 | Regla | Cuándo avisa |
 |---|---|
+| `arquitectura.ciclo_de_eventos` | Servicios que dependen unos de otros en círculo con algún evento asíncrono: es una saga coreografiada (pedidos publica «pedido creado» y escucha «pago confirmado»), no un error; hay que documentar sus eventos y la compensación |
 | `arquitectura.servicio_concentrado` | Un servicio tiene más de la mitad de los requisitos: puede mezclar varios contextos |
 | `arquitectura.cadena_sincrona` | Tres servicios encadenados por llamadas síncronas: un fallo se propaga |
 
