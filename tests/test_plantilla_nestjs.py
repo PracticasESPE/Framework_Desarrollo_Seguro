@@ -380,7 +380,11 @@ def test_swagger_tiene_una_etiqueta_por_entidad(tmp_path: Path, ejemplo: dict):
     assert ".setVersion('1.0.0')" in configuracion
     assert ".addTag('Pedido', 'Compra de un cliente con su dirección de envío')" in configuracion
     assert ".addTag('LineaPedido'," in configuracion
-    assert "SwaggerModule.setup('docs', app, documento);" in configuracion
+    # El contrato del Gate 2 declara el servidor HTTPS; /docs llama a su propia dirección para
+    # que «Try it out» funcione en local sin resolver pedidos.fw.local.
+    assert ".addServer('https://pedidos.fw.local', 'Entorno local')" in configuracion
+    assert "SwaggerModule.setup('docs', app, { ...documento, servers: [servidor] });" in configuracion
+    assert "url: '/'" in configuracion
     generar = _leer(carpeta, "src/openapi/generar-openapi.ts")
     assert "Test.createTestingModule({ imports: [PedidosModule] })" in generar
     assert ".overrideProvider(PrismaService)" in generar

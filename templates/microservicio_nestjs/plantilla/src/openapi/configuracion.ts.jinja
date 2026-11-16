@@ -23,9 +23,14 @@ export function crearDocumentoOpenApi(app: INestApplication): OpenAPIObject {
   return documento;
 }
 
-/** Publica la documentación interactiva en /docs con el mismo contrato que analiza el Gate 2. */
+/**
+ * Publica la documentación interactiva en /docs con el mismo contrato que analiza el Gate 2,
+ * salvo el servidor: «Try it out» envía las peticiones a la misma dirección desde la que se abre
+ * /docs (localhost o Traefik), no a un nombre que quizá no resuelva en esa máquina.
+ */
 export function configurarSwagger(app: INestApplication): OpenAPIObject {
   const documento = crearDocumentoOpenApi(app);
-  SwaggerModule.setup('docs', app, documento);
+  const servidor = { url: '/', description: 'Este mismo servicio', 'x-internal': true };
+  SwaggerModule.setup('docs', app, { ...documento, servers: [servidor] });
   return documento;
 }
