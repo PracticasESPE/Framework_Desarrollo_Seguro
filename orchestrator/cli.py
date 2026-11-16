@@ -1539,5 +1539,50 @@ def arquitectura_diagrama(
     typer.echo(f"Documento escrito en {salida.as_posix()}")
 
 
+servicio_app = typer.Typer(
+    help="Fase 3: generación de cada microservicio NestJS con la plantilla Copier.",
+    no_args_is_help=True,
+)
+app.add_typer(servicio_app, name="servicio")
+
+
+@servicio_app.command("generar")
+def servicio_generar(
+    especificacion: Annotated[
+        Path,
+        typer.Argument(help="YAML o JSON con el servicio y sus entidades (ver la plantilla)."),
+    ],
+    destino: Annotated[
+        Path | None,
+        typer.Option(
+            "--destino", help="Carpeta donde crear el servicio; por defecto salida/servicios."
+        ),
+    ] = None,
+) -> None:
+    """Genera módulo, entidades Prisma y DTO de un servicio con templates/microservicio_nestjs."""
+    from orchestrator.generation import ErrorPlantilla, generar_servicio, leer_especificacion
+
+    if not especificacion.is_file():
+        raise typer.BadParameter(
+            f"no existe el archivo '{especificacion}'", param_hint="ESPECIFICACION"
+        )
+    carpeta = destino or obtener_configuracion().directorio_salida / "servicios"
+    try:
+        datos = leer_especificacion(especificacion)
+        generado = generar_servicio(datos, carpeta)
+    except ErrorPlantilla as error:
+        typer.echo(f"Error: {error}", err=True)
+        raise typer.Exit(1) from error
+
+    archivos = sorted(p for p in generado.rglob("*") if p.is_file())
+    typer.echo(f"Servicio {datos['servicio']} generado en {generado.as_posix()}")
+    for archivo in archivos:
+        typer.echo(f"  {archivo.relative_to(generado).as_posix()}")
+    typer.echo(
+        "Para compilarlo: npm install, npm run prisma:generate y npm run typecheck "
+        "(ver el README.md del servicio)."
+    )
+
+
 if __name__ == "__main__":
     app()

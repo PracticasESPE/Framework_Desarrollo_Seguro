@@ -1,0 +1,13 @@
+import { Module } from '@nestjs/common';
+import { PrismaService } from './prisma.service';
+
+/**
+ * Módulo del servicio {{ servicio }}.
+ *
+ * La parte 2 de la plantilla (#63) añade aquí el controlador y el servicio de cada entidad.
+ */
+@Module({
+  providers: [PrismaService],
+  exports: [PrismaService],
+})
+export class {{ servicio_clase }}Module {}

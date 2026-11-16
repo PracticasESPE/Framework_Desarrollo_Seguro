@@ -1,0 +1,53 @@
+# Especificación de ejemplo: el servicio «pedidos» de la tienda en línea (documento 1 del dataset).
+# Uso: python -m orchestrator.cli servicio generar templates/microservicio_nestjs/ejemplos/pedidos.yml
+servicio: pedidos
+descripcion: Pedidos de los clientes, sus líneas y su estado hasta la entrega
+base_datos: pedidos_db
+puerto: 3002
+entidades:
+  - nombre: pedido
+    descripcion: Compra de un cliente con su dirección de envío
+    campos:
+      - nombre: cliente_id
+        tipo: uuid
+        descripcion: Cliente del servicio de usuarios que hizo el pedido
+      - nombre: estado
+        tipo: enumeracion
+        valores: [pendiente, pagado, enviado, entregado, cancelado]
+      - nombre: total
+        tipo: decimal
+        min: 0
+        max: 99999999.99
+      - nombre: direccion_envio
+        tipo: texto
+        min: 10
+        max: 300
+      - nombre: correo_contacto
+        tipo: correo
+      - nombre: fecha_entrega
+        tipo: fecha
+        requerido: false
+      - nombre: notas
+        tipo: texto
+        max: 500
+        requerido: false
+  - nombre: linea_pedido
+    descripcion: Un producto del pedido con su cantidad y su precio en el momento de comprar
+    campos:
+      - nombre: pedido_id
+        tipo: referencia
+        entidad: pedido
+      - nombre: producto_id
+        tipo: uuid
+        descripcion: Producto del servicio de catálogo
+      - nombre: cantidad
+        tipo: entero
+        min: 1
+        max: 100
+      - nombre: precio_unitario
+        tipo: decimal
+        min: 0.01
+        max: 999999.99
+      - nombre: regalo
+        tipo: booleano
+        requerido: false

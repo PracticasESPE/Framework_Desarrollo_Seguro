@@ -1,0 +1,140 @@
+{#-
+  Traducción de cada tipo de campo de la plantilla a Prisma, TypeScript, Swagger y class-validator.
+  Un solo sitio para que el esquema, los DTO de entrada y los de respuesta digan lo mismo: el
+  Gate 2 (Spectral, OWASP API4) exige que cada propiedad del contrato tenga su límite.
+
+  Los textos libres (descripciones) se escriben siempre con `cadena`, que los deja como un literal
+  de TypeScript entre comillas simples aunque traigan comillas o barras. copier.yml ya rechaza los
+  saltos de línea y los caracteres de control, así que basta con escapar «\» y «'».
+-#}
+
+{#- Literal de cadena de TypeScript, entre comillas simples como el resto del código. -#}
+{%- macro cadena(texto) -%}
+'{{ texto | replace('\\', '\\\\') | replace("'", "\\'") }}'
+{%- endmacro -%}
+
+{#- Lista de literales de cadena: ['a', 'b']. -#}
+{%- macro lista(valores) -%}
+[{% for v in valores %}{{ cadena(v) }}{{ ', ' if not loop.last }}{% endfor %}]
+{%- endmacro -%}
+
+{#- Tipo y atributos de la columna en schema.prisma. -#}
+{%- macro prisma_tipo(c) -%}
+{%- if c.tipo == 'texto' -%}String @db.VarChar({{ c.max }})
+{%- elif c.tipo == 'correo' -%}String @db.VarChar(254)
+{%- elif c.tipo == 'entero' -%}Int
+{%- elif c.tipo == 'decimal' -%}Decimal @db.Decimal({{ c.precision }}, {{ c.escala }})
+{%- elif c.tipo == 'booleano' -%}Boolean
+{%- elif c.tipo == 'fecha' -%}DateTime @db.Date
+{%- elif c.tipo == 'fecha_hora' -%}DateTime @db.Timestamptz(3)
+{%- elif c.tipo in ['uuid', 'referencia'] -%}String @db.Uuid
+{%- elif c.tipo == 'enumeracion' -%}{{ c.enum }}
+{%- endif -%}
+{%- endmacro -%}
+
+{#- Tipo de la propiedad en TypeScript. Las fechas y los decimales viajan como texto en JSON. -#}
+{%- macro ts_tipo(c) -%}
+{%- if c.tipo in ['entero'] -%}number
+{%- elif c.tipo == 'decimal' -%}number
+{%- elif c.tipo == 'booleano' -%}boolean
+{%- elif c.tipo == 'enumeracion' -%}{% for v in c.valores %}{{ cadena(v) }}{{ ' | ' if not loop.last }}{% endfor %}
+{%- else -%}string
+{%- endif -%}
+{%- endmacro -%}
+
+{#- Opciones de @ApiProperty: el contrato OpenAPI, con los mismos límites que la validación. -#}
+{%- macro swagger(c, respuesta=false) -%}
+{%- set o = [] -%}
+{%- if c.descripcion -%}{%- set _ = o.append('description: ' ~ cadena(c.descripcion)) -%}{%- endif -%}
+{%- if c.tipo == 'texto' -%}
+  {%- if not respuesta -%}{%- set _ = o.append('minLength: ' ~ c.min) -%}{%- endif -%}
+  {%- set _ = o.append('maxLength: ' ~ c.max) -%}
+  {%- if not respuesta -%}{%- set _ = o.append('pattern: PATRON_SIN_CONTROL') -%}{%- endif -%}
+{%- elif c.tipo == 'correo' -%}
+  {%- set _ = o.append("format: 'email'") -%}{%- set _ = o.append('maxLength: 254') -%}
+{%- elif c.tipo == 'entero' -%}
+  {%- set _ = o.append("type: 'integer'") -%}{%- set _ = o.append('minimum: ' ~ c.min) -%}{%- set _ = o.append('maximum: ' ~ c.max) -%}
+{%- elif c.tipo == 'decimal' -%}
+  {%- set _ = o.append("type: 'number'") -%}{%- set _ = o.append('minimum: ' ~ c.min) -%}{%- set _ = o.append('maximum: ' ~ c.max) -%}
+{%- elif c.tipo == 'booleano' -%}
+  {%- set _ = o.append("type: 'boolean'") -%}
+{%- elif c.tipo == 'fecha' -%}
+  {%- set _ = o.append("format: 'date'") -%}{%- set _ = o.append('maxLength: 10') -%}
+{%- elif c.tipo == 'fecha_hora' -%}
+  {%- set _ = o.append("format: 'date-time'") -%}{%- set _ = o.append('maxLength: 30') -%}
+{%- elif c.tipo in ['uuid', 'referencia'] -%}
+  {%- set _ = o.append("format: 'uuid'") -%}{%- set _ = o.append('maxLength: 36') -%}
+{%- elif c.tipo == 'enumeracion' -%}
+  {%- set _ = o.append('enum: ' ~ lista(c.valores)) -%}
+{%- endif -%}
+{{ o | join(', ') }}
+{%- endmacro -%}
+
+{#- Decoradores de class-validator (y de transformación) de un campo del DTO de entrada. -#}
+{%- macro validadores(c, sangria='  ') -%}
+{%- if not c.requerido %}
+{{ sangria }}@IsOptional()
+{%- endif -%}
+{%- if c.tipo == 'texto' %}
+{{ sangria }}@Transform(limpiarTexto)
+{{ sangria }}@IsString()
+{{ sangria }}@MinLength({{ c.min }})
+{{ sangria }}@MaxLength({{ c.max }})
+{{ sangria }}@Matches(SIN_CONTROL, { message: MENSAJE_SIN_CONTROL })
+{%- elif c.tipo == 'correo' %}
+{{ sangria }}@Transform(normalizarCorreo)
+{{ sangria }}@IsEmail()
+{{ sangria }}@MaxLength(254)
+{%- elif c.tipo == 'entero' %}
+{{ sangria }}@IsInt()
+{{ sangria }}@Min({{ c.min }})
+{{ sangria }}@Max({{ c.max }})
+{%- elif c.tipo == 'decimal' %}
+{{ sangria }}@IsNumber({ maxDecimalPlaces: {{ c.escala }}, allowNaN: false, allowInfinity: false })
+{{ sangria }}@Min({{ c.min }})
+{{ sangria }}@Max({{ c.max }})
+{%- elif c.tipo == 'booleano' %}
+{{ sangria }}@IsBoolean()
+{%- elif c.tipo == 'fecha' %}
+{{ sangria }}@Matches(FORMATO_FECHA, { message: MENSAJE_FECHA })
+{{ sangria }}@IsISO8601({ strict: true })
+{%- elif c.tipo == 'fecha_hora' %}
+{{ sangria }}@MaxLength(30)
+{{ sangria }}@IsISO8601({ strict: true, strictSeparator: true })
+{%- elif c.tipo in ['uuid', 'referencia'] %}
+{{ sangria }}@IsUUID()
+{%- elif c.tipo == 'enumeracion' %}
+{{ sangria }}@IsIn({{ lista(c.valores) }})
+{%- endif -%}
+{%- endmacro -%}
+
+{#- Decoradores de class-validator que usa una entidad, para importar solo esos. -#}
+{%- macro importaciones_validacion(campos) -%}
+{%- set n = [] -%}
+{%- for c in campos -%}
+  {%- if not c.requerido -%}{%- set _ = n.append('IsOptional') -%}{%- endif -%}
+  {%- if c.tipo == 'texto' -%}{%- set _ = n.extend(['IsString', 'MinLength', 'MaxLength', 'Matches']) -%}
+  {%- elif c.tipo == 'correo' -%}{%- set _ = n.extend(['IsEmail', 'MaxLength']) -%}
+  {%- elif c.tipo == 'entero' -%}{%- set _ = n.extend(['IsInt', 'Min', 'Max']) -%}
+  {%- elif c.tipo == 'decimal' -%}{%- set _ = n.extend(['IsNumber', 'Min', 'Max']) -%}
+  {%- elif c.tipo == 'booleano' -%}{%- set _ = n.append('IsBoolean') -%}
+  {%- elif c.tipo == 'fecha' -%}{%- set _ = n.extend(['Matches', 'IsISO8601']) -%}
+  {%- elif c.tipo == 'fecha_hora' -%}{%- set _ = n.extend(['MaxLength', 'IsISO8601']) -%}
+  {%- elif c.tipo in ['uuid', 'referencia'] -%}{%- set _ = n.append('IsUUID') -%}
+  {%- elif c.tipo == 'enumeracion' -%}{%- set _ = n.append('IsIn') -%}
+  {%- endif -%}
+{%- endfor -%}
+{{ n | unique | sort | join(', ') }}
+{%- endmacro -%}
+
+{#- Utilidades de src/comun/validacion.ts que usa una entidad. -#}
+{%- macro importaciones_comunes(campos) -%}
+{%- set n = [] -%}
+{%- for c in campos -%}
+  {%- if c.tipo == 'texto' -%}{%- set _ = n.extend(['limpiarTexto', 'SIN_CONTROL', 'MENSAJE_SIN_CONTROL', 'PATRON_SIN_CONTROL']) -%}
+  {%- elif c.tipo == 'correo' -%}{%- set _ = n.append('normalizarCorreo') -%}
+  {%- elif c.tipo == 'fecha' -%}{%- set _ = n.extend(['FORMATO_FECHA', 'MENSAJE_FECHA']) -%}
+  {%- endif -%}
+{%- endfor -%}
+{{ n | unique | sort | join(', ') }}
+{%- endmacro -%}

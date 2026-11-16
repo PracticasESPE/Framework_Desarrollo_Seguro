@@ -1,0 +1,41 @@
+# Servicio {{ servicio }}
+
+{% if descripcion %}{{ descripcion }}
+
+{% endif -%}
+Generado por la plantilla `microservicio_nestjs` del Framework de Desarrollo Seguro a partir de
+`arquitectura.json`. Base de datos propia: `{{ base_datos }}`.
+
+## Entidades
+
+| Entidad | Tabla | Campos |
+|---|---|---|
+{% for e in modelo -%}
+| `{{ e.clase }}` | `{{ e.nombre }}` | {% for c in e.campos %}`{{ c.propiedad }}` ({{ c.tipo }}{{ '' if c.requerido else ', opcional' }}){{ ', ' if not loop.last }}{% endfor %} |
+{% endfor %}
+Todas llevan además `id` (UUID), `creadoEn` y `actualizadoEn`.
+
+## Estructura
+
+| Archivo | Qué contiene |
+|---|---|
+| `prisma/schema.prisma` | Entidades y tipos de la base de datos |
+| `src/{{ servicio_archivo }}.module.ts` | Módulo del servicio |
+| `src/dto/crear-<entidad>.dto.ts` | Validación de la entrada (class-validator) y contrato OpenAPI |
+| `src/dto/actualizar-<entidad>.dto.ts` | Los mismos campos, todos opcionales |
+| `src/dto/<entidad>-respuesta.dto.ts` | Lo que devuelve la API |
+| `src/comun/validacion.ts` | Utilidades que comparten los DTO |
+
+## Compilar
+
+```bash
+cp .env.example .env            # y cambiar la contraseña
+npm install
+npm run prisma:generate
+npm run format                  # formato de Prettier
+npm run typecheck
+npm run build
+```
+
+`.npmrc` desactiva los scripts de instalación de las dependencias (cadena de suministro): por eso
+el cliente de Prisma se genera con `npm run prisma:generate`.

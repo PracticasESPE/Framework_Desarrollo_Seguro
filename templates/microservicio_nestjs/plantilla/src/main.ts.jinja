@@ -1,0 +1,25 @@
+import 'dotenv/config';
+import { ValidationPipe } from '@nestjs/common';
+import { NestFactory } from '@nestjs/core';
+import { {{ servicio_clase }}Module } from './{{ servicio_archivo }}.module';
+
+async function bootstrap(): Promise<void> {
+  const app = await NestFactory.create({{ servicio_clase }}Module);
+
+  // Coincide con la ruta /api/{{ servicio }} que usará el gateway Traefik.
+  app.setGlobalPrefix('api');
+
+  // Lista blanca: los DTO solo dejan pasar las propiedades que declaran, ya validadas.
+  // La parte 3 de la plantilla (#65) añade Helmet, el guard de Keycloak y el filtro de errores.
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true,
+      forbidNonWhitelisted: true,
+      transform: true,
+    }),
+  );
+
+  await app.listen(process.env.PORT ?? {{ puerto }});
+}
+
+void bootstrap();
