@@ -2,6 +2,8 @@
 .env
 .env.*
 !.env.example
+# Plantilla del .env.example que Copier genera en cada servicio (sin secretos)
+!.env.example.jinja
 *.pem
 *.key
 

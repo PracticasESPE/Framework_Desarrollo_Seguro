@@ -1,16 +1,20 @@
 """Pruebas de la plantilla Copier del microservicio NestJS.
 
 Parte 1 (#61): módulo, entidades Prisma y DTO. Parte 2 (#63): servicio, controlador y Swagger.
+Parte 3 (#65): guard de Keycloak, ValidationPipe, Helmet y filtro de errores.
 
 Generan servicios en carpetas temporales y comprueban el resultado como texto. Que el servicio
-generado compile (npm install, prisma generate y tsc) se comprueba aparte, porque necesita Node y
-descargar las dependencias: ver templates/microservicio_nestjs/README.md.
+generado compile (npm install, prisma generate y tsc) y que sus controles funcionen en ejecución
+(verificacion/probar-controles.mjs) se comprueba en el job `plantilla` del CI, porque necesita
+Node, PostgreSQL y descargar las dependencias: ver templates/microservicio_nestjs/README.md.
 """
 
 from __future__ import annotations
 
 import copy
 import re
+import shutil
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -88,6 +92,10 @@ def test_genera_el_esqueleto_del_ejemplo(tmp_path: Path, ejemplo: dict):
         "src/pedido.service.ts",
         "src/pedidos.module.ts",
         "src/prisma.service.ts",
+        "src/seguridad/filtro-errores.ts",
+        "src/seguridad/http.ts",
+        "src/seguridad/jwt-auth.guard.ts",
+        "src/seguridad/validacion-global.ts",
         "tsconfig.build.json",
         "tsconfig.json",
     }
@@ -181,6 +189,10 @@ def _importados(texto: str) -> list[str]:
         "src/pedido.controller.ts",
         "src/linea-pedido.controller.ts",
         "src/pedidos.module.ts",
+        "src/main.ts",
+        "src/seguridad/filtro-errores.ts",
+        "src/seguridad/http.ts",
+        "src/seguridad/jwt-auth.guard.ts",
     ],
 )
 def test_cada_archivo_importa_solo_lo_que_usa(tmp_path: Path, ejemplo: dict, archivo: str):
@@ -238,16 +250,17 @@ def test_modulo_main_y_paquete_llevan_el_nombre_del_servicio(tmp_path: Path, eje
     modulo = _leer(carpeta, "src/pedidos.module.ts")
     assert "export class PedidosModule {}" in modulo
     assert "controllers: [PedidoController, LineaPedidoController]" in modulo
-    assert "providers: [PrismaService, PedidoService, LineaPedidoService]" in modulo
+    assert "    PrismaService,\n    PedidoService,\n    LineaPedidoService,\n" in modulo
     main = _leer(carpeta, "src/main.ts")
     assert "import { PedidosModule } from './pedidos.module';" in main
-    assert "whitelist: true" in main and "forbidNonWhitelisted: true" in main
     assert "configurarSwagger(app);" in main
     assert "process.env.PORT ?? 3002" in main
     paquete = _leer(carpeta, "package.json")
     assert '"name": "pedidos"' in paquete
     assert '"openapi": "node dist/openapi/generar-openapi.js"' in paquete
     assert '"@nestjs/testing"' in paquete
+    assert '"helmet": "^8.3.0"' in paquete
+    assert '"jose": "5.10.0"' in paquete  # la de usuarios; jose 6 solo se publica como ESM
     assert "DATABASE_URL=postgresql://pedidos:CAMBIAR@localhost:5432/pedidos_db" in _leer(
         carpeta, ".env.example"
     )
@@ -266,6 +279,7 @@ def test_un_servicio_con_guion_bajo(tmp_path: Path):
     )
     assert "@Controller('historia-clinica/nota')" in _leer(carpeta, "src/nota.controller.ts")
     assert "historia_clinica_db" in _leer(carpeta, ".env.example")
+    assert "KEYCLOAK_AUDIENCE=historia_clinica-api" in _leer(carpeta, ".env.example")
 
 
 # --- Parte 2: servicio, controlador y Swagger ---------------------------------------------------
@@ -383,7 +397,9 @@ def test_swagger_tiene_una_etiqueta_por_entidad(tmp_path: Path, ejemplo: dict):
     # El contrato del Gate 2 declara el servidor HTTPS; /docs llama a su propia dirección para
     # que «Try it out» funcione en local sin resolver pedidos.fw.local.
     assert ".addServer('https://pedidos.fw.local', 'Entorno local')" in configuracion
-    assert "SwaggerModule.setup('docs', app, { ...documento, servers: [servidor] });" in configuracion
+    assert (
+        "SwaggerModule.setup('docs', app, { ...documento, servers: [servidor] });" in configuracion
+    )
     assert "url: '/'" in configuracion
     generar = _leer(carpeta, "src/openapi/generar-openapi.ts")
     assert "Test.createTestingModule({ imports: [PedidosModule] })" in generar
@@ -608,3 +624,105 @@ def test_cli_explica_el_error_de_validacion(tmp_path: Path):
     assert resultado.exit_code == 1
     assert "tipo desconocido" in resultado.output
     assert not (tmp_path / "s").exists()
+
+
+# --- Parte 3: controles transversales -----------------------------------------------------------
+
+
+def test_los_controles_se_registran_en_el_modulo(tmp_path: Path, ejemplo: dict):
+    """En el módulo y no en main.ts: así también se aplican en las pruebas y en el contrato."""
+    modulo = _leer(_generar(tmp_path, ejemplo), "src/pedidos.module.ts")
+
+    assert "{ provide: APP_GUARD, useClass: JwtAuthGuard }" in modulo
+    assert "{ provide: APP_PIPE, useFactory: crearValidacionGlobal }" in modulo
+    assert "{ provide: APP_FILTER, useClass: FiltroErrores }" in modulo
+
+
+def test_main_falla_cerrado_y_aplica_los_controles_http(tmp_path: Path, ejemplo: dict):
+    main = _leer(_generar(tmp_path, ejemplo), "src/main.ts")
+
+    # Sin KEYCLOAK_ISSUER y KEYCLOAK_AUDIENCE no arranca, antes de crear la aplicación.
+    assert main.index("validarConfiguracionJwt();") < main.index("NestFactory.create")
+    # Sin el lector por defecto (formularios): solo el JSON con límite de configurarHttp.
+    assert "bodyParser: false" in main
+    # Helmet antes de las rutas y de Swagger.
+    assert main.index("configurarHttp(app);") < main.index("configurarSwagger(app);")
+    assert "new ValidationPipe" not in main  # lo registra el módulo
+
+
+def test_la_validacion_es_de_lista_blanca(tmp_path: Path, ejemplo: dict):
+    validacion = _leer(_generar(tmp_path, ejemplo), "src/seguridad/validacion-global.ts")
+
+    for opcion in ("whitelist: true", "forbidNonWhitelisted: true", "forbidUnknownValues: true"):
+        assert opcion in validacion
+    assert "validationError: { target: false, value: false }" in validacion
+
+
+def test_el_guard_fija_algoritmo_emisor_y_audiencia(tmp_path: Path, ejemplo: dict):
+    guard = _leer(_generar(tmp_path, ejemplo), "src/seguridad/jwt-auth.guard.ts")
+
+    assert "algorithms: ['RS256']" in guard  # sin alg=none ni confusión HS256/RS256
+    assert "issuer: opciones.emisor" in guard and "audience: opciones.audiencia" in guard
+    assert "throw new UnauthorizedException(TOKEN_INVALIDO)" in guard
+    assert "throw new ServiceUnavailableException(" in guard  # Keycloak caído: 503, no 401
+    # Se registra el código del error, nunca el token.
+    assert "Token rechazado: ${error.code}" in guard and "${token}" not in guard
+
+
+def test_las_cabeceras_de_la_api_son_estrictas(tmp_path: Path, ejemplo: dict):
+    http = _leer(_generar(tmp_path, ejemplo), "src/seguridad/http.ts")
+
+    assert "import helmet from 'helmet';" in http
+    assert """directives: { defaultSrc: ["'none'"], frameAncestors: ["'none'"] }""" in http
+    assert http.count("frameguard: { action: 'deny' }") == 2
+    assert "res.setHeader('Cache-Control', 'no-store');" in http
+    assert "app.disable('x-powered-by');" in http
+    assert "export const LIMITE_DEL_CUERPO = '100kb';" in http
+    assert "app.useBodyParser('json', { limit: LIMITE_DEL_CUERPO });" in http
+    # Los errores del lector de JSON no repiten el texto recibido.
+    assert "new BadRequestException('El cuerpo no es un JSON válido')" in http
+
+
+def test_el_filtro_de_errores_no_expone_detalles(tmp_path: Path, ejemplo: dict):
+    filtro = _leer(_generar(tmp_path, ejemplo), "src/seguridad/filtro-errores.ts")
+
+    assert "@Catch()\nexport class FiltroErrores implements ExceptionFilter" in filtro
+    assert "const MENSAJE_INTERNO = 'Error interno del servidor';" in filtro
+    assert "mensaje.startsWith('Cannot ')" in filtro  # el 404 del enrutador repite la ruta
+    assert "respuesta.setHeader('WWW-Authenticate', 'Bearer');" in filtro
+
+
+def test_el_contrato_declara_el_token_y_los_errores_comunes(tmp_path: Path, ejemplo: dict):
+    """Lo exigen las reglas OWASP del Gate 2: read/write-restricted y las respuestas 401 y 500."""
+    carpeta = _generar(tmp_path, ejemplo)
+    configuracion = _leer(carpeta, "src/openapi/configuracion.ts")
+    assert "scheme: 'bearer'" in configuracion and "bearerFormat: 'JWT'" in configuracion
+
+    for archivo in ("src/pedido.controller.ts", "src/linea-pedido.controller.ts"):
+        controlador = _leer(carpeta, archivo)
+        cabecera = controlador.split("export class")[0]
+        assert "@ApiBearerAuth('bearer')" in cabecera
+        assert "@ApiUnauthorizedResponse(" in cabecera
+        assert "@ApiInternalServerErrorResponse(" in cabecera
+        assert "@ApiServiceUnavailableResponse(" in cabecera
+        # Solo las operaciones con cuerpo (POST y PATCH) pueden dar 413 y 415.
+        assert controlador.count("@ApiPayloadTooLargeResponse(") == 2
+        assert controlador.count("@ApiUnsupportedMediaTypeResponse(") == 2
+
+
+def test_ningun_archivo_de_la_plantilla_lo_ignora_git():
+    """Un archivo ignorado existe en local pero falta en el CI (le pasó a .env.example.jinja)."""
+    git = shutil.which("git")
+    if git is None:
+        pytest.skip("git no está disponible")
+    raiz = RUTA_PLANTILLA.parents[1]
+    archivos = [p.relative_to(raiz).as_posix() for p in RUTA_PLANTILLA.rglob("*") if p.is_file()]
+    resultado = subprocess.run(  # noqa: S603 - argumentos fijos, sin shell
+        [git, "check-ignore", "--no-index", "--stdin"],
+        input="\n".join(archivos).encode("utf-8"),  # bytes: sin \r al final en Windows
+        capture_output=True,
+        cwd=raiz,
+        check=False,
+    )
+    ignorados = resultado.stdout.decode("utf-8").split()
+    assert ignorados == [], f"Archivos ignorados: {ignorados}"
