@@ -25,6 +25,11 @@ TRIVY_IMG=aquasec/trivy:0.71.1
 SYFT_IMG=anchore/syft:v1.54.1
 ZAP_IMG=zaproxy/zap-stable:2.17.0
 NUCLEI_IMG=projectdiscovery/nuclei:v3.11.1
+# Plantillas de Nuclei fijadas y descargadas antes del escaneo. Sin ellas, Nuclei las instala al
+# arrancar consultando la API de GitHub sin autenticar, que limita las peticiones por IP; en los
+# runners compartidos esa consulta falla a veces y el Gate 3 queda rechazado por herramienta caída.
+NUCLEI_PLANTILLAS=v10.5.2
+DIR_PLANTILLAS=.nuclei-templates
 HALLAZGO=10   # codigo de salida propio para "hay hallazgos"
 COMPOSE_DAST=docker-compose.dast.yml
 RED_DAST=framework-dast
@@ -172,13 +177,29 @@ escanear_zap() {
   return "$codigo"
 }
 
+# Clona la versión fijada de las plantillas; si ya está en la caché local, no la descarga otra vez.
+descargar_plantillas_nuclei() {
+  if [ "$(git -C "$DIR_PLANTILLAS" describe --tags --exact-match 2>/dev/null)" = "$NUCLEI_PLANTILLAS" ]; then
+    return 0
+  fi
+  rm -rf "$DIR_PLANTILLAS"
+  git -c advice.detachedHead=false clone --quiet --depth 1 --branch "$NUCLEI_PLANTILLAS" \
+    https://github.com/projectdiscovery/nuclei-templates.git "$DIR_PLANTILLAS"
+}
+
 # Devuelve 0 sin hallazgos, $HALLAZGO con severidad alta o crítica, otro valor si falla.
 escanear_nuclei() {
   local token codigo graves
   token=$(obtener_token) || return 2
+  # Las plantillas se montan de solo lectura en la ruta por defecto, junto con su lista de
+  # exclusiones (.nuclei-ignore: dos, bruteforce, fuzz...), igual que si Nuclei las hubiera
+  # instalado. -duc: sin consultar actualizaciones en GitHub durante el escaneo.
   # -nmhe: por defecto, tras 30 errores Nuclei abandona el objetivo y aun así termina con
   # "0 matches" y código 0, como si hubiera escaneado todo.
-  timeout 6m docker run --rm --network "$RED_DAST" -v "$PWD/$DIR_DAST:/out" "$NUCLEI_IMG" \
+  timeout 6m docker run --rm --network "$RED_DAST" -v "$PWD/$DIR_DAST:/out" \
+    -v "$PWD/$DIR_PLANTILLAS:/root/nuclei-templates:ro" \
+    -v "$PWD/$DIR_PLANTILLAS/.nuclei-ignore:/root/.config/nuclei/.nuclei-ignore:ro" \
+    "$NUCLEI_IMG" -duc \
     -u "$OBJETIVO" -H "Authorization: Bearer $token" \
     -tags cve,misconfig,exposure,panel -severity low,medium,high,critical \
     -ni -nmhe -rl 100 -timeout 10 -retries 1 -stats -si 30 \
@@ -235,6 +256,13 @@ for img in "$TRIVY_IMG" "$SYFT_IMG" "$ZAP_IMG" "$NUCLEI_IMG"; do
     FILAS+=("| descarga de $img | ERROR DE LA HERRAMIENTA | 3 |")
   fi
 done
+if reintentar descargar_plantillas_nuclei; then
+  echo "Plantillas de Nuclei $NUCLEI_PLANTILLAS en $DIR_PLANTILLAS"
+else
+  echo "::error::No se pudieron descargar las plantillas de Nuclei $NUCLEI_PLANTILLAS"
+  FALLOS=$((FALLOS+1))
+  FILAS+=("| Plantillas de Nuclei $NUCLEI_PLANTILLAS | ERROR DE LA HERRAMIENTA | 3 |")
+fi
 echo "--- Pruebas del conversor de ZAP a SARIF ---"
 ejecutar "Conversor ZAP a SARIF (pruebas)" 1 node --test dast/zap-a-sarif.test.mjs
 

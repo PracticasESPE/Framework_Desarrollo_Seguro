@@ -27,6 +27,27 @@ Un escaneo incompleto nunca cuenta como limpio. Por defecto, tras 30 errores Nuc
 objetivo y aun así termina con "0 matches"; por eso se ejecuta con `-nmhe`, y si abandona el objetivo
 de todos modos, el Gate da error.
 
+## Plantillas de Nuclei
+
+Nuclei no trae plantillas: si no las encuentra, las instala al arrancar consultando la API de GitHub
+sin autenticar, que limita las peticiones por IP. En los runners compartidos esa consulta fallaba
+a veces («no templates provided for scan»), y el Gate 3 quedaba rechazado por
+`gate3.herramienta_caida` aunque la API estuviera limpia (4 de 11 ejecuciones del 15 y 16/11).
+
+Por eso `scripts/gate3.sh` clona antes una versión fijada (`NUCLEI_PLANTILLAS`, hoy `v10.5.2`) en
+`.nuclei-templates/`, con dos reintentos, y la monta de solo lectura en el contenedor junto con su
+`.nuclei-ignore` (excluye `dos`, `bruteforce` y `fuzz`). Nuclei se ejecuta con `-duc`, sin consultar
+GitHub durante el escaneo. Ventajas:
+
+- El resultado es reproducible: la misma versión del servicio se analiza siempre con las mismas
+  plantillas, y un cambio de resultado se debe al código, no a una plantilla nueva.
+- Se ejecutan las mismas 5922 plantillas firmadas que con la instalación automática.
+- En local, la carpeta sirve de caché: solo se vuelve a clonar al cambiar la versión.
+
+Para actualizar las plantillas se cambia `NUCLEI_PLANTILLAS` por una versión publicada en
+https://github.com/projectdiscovery/nuclei-templates/releases, en un PR propio, igual que las
+imágenes de las herramientas.
+
 ## Reglas de ZAP (`zap-reglas.conf`)
 
 Sin este archivo, `zap-api-scan.py` usa la política `API-Minimal`: 23 reglas en unos 5 segundos. Al
