@@ -54,3 +54,6 @@ Thumbs.db
 
 # Caché local de Trivy (Gate 1)
 .trivy-cache/
+
+# Plantillas de Nuclei descargadas por el Gate 3
+.nuclei-templates/
