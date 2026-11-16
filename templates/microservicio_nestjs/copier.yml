@@ -1,0 +1,222 @@
+# Plantilla Copier del microservicio NestJS (fase 3, plan técnico 7.3).
+#
+# Genera el esqueleto determinista de un servicio de arquitectura.json: módulo, entidades Prisma y
+# DTO con class-validator (parte 1, #61). El servicio, el controlador, los controles transversales,
+# el Dockerfile y las pruebas llegan en las partes 2 a 4 (#63, #65 y #67).
+#
+# Los datos vendrán del LLM (a través del generador), así que se tratan como no confiables: cada
+# nombre que acaba en el código como identificador se valida aquí con una expresión regular, y los
+# textos libres (descripciones) solo se escriben escapados con `tojson`. La plantilla no declara
+# tareas, migraciones ni extensiones: se ejecuta sin `--trust`.
+
+_min_copier_version: "9.4.0"
+_subdirectory: plantilla
+_answers_file: .copier-answers.yml
+# Solo se copia plantilla/: copier.yml, las macros (_macros/), los ejemplos y el README de la
+# plantilla quedan fuera del servicio generado.
+
+servicio:
+  type: str
+  help: Nombre del servicio en arquitectura.json (minúsculas, p. ej. «pedidos»)
+  validator: >-
+    {% if not servicio | regex_search('^[a-z][a-z0-9_]{1,39}$') %}
+    El servicio debe ir en minúsculas, empezar por una letra y tener de 2 a 40 caracteres (a-z, 0-9, _)
+    {% endif %}
+
+descripcion:
+  type: str
+  default: ""
+  help: Responsabilidad del servicio, en una frase
+  validator: >-
+    {% if descripcion | length > 300 or descripcion | regex_search('[\x00-\x1f\x7f]') %}
+    La descripción admite hasta 300 caracteres y ningún salto de línea ni carácter de control
+    {% endif %}
+
+base_datos:
+  type: str
+  default: "{{ servicio }}_db"
+  help: Base de datos propia del servicio (patrón Database per Service)
+  validator: >-
+    {% if not base_datos | regex_search('^[a-z][a-z0-9_]{1,39}$') %}
+    La base de datos debe ir en minúsculas, empezar por una letra y tener de 2 a 40 caracteres
+    {% endif %}
+
+puerto:
+  type: int
+  default: 3000
+  help: Puerto HTTP del servicio
+  validator: >-
+    {% if puerto < 1024 or puerto > 65535 %}El puerto debe estar entre 1024 y 65535{% endif %}
+
+entidades:
+  type: yaml
+  multiline: true
+  help: >-
+    Entidades del servicio, cada una con «nombre» (snake_case), «descripcion» opcional y «campos».
+    Cada campo lleva «nombre» (snake_case) y «tipo» (texto, correo, entero, decimal, booleano,
+    fecha, fecha_hora, uuid, enumeracion o referencia), y según el tipo «requerido», «unico»,
+    «min», «max», «escala», «valores», «entidad» y «descripcion». Ver README.md.
+  validator: >-
+    {%- set ns = namespace(error="") -%}
+    {%- set identificador = '^[a-z][a-z0-9_]{1,39}$' -%}
+    {%- set tipos = ['texto', 'correo', 'entero', 'decimal', 'booleano', 'fecha', 'fecha_hora',
+                     'uuid', 'enumeracion', 'referencia'] -%}
+    {%- set claves_entidad = ['nombre', 'descripcion', 'campos'] -%}
+    {%- set claves_campo = ['nombre', 'tipo', 'descripcion', 'requerido', 'unico', 'min', 'max',
+                            'escala', 'valores', 'entidad'] -%}
+    {%- set reservados = ['id', 'creado_en', 'actualizado_en'] -%}
+    {%- if entidades is not sequence or entidades is string or entidades is mapping
+           or entidades | length == 0 or entidades | length > 20 -%}
+      {%- set ns.error = "entidades debe ser una lista de 1 a 20 entidades" -%}
+    {%- else -%}
+      {%- set nombres = [] -%}
+      {%- for e in entidades if not ns.error -%}
+        {%- if e is not mapping or e.nombre is not string
+               or not e.nombre | regex_search(identificador) -%}
+          {%- set ns.error = "Entidad " ~ loop.index ~ ": el nombre debe ir en snake_case (a-z, 0-9, _), de 2 a 40 caracteres" -%}
+        {%- else -%}
+          {%- set _ = nombres.append(e.nombre) -%}
+        {%- endif -%}
+      {%- endfor -%}
+      {%- if not ns.error and nombres | unique | list | length != nombres | length -%}
+        {%- set ns.error = "Hay entidades con el mismo nombre" -%}
+      {%- endif -%}
+      {%- for e in entidades if not ns.error -%}
+        {%- set extra = e.keys() | reject('in', claves_entidad) | list -%}
+        {%- if extra -%}
+          {%- set ns.error = "Entidad " ~ e.nombre ~ ": claves desconocidas " ~ extra | join(', ') -%}
+        {%- elif e.descripcion is defined and (e.descripcion is not string
+                 or e.descripcion | length > 300
+                 or e.descripcion | regex_search('[\x00-\x1f\x7f]')) -%}
+          {%- set ns.error = "Entidad " ~ e.nombre ~ ": la descripción admite hasta 300 caracteres y ningún salto de línea" -%}
+        {%- elif e.campos is not sequence or e.campos is string or e.campos is mapping
+                 or e.campos | length == 0 or e.campos | length > 50 -%}
+          {%- set ns.error = "Entidad " ~ e.nombre ~ ": campos debe ser una lista de 1 a 50 campos" -%}
+        {%- else -%}
+          {%- set campos = [] -%}
+          {%- for c in e.campos if not ns.error -%}
+            {%- set donde = "Entidad " ~ e.nombre ~ ", campo " ~ loop.index -%}
+            {%- if c is not mapping or c.nombre is not string
+                   or not c.nombre | regex_search(identificador) -%}
+              {%- set ns.error = donde ~ ": el nombre debe ir en snake_case (a-z, 0-9, _), de 2 a 40 caracteres" -%}
+            {%- elif c.nombre in reservados -%}
+              {%- set ns.error = donde ~ ": «" ~ c.nombre ~ "» lo añade la plantilla en todas las entidades" -%}
+            {%- elif c.keys() | reject('in', claves_campo) | list -%}
+              {%- set ns.error = donde ~ ": claves desconocidas " ~ c.keys() | reject('in', claves_campo) | join(', ') -%}
+            {%- elif c.tipo not in tipos -%}
+              {%- set ns.error = donde ~ ": tipo desconocido; usa " ~ tipos | join(', ') -%}
+            {%- elif (c.requerido is defined and c.requerido is not boolean)
+                     or (c.unico is defined and c.unico is not boolean) -%}
+              {%- set ns.error = donde ~ ": requerido y unico deben ser true o false" -%}
+            {%- elif (c.min is defined and (c.min is not number or c.min is boolean))
+                     or (c.max is defined and (c.max is not number or c.max is boolean)) -%}
+              {%- set ns.error = donde ~ ": min y max deben ser números" -%}
+            {%- elif c.min is defined and c.max is defined and c.min > c.max -%}
+              {%- set ns.error = donde ~ ": min no puede ser mayor que max" -%}
+            {%- elif c.tipo in ['texto'] and ((c.min is defined and (c.min is not integer or c.min < 0))
+                     or (c.max is defined and (c.max is not integer or c.max < 1 or c.max > 10000))) -%}
+              {%- set ns.error = donde ~ ": en un texto, min y max son longitudes enteras (max de 1 a 10000)" -%}
+            {%- elif c.tipo == 'entero' and ((c.min is defined and (c.min is not integer or c.min < -2147483648))
+                     or (c.max is defined and (c.max is not integer or c.max > 2147483647))) -%}
+              {%- set ns.error = donde ~ ": un entero va de -2147483648 a 2147483647" -%}
+            {%- elif c.escala is defined and (c.tipo != 'decimal' or c.escala is not integer
+                     or c.escala < 0 or c.escala > 6) -%}
+              {%- set ns.error = donde ~ ": escala solo vale para decimal, de 0 a 6" -%}
+            {%- elif (c.min is defined or c.max is defined)
+                     and c.tipo not in ['texto', 'entero', 'decimal'] -%}
+              {%- set ns.error = donde ~ ": min y max solo valen para texto, entero y decimal" -%}
+            {%- elif c.tipo == 'enumeracion' and (c.valores is not sequence or c.valores is string
+                     or c.valores | length == 0 or c.valores | length > 30
+                     or c.valores | reject('string') | list
+                     or c.valores | map('regex_search', '^[a-z][a-z0-9_]{0,39}$') | reject | list
+                     or c.valores | unique | list | length != c.valores | length) -%}
+              {%- set ns.error = donde ~ ": una enumeración necesita de 1 a 30 valores distintos en snake_case" -%}
+            {%- elif c.valores is defined and c.tipo != 'enumeracion' -%}
+              {%- set ns.error = donde ~ ": valores solo vale para enumeracion" -%}
+            {%- elif c.tipo == 'referencia' and (c.entidad is not defined or c.entidad not in nombres
+                     or not c.nombre.endswith('_id')) -%}
+              {%- set ns.error = donde ~ ": una referencia se llama «<algo>_id» y su «entidad» debe ser otra entidad de este servicio" -%}
+            {%- elif c.entidad is defined and c.tipo != 'referencia' -%}
+              {%- set ns.error = donde ~ ": entidad solo vale para referencia" -%}
+            {%- elif c.descripcion is defined and (c.descripcion is not string
+                     or c.descripcion | length > 300
+                     or c.descripcion | regex_search('[\x00-\x1f\x7f]')) -%}
+              {%- set ns.error = donde ~ ": la descripción admite hasta 300 caracteres y ningún salto de línea" -%}
+            {%- else -%}
+              {%- set _ = campos.append(c.nombre) -%}
+            {%- endif -%}
+          {%- endfor -%}
+          {%- if not ns.error and campos | unique | list | length != campos | length -%}
+            {%- set ns.error = "Entidad " ~ e.nombre ~ ": hay campos con el mismo nombre" -%}
+          {%- endif -%}
+        {%- endif -%}
+      {%- endfor -%}
+    {%- endif -%}
+    {{- ns.error -}}
+
+# --- Calculado: no se pregunta ni se guarda en las respuestas ------------------------------------
+#
+# Las entidades con los nombres derivados (clase, archivo, propiedad) y los valores por defecto ya
+# aplicados, para que los archivos de la plantilla no repitan esta lógica. Los nombres de archivo
+# no admiten filtros de Jinja en Windows (el carácter «|»), así que se calculan aquí.
+
+servicio_clase:
+  type: str
+  when: false
+  default: "{{ servicio.split('_') | map('capitalize') | join }}"
+
+servicio_archivo:
+  type: str
+  when: false
+  default: "{{ servicio | replace('_', '-') }}"
+
+modelo:
+  type: json
+  when: false
+  default: >-
+    {%- macro pascal(texto) -%}{{ texto.split('_') | map('capitalize') | join }}{%- endmacro -%}
+    {%- macro camel(texto) -%}{%- set p = texto.split('_') -%}{{ p[0] ~ p[1:] | map('capitalize') | join }}{%- endmacro -%}
+    {%- set salida = [] -%}
+    {%- for e in entidades -%}
+      {%- set campos = [] -%}
+      {%- for c in e.campos -%}
+        {%- set campo = dict(
+              nombre=c.nombre, propiedad=camel(c.nombre), pascal=pascal(c.nombre), tipo=c.tipo,
+              requerido=c.get('requerido', true), unico=c.get('unico', false),
+              descripcion=c.get('descripcion', '')) -%}
+        {%- if c.tipo == 'texto' -%}
+          {%- set _ = campo.update(min=c.get('min', 1), max=c.get('max', 255)) -%}
+        {%- elif c.tipo == 'entero' -%}
+          {%- set _ = campo.update(min=c.get('min', 0), max=c.get('max', 2147483647)) -%}
+        {%- elif c.tipo == 'decimal' -%}
+          {%- set escala = c.get('escala', 2) -%}
+          {%- set minimo = c.get('min', 0) -%}
+          {%- set maximo = c.get('max', 9999999999.99) -%}
+          {%- set enteros = [minimo | abs | int | string | length, maximo | abs | int | string | length] | max -%}
+          {%- set _ = campo.update(min=minimo, max=maximo, escala=escala, precision=enteros + escala) -%}
+        {%- elif c.tipo == 'enumeracion' -%}
+          {%- set _ = campo.update(valores=c.valores, enum=pascal(e.nombre) ~ pascal(c.nombre)) -%}
+        {%- elif c.tipo == 'referencia' -%}
+          {%- set base = c.nombre[:-3] -%}
+          {%- set _ = campo.update(
+                entidad=c.entidad, entidad_clase=pascal(c.entidad), relacion=camel(base),
+                nombre_relacion=pascal(e.nombre) ~ pascal(base)) -%}
+        {%- endif -%}
+        {%- set _ = campos.append(campo) -%}
+      {%- endfor -%}
+      {%- set _ = salida.append(dict(
+            nombre=e.nombre, clase=pascal(e.nombre), archivo=e.nombre | replace('_', '-'),
+            propiedad=camel(e.nombre), descripcion=e.get('descripcion', ''), campos=campos,
+            inversas=[])) -%}
+    {%- endfor -%}
+    {#- Lado inverso de cada referencia: Prisma exige declarar la relación en las dos entidades. -#}
+    {%- for hijo in salida -%}
+      {%- for c in hijo.campos if c.tipo == 'referencia' -%}
+        {%- for padre in salida if padre.nombre == c.entidad -%}
+          {%- set _ = padre.inversas.append(dict(
+                propiedad=hijo.propiedad ~ 'Por' ~ c.relacion[:1] | upper ~ c.relacion[1:],
+                clase=hijo.clase, nombre_relacion=c.nombre_relacion)) -%}
+        {%- endfor -%}
+      {%- endfor -%}
+    {%- endfor -%}
+    {{- salida | tojson -}}

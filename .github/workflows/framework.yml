@@ -354,6 +354,52 @@ jobs:
         if: cancelled()
         run: uv run python -m orchestrator.notify.cli cancelado
 
+  # La plantilla de la fase 3 debe producir siempre un servicio que compile: si un cambio en ella
+  # rompe el TypeScript o el esquema Prisma, se detecta aquí y no al generar un sistema. Las
+  # validaciones de la especificación y el texto generado los cubre pytest en el pipeline.
+  plantilla:
+    name: Plantilla NestJS (servicio de ejemplo)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - name: Descargar el repositorio
+        uses: actions/checkout@v6
+
+      - name: Preparar uv
+        uses: astral-sh/setup-uv@v10.3.0
+
+      - name: Preparar Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+
+      # La misma versión de Copier que uv.lock; sin --trust: la plantilla no ejecuta nada.
+      - name: Generar el servicio de ejemplo (pedidos)
+        run: >-
+          uvx copier@9.19.1 copy --defaults
+          --data-file templates/microservicio_nestjs/ejemplos/pedidos.yml
+          templates/microservicio_nestjs salida/servicios/pedidos
+
+      - name: Instalar dependencias (sin scripts de instalación)
+        working-directory: salida/servicios/pedidos
+        run: npm install --ignore-scripts --no-audit --no-fund
+
+      - name: Esquema Prisma y cliente
+        working-directory: salida/servicios/pedidos
+        env:
+          DATABASE_URL: postgresql://ci:ci@localhost:5432/pedidos_db
+        run: |
+          npx prisma validate
+          npm run prisma:generate
+
+      - name: Compilación (tsc y nest build)
+        working-directory: salida/servicios/pedidos
+        run: |
+          npm run typecheck
+          npm run build
+
   # El dashboard es la interfaz del propio framework, no parte de lo que genera. Por eso no entra
   # en el Gate 1, cuyos SARIF alimentan la decisión de OPA y las métricas de cada ejecución, sino
   # que se revisa aquí con las mismas herramientas. Trivy fs y Gitleaks del Gate 1 ya cubren su

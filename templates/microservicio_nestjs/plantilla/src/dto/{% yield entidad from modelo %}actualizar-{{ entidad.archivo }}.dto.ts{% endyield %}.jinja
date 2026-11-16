@@ -1,0 +1,8 @@
+import { PartialType } from '@nestjs/swagger';
+import { Crear{{ entidad.clase }}Dto } from './crear-{{ entidad.archivo }}.dto';
+
+/**
+ * Datos para actualizar {{ entidad.clase }}: los mismos campos y validaciones que
+ * Crear{{ entidad.clase }}Dto, todos opcionales. Lo que no se envía no cambia.
+ */
+export class Actualizar{{ entidad.clase }}Dto extends PartialType(Crear{{ entidad.clase }}Dto) {}
