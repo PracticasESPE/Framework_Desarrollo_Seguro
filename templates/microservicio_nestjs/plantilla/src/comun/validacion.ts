@@ -23,3 +23,10 @@ export const limpiarTexto = ({ value }: { value: unknown }): unknown =>
 /** Un correo se compara siempre en minúsculas y sin espacios en los extremos. */
 export const normalizarCorreo = ({ value }: { value: unknown }): unknown =>
   typeof value === 'string' ? value.trim().toLowerCase() : value;
+
+/**
+ * Para @ValidateIf al actualizar: valida el campo solo si viene en la petición. A diferencia de
+ * @IsOptional, un null sí se valida (y se rechaza) en los campos obligatorios.
+ */
+export const seEnvio = (_objeto: object, valor: unknown): boolean =>
+  valor !== undefined;

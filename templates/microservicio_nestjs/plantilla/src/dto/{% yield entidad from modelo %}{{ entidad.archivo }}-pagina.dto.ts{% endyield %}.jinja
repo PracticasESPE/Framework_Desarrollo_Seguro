@@ -1,0 +1,27 @@
+import { ApiProperty } from '@nestjs/swagger';
+import { MAXIMO_POR_PAGINA, MAXIMO_DE_PAGINAS } from '../comun/paginacion.dto';
+import { {{ entidad.clase }}RespuestaDto } from './{{ entidad.archivo }}-respuesta.dto';
+
+/** Una página del listado de {{ entidad.clase }}. */
+export class {{ entidad.clase }}PaginaDto {
+  @ApiProperty({
+    type: [{{ entidad.clase }}RespuestaDto],
+    maxItems: MAXIMO_POR_PAGINA,
+  })
+  elementos!: {{ entidad.clase }}RespuestaDto[];
+
+  @ApiProperty({
+    type: 'integer',
+    format: 'int32',
+    minimum: 0,
+    maximum: 2147483647,
+    description: 'Total de registros, en todas las páginas',
+  })
+  total!: number;
+
+  @ApiProperty({ type: 'integer', format: 'int32', minimum: 1, maximum: MAXIMO_DE_PAGINAS })
+  pagina!: number;
+
+  @ApiProperty({ type: 'integer', format: 'int32', minimum: 1, maximum: MAXIMO_POR_PAGINA })
+  tamano!: number;
+}

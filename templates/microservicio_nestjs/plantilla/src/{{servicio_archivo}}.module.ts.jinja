@@ -1,13 +1,13 @@
 import { Module } from '@nestjs/common';
 import { PrismaService } from './prisma.service';
+{%- for e in modelo %}
+import { {{ e.clase }}Controller } from './{{ e.archivo }}.controller';
+import { {{ e.clase }}Service } from './{{ e.archivo }}.service';
+{%- endfor %}
 
-/**
- * Módulo del servicio {{ servicio }}.
- *
- * La parte 2 de la plantilla (#63) añade aquí el controlador y el servicio de cada entidad.
- */
+/** Módulo del servicio {{ servicio }}: un controlador y un servicio por entidad. */
 @Module({
-  providers: [PrismaService],
-  exports: [PrismaService],
+  controllers: [{% for e in modelo %}{{ e.clase }}Controller{{ ', ' if not loop.last }}{% endfor %}],
+  providers: [PrismaService, {% for e in modelo %}{{ e.clase }}Service{{ ', ' if not loop.last }}{% endfor %}],
 })
 export class {{ servicio_clase }}Module {}

@@ -1,12 +1,13 @@
 import 'dotenv/config';
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
+import { configurarSwagger } from './openapi/configuracion';
 import { {{ servicio_clase }}Module } from './{{ servicio_archivo }}.module';
 
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.create({{ servicio_clase }}Module);
 
-  // Coincide con la ruta /api/{{ servicio }} que usará el gateway Traefik.
+  // Coincide con la ruta /api/{{ servicio_archivo }} que usará el gateway Traefik.
   app.setGlobalPrefix('api');
 
   // Lista blanca: los DTO solo dejan pasar las propiedades que declaran, ya validadas.
@@ -18,6 +19,9 @@ async function bootstrap(): Promise<void> {
       transform: true,
     }),
   );
+
+  // Swagger en /docs con el mismo contrato que analiza el Gate 2 (Spectral).
+  configurarSwagger(app);
 
   await app.listen(process.env.PORT ?? {{ puerto }});
 }

@@ -400,6 +400,14 @@ jobs:
           npm run typecheck
           npm run build
 
+      # Arranca el módulo sin base de datos: un fallo de inyección de dependencias (un servicio o
+      # un controlador mal registrado) solo aparece aquí, no al compilar.
+      - name: Contrato OpenAPI del servicio generado
+        working-directory: salida/servicios/pedidos
+        run: |
+          npm run openapi -- openapi/pedidos.json
+          node -e "const d = require('./openapi/pedidos.json'); const n = Object.keys(d.paths).length; console.log(n + ' rutas'); if (n !== 4) process.exit(1);"
+
   # El dashboard es la interfaz del propio framework, no parte de lo que genera. Por eso no entra
   # en el Gate 1, cuyos SARIF alimentan la decisión de OPA y las métricas de cada ejecución, sino
   # que se revisa aquí con las mismas herramientas. Trivy fs y Gitleaks del Gate 1 ya cubren su
