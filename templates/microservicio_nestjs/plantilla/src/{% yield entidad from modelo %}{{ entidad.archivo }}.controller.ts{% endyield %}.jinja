@@ -33,18 +33,24 @@ import {
 } from '@nestjs/common';
 import {
   ApiBadRequestResponse,
+  ApiBearerAuth,
 {%- if conflicto_al_guardar or conflicto_al_eliminar %}
   ApiConflictResponse,
 {%- endif %}
   ApiCreatedResponse,
   ApiExtraModels,
+  ApiInternalServerErrorResponse,
   ApiNoContentResponse,
   ApiNotFoundResponse,
   ApiOkResponse,
   ApiOperation,
   ApiParam,
   ApiParamOptions,
+  ApiPayloadTooLargeResponse,
+  ApiServiceUnavailableResponse,
   ApiTags,
+  ApiUnauthorizedResponse,
+  ApiUnsupportedMediaTypeResponse,
 {%- if referencias %}
   getSchemaPath,
 {%- endif %}
@@ -55,6 +61,8 @@ import { Actualizar{{ entidad.clase }}Dto } from './dto/actualizar-{{ entidad.ar
 import { Crear{{ entidad.clase }}Dto } from './dto/crear-{{ entidad.archivo }}.dto';
 import { {{ entidad.clase }}PaginaDto } from './dto/{{ entidad.archivo }}-pagina.dto';
 import { {{ entidad.clase }}RespuestaDto } from './dto/{{ entidad.archivo }}-respuesta.dto';
+import { TOKEN_INVALIDO } from './seguridad/jwt-auth.guard';
+import { LIMITE_DEL_CUERPO } from './seguridad/http';
 import { {{ entidad.clase }}Service } from './{{ entidad.archivo }}.service';
 
 const PARAMETRO_ID: ApiParamOptions = {
@@ -66,9 +74,19 @@ const PARAMETRO_ID: ApiParamOptions = {
 const ID_INVALIDO = 'El id no es un UUID válido';
 const NO_ENCONTRADO = 'No existe ningún registro de {{ entidad.clase }} con ese id';
 
-/** Rutas de {{ entidad.clase }}: /api/{{ servicio_archivo }}/{{ entidad.archivo }}. */
+const CUERPO_GRANDE = `El cuerpo supera el máximo de ${LIMITE_DEL_CUERPO}`;
+const CUERPO_NO_JSON = 'El cuerpo debe enviarse como application/json';
+
+/**
+ * Rutas de {{ entidad.clase }}: /api/{{ servicio_archivo }}/{{ entidad.archivo }}. Todas exigen un token de Keycloak
+ * (guard global del módulo) y sus errores salen del filtro global, sin detalles internos.
+ */
 @ApiTags('{{ entidad.clase }}')
 @ApiExtraModels(ErrorRespuestaDto, ErrorValidacionDto)
+@ApiBearerAuth('bearer')
+@ApiUnauthorizedResponse({ description: TOKEN_INVALIDO, type: ErrorRespuestaDto })
+@ApiInternalServerErrorResponse({ description: 'Error interno, sin detalles', type: ErrorRespuestaDto })
+@ApiServiceUnavailableResponse({ description: 'Keycloak no responde', type: ErrorRespuestaDto })
 @Controller('{{ servicio_archivo }}/{{ entidad.archivo }}')
 export class {{ entidad.clase }}Controller {
   constructor(private readonly servicio: {{ entidad.clase }}Service) {}
@@ -86,6 +104,8 @@ export class {{ entidad.clase }}Controller {
     type: ErrorRespuestaDto,
   })
 {%- endif %}
+  @ApiPayloadTooLargeResponse({ description: CUERPO_GRANDE, type: ErrorRespuestaDto })
+  @ApiUnsupportedMediaTypeResponse({ description: CUERPO_NO_JSON, type: ErrorRespuestaDto })
   crear(@Body() datos: Crear{{ entidad.clase }}Dto): Promise<{{ entidad.clase }}RespuestaDto> {
     return this.servicio.crear(datos);
   }
@@ -128,6 +148,8 @@ export class {{ entidad.clase }}Controller {
     type: ErrorRespuestaDto,
   })
 {%- endif %}
+  @ApiPayloadTooLargeResponse({ description: CUERPO_GRANDE, type: ErrorRespuestaDto })
+  @ApiUnsupportedMediaTypeResponse({ description: CUERPO_NO_JSON, type: ErrorRespuestaDto })
   actualizar(
     @Param('id', new ParseUUIDPipe()) id: string,
     @Body() cambios: Actualizar{{ entidad.clase }}Dto,

@@ -26,6 +26,9 @@ Documentadas en Swagger, en `/docs`.
 {% endfor %}
 Los listados devuelven como mucho 100 registros por página (`?pagina=1&tamano=20`).
 
+Todas las rutas exigen un token de acceso de Keycloak (`Authorization: Bearer <token>`) con la
+audiencia `{{ servicio }}-api`. Los errores siempre tienen la forma `{statusCode, message, error}`.
+
 ## Estructura
 
 | Archivo | Qué contiene |
@@ -39,6 +42,7 @@ Los listados devuelven como mucho 100 registros por página (`?pagina=1&tamano=2
 | `src/dto/<entidad>-respuesta.dto.ts`, `<entidad>-pagina.dto.ts` | Lo que devuelve la API |
 | `src/openapi/` | Configuración de Swagger y generador del contrato (`npm run openapi`) |
 | `src/comun/` | Utilidades que comparten los DTO, los servicios y los controladores |
+| `src/seguridad/` | Guard de Keycloak, `ValidationPipe`, filtro de errores y cabeceras de seguridad (Helmet) |
 
 ## Compilar
 
@@ -56,7 +60,8 @@ el cliente de Prisma se genera con `npm run prisma:generate`.
 
 ## Ejecutar
 
-Con PostgreSQL en la dirección de `DATABASE_URL`:
+Con PostgreSQL en la dirección de `DATABASE_URL` y `KEYCLOAK_ISSUER` y `KEYCLOAK_AUDIENCE` en el
+`.env` (sin ellas el servicio no arranca):
 
 ```bash
 npm run prisma:push             # crea las tablas (en desarrollo; en producción, migraciones)

@@ -72,7 +72,9 @@ jobs:
         run: uv run python -m orchestrator.notify.cli inicio
 
       - name: Pruebas del motor (pytest, incluye integración con Neo4j)
+        # pipefail: sin él, el código de salida sería el de tee y una prueba fallida no pararía el job.
         run: |
+          set -o pipefail
           mkdir -p salida/pruebas
           uv run pytest -q --cov=orchestrator --cov-report=term \
             --cov-report=xml:salida/pruebas/cobertura.xml \
@@ -363,6 +365,21 @@ jobs:
     timeout-minutes: 15
     permissions:
       contents: read
+    # Base de datos del servicio de ejemplo para probar sus controles en ejecución.
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: ci
+          POSTGRES_PASSWORD: ci
+          POSTGRES_DB: pedidos_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ci -d pedidos_db"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     steps:
       - name: Descargar el repositorio
         uses: actions/checkout@v6
@@ -407,6 +424,23 @@ jobs:
         run: |
           npm run openapi -- openapi/pedidos.json
           node -e "const d = require('./openapi/pedidos.json'); const n = Object.keys(d.paths).length; console.log(n + ' rutas'); if (n !== 4) process.exit(1);"
+
+      # Arranca el servicio con un Keycloak simulado (claves y JWKS propios) y comprueba las
+      # cabeceras de Helmet, el guard, el ValidationPipe y el filtro de errores.
+      - name: Controles transversales (cabeceras, token y errores)
+        working-directory: salida/servicios/pedidos
+        env:
+          DATABASE_URL: postgresql://ci:ci@localhost:5432/pedidos_db
+        run: |
+          set -o pipefail
+          npm run prisma:push
+          node ../../../templates/microservicio_nestjs/verificacion/probar-controles.mjs | tee controles.txt
+          {
+            echo "### Controles transversales del servicio generado"
+            echo '```'
+            cat controles.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
 
   # El dashboard es la interfaz del propio framework, no parte de lo que genera. Por eso no entra
   # en el Gate 1, cuyos SARIF alimentan la decisión de OPA y las métricas de cada ejecución, sino
