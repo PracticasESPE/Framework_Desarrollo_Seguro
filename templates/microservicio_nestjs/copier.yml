@@ -65,6 +65,9 @@ entidades:
     {%- set claves_campo = ['nombre', 'tipo', 'descripcion', 'requerido', 'unico', 'min', 'max',
                             'escala', 'valores', 'entidad'] -%}
     {%- set reservados = ['id', 'creado_en', 'actualizado_en'] -%}
+    {#- Entidades cuyas clases chocarían con las de la plantilla (PrismaService, PaginacionDto…). -#}
+    {%- set entidades_reservadas = ['prisma', 'prisma_client', 'paginacion', 'error_respuesta',
+                                    'error_validacion', 'app', 'main'] -%}
     {%- if entidades is not sequence or entidades is string or entidades is mapping
            or entidades | length == 0 or entidades | length > 20 -%}
       {%- set ns.error = "entidades debe ser una lista de 1 a 20 entidades" -%}
@@ -74,6 +77,8 @@ entidades:
         {%- if e is not mapping or e.nombre is not string
                or not e.nombre | regex_search(identificador) -%}
           {%- set ns.error = "Entidad " ~ loop.index ~ ": el nombre debe ir en snake_case (a-z, 0-9, _), de 2 a 40 caracteres" -%}
+        {%- elif e.nombre in entidades_reservadas -%}
+          {%- set ns.error = "Entidad " ~ e.nombre ~ ": el nombre está reservado por la plantilla" -%}
         {%- else -%}
           {%- set _ = nombres.append(e.nombre) -%}
         {%- endif -%}

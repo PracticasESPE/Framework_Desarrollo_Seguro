@@ -42,18 +42,20 @@
 {%- endif -%}
 {%- endmacro -%}
 
-{#- Opciones de @ApiProperty: el contrato OpenAPI, con los mismos límites que la validación. -#}
+{#- Opciones de @ApiProperty: el contrato OpenAPI, con los mismos límites que la validación.
+    En la entrada, un campo opcional admite null (se guarda vacío). -#}
 {%- macro swagger(c, respuesta=false) -%}
 {%- set o = [] -%}
 {%- if c.descripcion -%}{%- set _ = o.append('description: ' ~ cadena(c.descripcion)) -%}{%- endif -%}
+{%- if not respuesta and not c.requerido -%}{%- set _ = o.append('nullable: true') -%}{%- endif -%}
 {%- if c.tipo == 'texto' -%}
   {%- if not respuesta -%}{%- set _ = o.append('minLength: ' ~ c.min) -%}{%- endif -%}
   {%- set _ = o.append('maxLength: ' ~ c.max) -%}
-  {%- if not respuesta -%}{%- set _ = o.append('pattern: PATRON_SIN_CONTROL') -%}{%- endif -%}
+  {%- set _ = o.append('pattern: PATRON_SIN_CONTROL') -%}
 {%- elif c.tipo == 'correo' -%}
   {%- set _ = o.append("format: 'email'") -%}{%- set _ = o.append('maxLength: 254') -%}
 {%- elif c.tipo == 'entero' -%}
-  {%- set _ = o.append("type: 'integer'") -%}{%- set _ = o.append('minimum: ' ~ c.min) -%}{%- set _ = o.append('maximum: ' ~ c.max) -%}
+  {%- set _ = o.append("type: 'integer'") -%}{%- set _ = o.append("format: 'int32'") -%}{%- set _ = o.append('minimum: ' ~ c.min) -%}{%- set _ = o.append('maximum: ' ~ c.max) -%}
 {%- elif c.tipo == 'decimal' -%}
   {%- set _ = o.append("type: 'number'") -%}{%- set _ = o.append('minimum: ' ~ c.min) -%}{%- set _ = o.append('maximum: ' ~ c.max) -%}
 {%- elif c.tipo == 'booleano' -%}
@@ -70,10 +72,16 @@
 {{ o | join(', ') }}
 {%- endmacro -%}
 
-{#- Decoradores de class-validator (y de transformación) de un campo del DTO de entrada. -#}
-{%- macro validadores(c, sangria='  ') -%}
+{#- Decoradores de class-validator (y de transformación) de un campo del DTO de entrada.
+
+    Al actualizar, todos los campos se pueden omitir, pero un campo obligatorio no puede llegar
+    como null: @IsOptional lo dejaría pasar y la base respondería con un error 500. Por eso se usa
+    @ValidateIf(seEnvio), que solo se salta la validación si el campo no viene. -#}
+{%- macro validadores(c, sangria='  ', actualizar=false) -%}
 {%- if not c.requerido %}
 {{ sangria }}@IsOptional()
+{%- elif actualizar %}
+{{ sangria }}@ValidateIf(seEnvio)
 {%- endif -%}
 {%- if c.tipo == 'texto' %}
 {{ sangria }}@Transform(limpiarTexto)
@@ -109,10 +117,11 @@
 {%- endmacro -%}
 
 {#- Decoradores de class-validator que usa una entidad, para importar solo esos. -#}
-{%- macro importaciones_validacion(campos) -%}
+{%- macro importaciones_validacion(campos, actualizar=false) -%}
 {%- set n = [] -%}
 {%- for c in campos -%}
-  {%- if not c.requerido -%}{%- set _ = n.append('IsOptional') -%}{%- endif -%}
+  {%- if not c.requerido -%}{%- set _ = n.append('IsOptional') -%}
+  {%- elif actualizar -%}{%- set _ = n.append('ValidateIf') -%}{%- endif -%}
   {%- if c.tipo == 'texto' -%}{%- set _ = n.extend(['IsString', 'MinLength', 'MaxLength', 'Matches']) -%}
   {%- elif c.tipo == 'correo' -%}{%- set _ = n.extend(['IsEmail', 'MaxLength']) -%}
   {%- elif c.tipo == 'entero' -%}{%- set _ = n.extend(['IsInt', 'Min', 'Max']) -%}
@@ -128,9 +137,10 @@
 {%- endmacro -%}
 
 {#- Utilidades de src/comun/validacion.ts que usa una entidad. -#}
-{%- macro importaciones_comunes(campos) -%}
+{%- macro importaciones_comunes(campos, actualizar=false) -%}
 {%- set n = [] -%}
 {%- for c in campos -%}
+  {%- if actualizar and c.requerido -%}{%- set _ = n.append('seEnvio') -%}{%- endif -%}
   {%- if c.tipo == 'texto' -%}{%- set _ = n.extend(['limpiarTexto', 'SIN_CONTROL', 'MENSAJE_SIN_CONTROL', 'PATRON_SIN_CONTROL']) -%}
   {%- elif c.tipo == 'correo' -%}{%- set _ = n.append('normalizarCorreo') -%}
   {%- elif c.tipo == 'fecha' -%}{%- set _ = n.extend(['FORMATO_FECHA', 'MENSAJE_FECHA']) -%}

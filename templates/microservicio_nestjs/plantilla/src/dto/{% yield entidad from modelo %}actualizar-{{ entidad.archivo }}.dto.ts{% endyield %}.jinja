@@ -1,8 +1,28 @@
-import { PartialType } from '@nestjs/swagger';
-import { Crear{{ entidad.clase }}Dto } from './crear-{{ entidad.archivo }}.dto';
+{%- from '_macros/tipos.jinja' import swagger, ts_tipo, validadores, importaciones_validacion, importaciones_comunes -%}
+{%- set con_transformacion = entidad.campos | selectattr('tipo', 'in', ['texto', 'correo']) | list -%}
+{%- set comunes = importaciones_comunes(entidad.campos, actualizar=true) -%}
+import { ApiPropertyOptional } from '@nestjs/swagger';
+{%- if con_transformacion %}
+import { Transform } from 'class-transformer';
+{%- endif %}
+import { {{ importaciones_validacion(entidad.campos, actualizar=true) }} } from 'class-validator';
+{%- if comunes %}
+import { {{ comunes }} } from '../comun/validacion';
+{%- endif %}
 
 /**
- * Datos para actualizar {{ entidad.clase }}: los mismos campos y validaciones que
- * Crear{{ entidad.clase }}Dto, todos opcionales. Lo que no se envía no cambia.
+ * Cambios de {{ entidad.clase }}: los mismos campos y límites que Crear{{ entidad.clase }}Dto, todos
+ * opcionales. Lo que no se envía no cambia; un campo opcional enviado como null se vacía, y uno
+ * obligatorio no admite null.
  */
-export class Actualizar{{ entidad.clase }}Dto extends PartialType(Crear{{ entidad.clase }}Dto) {}
+export class Actualizar{{ entidad.clase }}Dto {
+{%- for c in entidad.campos %}
+  @ApiPropertyOptional({ {{ swagger(c) }} })
+  {%- for linea in validadores(c, actualizar=true).splitlines() if linea.strip() %}
+{{ linea }}
+  {%- endfor %}
+  {{ c.propiedad }}?: {{ ts_tipo(c) }};
+{%- if not loop.last %}
+{% endif %}
+{%- endfor %}
+}

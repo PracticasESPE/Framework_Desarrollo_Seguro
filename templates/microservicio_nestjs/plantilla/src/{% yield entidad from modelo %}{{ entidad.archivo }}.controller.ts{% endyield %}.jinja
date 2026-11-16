@@ -1,0 +1,154 @@
+{%- from '_macros/tipos.jinja' import cadena -%}
+{%- set unicos = entidad.campos | selectattr('unico') | list -%}
+{%- set referencias = entidad.campos | selectattr('tipo', 'equalto', 'referencia') | list -%}
+{%- set conflicto_al_guardar = unicos | length > 0 -%}
+{%- set conflicto_al_eliminar = entidad.inversas | length > 0 -%}
+{%- macro error_400(descripcion) -%}
+{%- if referencias -%}
+  @ApiBadRequestResponse({
+    description: {{ cadena(descripcion ~ ', o una referencia a otra entidad que no existe') }},
+    schema: {
+      oneOf: [
+        { $ref: getSchemaPath(ErrorValidacionDto) },
+        { $ref: getSchemaPath(ErrorRespuestaDto) },
+      ],
+    },
+  })
+{%- else -%}
+  @ApiBadRequestResponse({ description: {{ cadena(descripcion) }}, type: ErrorValidacionDto })
+{%- endif -%}
+{%- endmacro -%}
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Param,
+  ParseUUIDPipe,
+  Patch,
+  Post,
+  Query,
+} from '@nestjs/common';
+import {
+  ApiBadRequestResponse,
+{%- if conflicto_al_guardar or conflicto_al_eliminar %}
+  ApiConflictResponse,
+{%- endif %}
+  ApiCreatedResponse,
+  ApiExtraModels,
+  ApiNoContentResponse,
+  ApiNotFoundResponse,
+  ApiOkResponse,
+  ApiOperation,
+  ApiParam,
+  ApiParamOptions,
+  ApiTags,
+{%- if referencias %}
+  getSchemaPath,
+{%- endif %}
+} from '@nestjs/swagger';
+import { ErrorRespuestaDto, ErrorValidacionDto } from './comun/error-respuesta.dto';
+import { MAXIMO_POR_PAGINA, PaginacionDto } from './comun/paginacion.dto';
+import { Actualizar{{ entidad.clase }}Dto } from './dto/actualizar-{{ entidad.archivo }}.dto';
+import { Crear{{ entidad.clase }}Dto } from './dto/crear-{{ entidad.archivo }}.dto';
+import { {{ entidad.clase }}PaginaDto } from './dto/{{ entidad.archivo }}-pagina.dto';
+import { {{ entidad.clase }}RespuestaDto } from './dto/{{ entidad.archivo }}-respuesta.dto';
+import { {{ entidad.clase }}Service } from './{{ entidad.archivo }}.service';
+
+const PARAMETRO_ID: ApiParamOptions = {
+  name: 'id',
+  description: 'Identificador de {{ entidad.clase }}',
+  schema: { type: 'string', format: 'uuid', maxLength: 36 },
+};
+
+const ID_INVALIDO = 'El id no es un UUID válido';
+const NO_ENCONTRADO = 'No existe ningún registro de {{ entidad.clase }} con ese id';
+
+/** Rutas de {{ entidad.clase }}: /api/{{ servicio_archivo }}/{{ entidad.archivo }}. */
+@ApiTags('{{ entidad.clase }}')
+@ApiExtraModels(ErrorRespuestaDto, ErrorValidacionDto)
+@Controller('{{ servicio_archivo }}/{{ entidad.archivo }}')
+export class {{ entidad.clase }}Controller {
+  constructor(private readonly servicio: {{ entidad.clase }}Service) {}
+
+  @Post()
+  @ApiOperation({
+    summary: 'Crear {{ entidad.clase }}',
+    description: {{ cadena(((entidad.descripcion ~ '. ') if entidad.descripcion else '') ~ 'Valida cada campo y devuelve el registro creado.') }},
+  })
+  @ApiCreatedResponse({ description: 'Registro creado', type: {{ entidad.clase }}RespuestaDto })
+  {{ error_400('Datos inválidos: un mensaje por cada regla incumplida') }}
+{%- if conflicto_al_guardar %}
+  @ApiConflictResponse({
+    description: {{ cadena('Ya existe un registro con el mismo valor en ' ~ (unicos | map(attribute='propiedad') | join(', '))) }},
+    type: ErrorRespuestaDto,
+  })
+{%- endif %}
+  crear(@Body() datos: Crear{{ entidad.clase }}Dto): Promise<{{ entidad.clase }}RespuestaDto> {
+    return this.servicio.crear(datos);
+  }
+
+  @Get()
+  @ApiOperation({
+    summary: 'Listar {{ entidad.clase }}',
+    description: `Una página de registros, del más antiguo al más reciente (máximo ${MAXIMO_POR_PAGINA} por página).`,
+  })
+  @ApiOkResponse({ description: 'Página de registros', type: {{ entidad.clase }}PaginaDto })
+  @ApiBadRequestResponse({ description: 'pagina o tamano fuera de rango', type: ErrorValidacionDto })
+  listar(@Query() paginacion: PaginacionDto): Promise<{{ entidad.clase }}PaginaDto> {
+    return this.servicio.listar(paginacion);
+  }
+
+  @Get(':id')
+  @ApiOperation({ summary: 'Obtener {{ entidad.clase }}', description: 'El registro con ese id.' })
+  @ApiParam(PARAMETRO_ID)
+  @ApiOkResponse({ description: 'El registro', type: {{ entidad.clase }}RespuestaDto })
+  @ApiBadRequestResponse({ description: ID_INVALIDO, type: ErrorRespuestaDto })
+  @ApiNotFoundResponse({ description: NO_ENCONTRADO, type: ErrorRespuestaDto })
+  obtener(
+    @Param('id', new ParseUUIDPipe()) id: string,
+  ): Promise<{{ entidad.clase }}RespuestaDto> {
+    return this.servicio.obtener(id);
+  }
+
+  @Patch(':id')
+  @ApiOperation({
+    summary: 'Actualizar {{ entidad.clase }}',
+    description: 'Cambia solo los campos que se envían; un campo opcional enviado como null se vacía.',
+  })
+  @ApiParam(PARAMETRO_ID)
+  @ApiOkResponse({ description: 'El registro actualizado', type: {{ entidad.clase }}RespuestaDto })
+  {{ error_400('Datos inválidos o id que no es un UUID') }}
+  @ApiNotFoundResponse({ description: NO_ENCONTRADO, type: ErrorRespuestaDto })
+{%- if conflicto_al_guardar %}
+  @ApiConflictResponse({
+    description: {{ cadena('Ya existe un registro con el mismo valor en ' ~ (unicos | map(attribute='propiedad') | join(', '))) }},
+    type: ErrorRespuestaDto,
+  })
+{%- endif %}
+  actualizar(
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Body() cambios: Actualizar{{ entidad.clase }}Dto,
+  ): Promise<{{ entidad.clase }}RespuestaDto> {
+    return this.servicio.actualizar(id, cambios);
+  }
+
+  @Delete(':id')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Eliminar {{ entidad.clase }}', description: 'Borra el registro con ese id.' })
+  @ApiParam(PARAMETRO_ID)
+  @ApiNoContentResponse({ description: 'Registro eliminado' })
+  @ApiBadRequestResponse({ description: ID_INVALIDO, type: ErrorRespuestaDto })
+  @ApiNotFoundResponse({ description: NO_ENCONTRADO, type: ErrorRespuestaDto })
+{%- if conflicto_al_eliminar %}
+  @ApiConflictResponse({
+    description: 'Otros registros ({{ entidad.inversas | map(attribute='clase') | unique | join(', ') }}) dependen de este',
+    type: ErrorRespuestaDto,
+  })
+{%- endif %}
+  eliminar(@Param('id', new ParseUUIDPipe()) id: string): Promise<void> {
+    return this.servicio.eliminar(id);
+  }
+}

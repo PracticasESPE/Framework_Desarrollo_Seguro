@@ -15,16 +15,30 @@ Generado por la plantilla `microservicio_nestjs` del Framework de Desarrollo Seg
 {% endfor %}
 Todas llevan además `id` (UUID), `creadoEn` y `actualizadoEn`.
 
+## Rutas
+
+Documentadas en Swagger, en `/docs`.
+
+| Entidad | Ruta | Operaciones |
+|---|---|---|
+{% for e in modelo -%}
+| `{{ e.clase }}` | `/api/{{ servicio_archivo }}/{{ e.archivo }}` | `POST /`, `GET /` (paginado), `GET /:id`, `PATCH /:id`, `DELETE /:id` |
+{% endfor %}
+Los listados devuelven como mucho 100 registros por página (`?pagina=1&tamano=20`).
+
 ## Estructura
 
 | Archivo | Qué contiene |
 |---|---|
 | `prisma/schema.prisma` | Entidades y tipos de la base de datos |
 | `src/{{ servicio_archivo }}.module.ts` | Módulo del servicio |
+| `src/<entidad>.controller.ts` | Rutas de la entidad y su documentación de Swagger |
+| `src/<entidad>.service.ts` | Acceso a la base y reglas de negocio (bloque `@framework:logica-negocio`) |
 | `src/dto/crear-<entidad>.dto.ts` | Validación de la entrada (class-validator) y contrato OpenAPI |
 | `src/dto/actualizar-<entidad>.dto.ts` | Los mismos campos, todos opcionales |
-| `src/dto/<entidad>-respuesta.dto.ts` | Lo que devuelve la API |
-| `src/comun/validacion.ts` | Utilidades que comparten los DTO |
+| `src/dto/<entidad>-respuesta.dto.ts`, `<entidad>-pagina.dto.ts` | Lo que devuelve la API |
+| `src/openapi/` | Configuración de Swagger y generador del contrato (`npm run openapi`) |
+| `src/comun/` | Utilidades que comparten los DTO, los servicios y los controladores |
 
 ## Compilar
 
@@ -39,3 +53,15 @@ npm run build
 
 `.npmrc` desactiva los scripts de instalación de las dependencias (cadena de suministro): por eso
 el cliente de Prisma se genera con `npm run prisma:generate`.
+
+## Ejecutar
+
+Con PostgreSQL en la dirección de `DATABASE_URL`:
+
+```bash
+npm run prisma:push             # crea las tablas (en desarrollo; en producción, migraciones)
+npm run start:prod              # http://localhost:{{ puerto }}/docs
+```
+
+Para el Gate 2, `npm run openapi -- openapi/{{ servicio }}.json` escribe el contrato sin necesitar
+la base de datos.
