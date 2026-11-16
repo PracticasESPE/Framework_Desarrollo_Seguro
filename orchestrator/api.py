@@ -7,7 +7,7 @@ La documentación interactiva está en `/docs` (Swagger UI) y `/redoc`. La API e
 import asyncio
 from collections.abc import AsyncIterator, Awaitable, Callable
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Literal
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Query, Request, Response
 from fastapi import Path as ParametroRuta
@@ -39,10 +39,14 @@ from orchestrator.ejecuciones import (
     Estado,
     EstadoEjecucion,
     Evento,
+    RegistrarDecisiones,
     RegistrarEnNeo4j,
     RegistroEjecuciones,
+    nombre_modelo_requisitos,
+    registrar_decisiones_en_neo4j,
     registrar_en_neo4j,
     trabajo_fase1,
+    trabajo_fase2,
 )
 from orchestrator.fases import FASES, Fase
 from orchestrator.ingest.requisito import ModeloRequisitos
@@ -67,13 +71,16 @@ RUTAS_DE_DOCUMENTACION = {"/docs", "/docs/oauth2-redirect", "/redoc"}
 DESCRIPCION = """
 API del motor del framework de desarrollo seguro guiado por conocimiento.
 
-Flujo de la fase 1 desde el dashboard o desde cualquier cliente:
+Flujo de las fases 1 y 2 desde el dashboard o desde cualquier cliente:
 
 1. `POST /documentos` carga el documento de requisitos y devuelve su `id`.
 2. `POST /ejecuciones` con ese `id` lanza la fase 1 en segundo plano.
 3. `GET /ejecuciones/{id}/eventos` sigue el progreso en tiempo real (Server-Sent Events), o
    `GET /ejecuciones/{id}` consulta el estado en un momento dado.
-4. `GET /documentos/{id}/requisitos` devuelve el `modelo_requisitos.json` generado.
+4. `GET /documentos/{id}/requisitos` devuelve el `modelo_requisitos.json` generado. Se revisa antes
+   de seguir: la fase 2 gasta llamadas al LLM y por eso no arranca sola.
+5. `POST /ejecuciones` con ese `id` y `"fase": 2` lanza la propuesta arquitectónica: el LLM propone,
+   OPA valida, y si aprueba se generan los ADR y el diagrama C4.
 
 La API escucha solo en `127.0.0.1` porque todavía no tiene autenticación.
 """
@@ -88,7 +95,7 @@ ETIQUETAS = [
     {
         "name": "ejecuciones",
         "description": "Ejecución del pipeline: lanzarla, consultar su estado, seguir su "
-        "progreso en tiempo real y cancelarla. Hoy ejecuta la fase 1.",
+        "progreso en tiempo real y cancelarla. Hoy ejecuta las fases 1 y 2.",
     },
 ]
 
@@ -151,8 +158,13 @@ def carpeta_requisitos() -> Path:
     return obtener_configuracion().directorio_salida / "requisitos"
 
 
+def carpeta_arquitectura() -> Path:
+    return obtener_configuracion().directorio_salida / "arquitectura"
+
+
 Carpeta = Annotated[Path, Depends(carpeta_documentos)]
 CarpetaRequisitos = Annotated[Path, Depends(carpeta_requisitos)]
+CarpetaArquitectura = Annotated[Path, Depends(carpeta_arquitectura)]
 IdDocumento = Annotated[
     str, ParametroRuta(pattern=ID_DOCUMENTO, description="Id que devolvió la carga")
 ]
@@ -279,26 +291,44 @@ def registrador_neo4j() -> RegistrarEnNeo4j | None:
     return registrar_en_neo4j
 
 
+def registrador_decisiones() -> RegistrarDecisiones | None:
+    """Al terminar la fase 2, las decisiones se guardan como nodos Decision en Neo4j."""
+    return registrar_decisiones_en_neo4j
+
+
 Registro = Annotated[RegistroEjecuciones, Depends(registro_ejecuciones)]
 
 
 class SolicitudEjecucion(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
-        json_schema_extra={"examples": [{"documento": "0123456789abcdef0123456789abcdef"}]},
+        json_schema_extra={
+            "examples": [
+                {"documento": "0123456789abcdef0123456789abcdef"},
+                {"documento": "0123456789abcdef0123456789abcdef", "fase": 2},
+            ]
+        },
     )
 
     documento: str = Field(pattern=ID_DOCUMENTO, description="Id de un documento cargado")
+    fase: Literal[1, 2] = Field(
+        default=1,
+        description="1: adquisición de requisitos. 2: propuesta arquitectónica, que parte del "
+        "modelo de requisitos que dejó la fase 1 y gasta llamadas al LLM",
+    )
 
 
 @app.post(
     "/ejecuciones",
     tags=["ejecuciones"],
     status_code=201,
-    summary="Lanzar la fase 1 con un documento cargado",
+    summary="Lanzar la fase 1 o la fase 2 con un documento cargado",
     responses={
         404: _error("No existe el documento"),
-        409: _error("Ya hay una ejecución en curso: el motor procesa un documento a la vez"),
+        409: _error(
+            "Ya hay una ejecución en curso (el motor procesa un documento a la vez) o, para la "
+            "fase 2, el documento todavía no pasó por la fase 1"
+        ),
     },
 )
 def iniciar_ejecucion(
@@ -306,11 +336,17 @@ def iniciar_ejecucion(
     respuesta: Response,
     carpeta: Carpeta,
     destino: CarpetaRequisitos,
+    destino_arquitectura: CarpetaArquitectura,
     registro: Registro,
     crear_llm: Annotated[Callable[[], ProveedorLLM], Depends(fabrica_llm)],
     registrar: Annotated[RegistrarEnNeo4j | None, Depends(registrador_neo4j)],
+    registrar_arquitectura: Annotated[RegistrarDecisiones | None, Depends(registrador_decisiones)],
 ) -> EstadoEjecucion:
     """Lanza la ejecución en segundo plano y responde enseguida.
+
+    Con `fase: 2` hace falta que el documento ya haya pasado por la fase 1: parte del
+    `modelo_requisitos.json` guardado en disco. Es una petición aparte para que una persona revise
+    los requisitos antes de gastar las llamadas al LLM de la propuesta arquitectónica.
 
     El progreso se sigue en `/ejecuciones/{id}/eventos` y el estado se consulta en
     `/ejecuciones/{id}`, que es lo que indica la cabecera `Location`.
@@ -319,12 +355,19 @@ def iniciar_ejecucion(
         documento, ruta = obtener_documento(carpeta, solicitud.documento)
     except DocumentoNoEncontrado as error:
         raise HTTPException(status_code=404, detail=str(error)) from error
-    try:
-        ejecucion = registro.iniciar(
-            documento.id,
-            trabajo_fase1(documento, ruta, destino, crear_llm, registrar),
-            nombre_documento=documento.nombre,
+    if solicitud.fase == 2:
+        if not (destino / nombre_modelo_requisitos(documento.id)).is_file():
+            raise HTTPException(
+                status_code=409,
+                detail="Falta la fase 1: procesa el documento antes de proponer la arquitectura",
+            )
+        trabajo = trabajo_fase2(
+            documento, destino, destino_arquitectura, crear_llm, registrar_arquitectura
         )
+    else:
+        trabajo = trabajo_fase1(documento, ruta, destino, crear_llm, registrar)
+    try:
+        ejecucion = registro.iniciar(documento.id, trabajo, nombre_documento=documento.nombre)
     except EjecucionEnCurso as error:
         raise HTTPException(status_code=409, detail=str(error)) from error
     respuesta.headers["Location"] = f"/ejecuciones/{ejecucion.id}"
@@ -374,7 +417,7 @@ EjecucionExistente = Annotated[Ejecucion, Depends(ejecucion_existente)]
 )
 def ver_ejecucion(ejecucion: EjecucionExistente) -> DetalleEjecucion:
     """Estado en este momento: el de la ejecución, el de cada una de las 11 fases y, cuando
-    termina la fase 1, su resultado. Para seguir el progreso sin consultar a cada rato, usa
+    termina la fase 1 o la 2, su resultado. Para seguir el progreso sin consultar a cada rato, usa
     `/ejecuciones/{id}/eventos`."""
     return ejecucion.detalle()
 
@@ -390,9 +433,9 @@ def ver_ejecucion(ejecucion: EjecucionExistente) -> DetalleEjecucion:
     },
 )
 def cancelar_ejecucion(ejecucion: EjecucionExistente) -> EstadoEjecucion:
-    """La ejecución se detiene en el siguiente paso: tras la extracción o antes de la siguiente
-    sección que clasifica el LLM. Por eso responde 202: el evento «fin» con estado `cancelada`
-    llega por `/ejecuciones/{id}/eventos`."""
+    """La ejecución se detiene en el siguiente paso: tras la extracción, antes de la siguiente
+    sección que clasifica el LLM o antes de la siguiente llamada de la fase 2. Por eso responde
+    202: el evento «fin» con estado `cancelada` llega por `/ejecuciones/{id}/eventos`."""
     try:
         ejecucion.pedir_cancelacion()
     except EjecucionTerminada as error:

@@ -11,7 +11,7 @@ Documento del cliente (PDF, DOCX, TXT o MD)
    │  FASE 1 (dashboard o API): Docling → normalización → clasificación con el LLM
    ▼
 modelo_requisitos.json ──► Neo4j: Ejecucion ─TIENE_REQUISITO─► Requisito
-   │  FASE 2 (CLI): el LLM propone ──► OPA valida ──► si rechaza, el LLM corrige (3 intentos)
+   │  FASE 2 (botón del dashboard o CLI): el LLM propone ──► OPA valida ──► si rechaza, el LLM corrige (3 intentos)
    ▼
 arquitectura.json ──► Neo4j: Decision ─BASADA_EN─► Regla · Requisito ─ORIGINA─► Decision
    ├──► docs/adr/*.md          (ADR: la decisión, su porqué y sus controles)

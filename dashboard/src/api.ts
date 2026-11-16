@@ -92,6 +92,76 @@ export interface ResumenFase1 {
   ejecucion_neo4j: string | null
 }
 
+export interface IntentoArquitectura {
+  numero: number
+  /** «llm» si lo propuso el LLM, «inicial» si ya existía. */
+  origen: string
+  aprobado: boolean
+  justificacion: string
+  /** Motivos por los que OPA rechazó la propuesta. */
+  bloqueantes: string[]
+  advertencias: string[]
+}
+
+export interface DependenciaPropuesta {
+  servicio: string
+  tipo: 'sincrona' | 'asincrona'
+  motivo: string
+}
+
+export interface ServicioPropuesto {
+  nombre: string
+  contexto: string
+  responsabilidad: string
+  base_datos: string
+  requisitos: string[]
+  depende_de: DependenciaPropuesta[]
+  etiquetas: string[]
+}
+
+export interface DecisionArquitectonica {
+  id: string
+  titulo: string
+  decision: string
+  justificacion: string
+  requisitos: string[]
+}
+
+export interface PatronInferido {
+  patron: string
+  implementacion: string
+  motivo: string
+  controles: string[]
+}
+
+export interface AdrGenerado {
+  archivo: string
+  titulo: string
+  redactado_por: string
+}
+
+/** Resultado de la fase 2 (ResumenFase2 en orchestrator/ejecuciones.py). */
+export interface ResumenFase2 {
+  aprobada: boolean
+  justificacion: string
+  intentos: IntentoArquitectura[]
+  servicios: ServicioPropuesto[]
+  transversales: string[]
+  /** Etiquetas de seguridad de los requisitos transversales. */
+  etiquetas_transversales: string[]
+  decisiones: DecisionArquitectonica[]
+  patrones: PatronInferido[]
+  archivo_intentos: string
+  archivo_arquitectura: string | null
+  adr: AdrGenerado[]
+  carpeta_adr: string | null
+  archivo_diagrama: string | null
+  /** Markdown del documento de arquitectura, con los diagramas C4 en Mermaid. */
+  diagrama: string | null
+  ejecucion_neo4j: string | null
+  decisiones_neo4j: number | null
+}
+
 /** Lo que llega en cada evento de /ejecuciones/{id}/eventos (orchestrator/ejecuciones.py). */
 export interface EventoEjecucion {
   id: number
@@ -102,6 +172,7 @@ export interface EventoEjecucion {
   estado: EstadoEjecucion | null
   progreso: number | null
   resultado: ResumenFase1 | null
+  arquitectura: ResumenFase2 | null
 }
 
 /** Lanza la fase 1 con un documento cargado; el progreso se sigue con `rutaEventos`. */
@@ -110,6 +181,20 @@ export async function iniciarEjecucion(documento: string): Promise<Ejecucion> {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ documento }),
+  })
+  return leer<Ejecucion>(respuesta)
+}
+
+/**
+ * Lanza la fase 2 (propuesta arquitectónica) con un documento que ya pasó por la fase 1. Gasta
+ * llamadas al LLM, así que solo se llama cuando la persona lo pide después de revisar los
+ * requisitos.
+ */
+export async function iniciarFase2(documento: string): Promise<Ejecucion> {
+  const respuesta = await fetch('/ejecuciones', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ documento, fase: 2 }),
   })
   return leer<Ejecucion>(respuesta)
 }
