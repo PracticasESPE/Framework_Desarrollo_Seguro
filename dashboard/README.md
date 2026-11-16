@@ -34,8 +34,55 @@ necesita servidor propio ni CORS. No forma parte de lo que genera el framework.
   - Si Neo4j no está levantado, la fase termina igual y el registro de eventos lo avisa.
   - Los requisitos se pueden registrar después con `framework requisitos registrar`.
 
+## Versión 2: fase 2 con un punto de control
+
+La fase 2 gasta llamadas al LLM, así que **no arranca sola**. Al terminar la fase 1, bajo la tabla
+de requisitos aparece la tarjeta «Siguiente paso: fase 2». La persona revisa los requisitos
+(tipo, servicio sugerido, etiquetas de seguridad) y, si están bien, pulsa **Continuar a la fase 2**.
+Hasta ese momento el motor no recibe ninguna petición de la fase 2.
+
+- **Lanzar.** El botón llama a `POST /ejecuciones` con `{"documento": "<id>", "fase": 2}`. La fase 2
+  es una ejecución aparte que parte del `modelo_requisitos.json` guardado en disco, así que no
+  depende de que la ejecución de la fase 1 siga en memoria. Si el documento no pasó por la fase 1,
+  la API responde 409.
+- **Progreso.** Mismo mecanismo SSE que la fase 1, en una tarjeta «Progreso de la fase 2»: cada
+  intento del ciclo LLM ↔ OPA, los motivos de rechazo de OPA, la redacción de cada ADR y el
+  diagrama. Se puede cancelar: se detiene antes de la siguiente llamada al LLM.
+- **Arquitectura propuesta.** Al terminar: el ciclo intento por intento, los servicios con su base
+  de datos y dependencias, las decisiones, los patrones que infiere OPA, los ADR generados y el
+  diagrama de contenedores.
+- **Diagrama.** Se dibuja con SVG propio (`src/diagrama.ts` y `DiagramaArquitectura.tsx`) a partir
+  de los datos estructurados del resumen de la fase 2: usuarios, API Gateway si OPA infirió ese
+  patrón, identidad si algún requisito pide autenticación o autorización, un contenedor por
+  servicio con su base de datos, las llamadas HTTP entre servicios (arcos) y el bus de eventos
+  (líneas punteadas). No usa librerías ni estilos en línea, así que no relaja la CSP. Es un dibujo
+  propio y más simple que el C4 de Mermaid; por eso, debajo se deja el **código Mermaid exacto**
+  del documento `<id>.arquitectura.md` (contexto y contenedores) y, junto a cada bloque, el enlace
+  «Abrir en Mermaid Live» para dibujarlo y compararlo. El código va en el fragmento del enlace
+  (`#base64:…`), que el navegador no envía a ningún servidor; la página que se abre sí es externa.
+  No se empaqueta Mermaid en el dashboard porque dibuja con estilos en línea (los bloquea
+  `style-src 'self'`) y añadiría entre 1 y 2 MB.
+- **Si OPA rechaza todas las propuestas** (3 intentos), la fase queda «Fallida», se muestran los
+  motivos y la última propuesta para revisarla, no se generan ADR ni diagrama y el botón pasa a
+  «Volver a intentar la fase 2».
+- **Archivos.** En `salida/arquitectura/`: `<id>.arquitectura.json`, `<id>.intentos.json`,
+  `<id>.adr/` (un ADR por decisión y por patrón, más su índice) y `<id>.arquitectura.md`. Las
+  decisiones se guardan en Neo4j como nodos `Decision` enlazados a los requisitos; si Neo4j no
+  está levantado, la fase termina igual y el registro de eventos lo avisa.
+- **Requisitos del entorno.** OPA instalado (`winget install open-policy-agent.opa`) y el proveedor
+  de LLM configurado. Sin OPA, la fase falla con un mensaje claro en cuanto debe validar la primera
+  propuesta (ya habrá gastado esa llamada al LLM).
+
+Al recargar la página, el dashboard vuelve a mostrar la última sesión que recuerda el motor, esté
+en marcha o terminada: pide `GET /ejecuciones`, toma la ejecución en curso (o, si no hay, la más
+reciente) y recupera las dos fases de ese documento. El flujo de eventos reenvía todo lo ocurrido,
+así que reaparecen los requisitos, el botón «Continuar a la fase 2» si todavía no se pulsó y la
+arquitectura si la fase 2 ya terminó. Una fase 2 anterior a la última fase 1 del documento se
+ignora. El motor guarda las últimas 20 ejecuciones **en memoria**: si se reinicia la API, la
+sesión se pierde y los resultados siguen en `salida/`.
+
 Cada evento lleva un número correlativo. Si se corta la conexión, EventSource se reconecta solo
-con `Last-Event-ID` y el motor le reenvía lo que faltaba. Las fases 2 a 11 aparecen pendientes
+con `Last-Event-ID` y el motor le reenvía lo que faltaba. Las fases 3 a 11 aparecen pendientes
 hasta que existan en el motor.
 
 Con los endpoints de estado (#53):

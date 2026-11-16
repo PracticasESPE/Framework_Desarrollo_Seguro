@@ -57,6 +57,7 @@ export function evento(campos: Partial<EventoEjecucion> & Pick<EventoEjecucion, 
     estado: null,
     progreso: null,
     resultado: null,
+    arquitectura: null,
     ...campos,
   } satisfies EventoEjecucion
 }

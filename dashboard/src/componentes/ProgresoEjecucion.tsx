@@ -1,10 +1,12 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import type { EstadoEjecucion, EventoEjecucion } from '../api'
 import { finDe, type ConexionEventos } from '../progreso'
 
 const HORA = new Intl.DateTimeFormat('es-EC', { timeStyle: 'medium' })
 
 interface Props {
+  /** Fase que sigue la ejecución; cambia los textos. */
+  fase?: 1 | 2
   nombreDocumento: string
   eventos: EventoEjecucion[]
   conexion: ConexionEventos
@@ -14,7 +16,29 @@ interface Props {
 
 type Cancelacion = { tipo: 'nada' } | { tipo: 'pedida' } | { tipo: 'error'; mensaje: string }
 
-export function ProgresoEjecucion({ nombreDocumento, eventos, conexion, onCancelar }: Props) {
+const TEXTOS_FASE1 = {
+  titulo: 'Progreso de la ejecución',
+  intro: 'Fase 1 con %: extracción, normalización y clasificación de los requisitos con el LLM.',
+  reintento: 'volver a procesar el documento',
+}
+
+const TEXTOS_FASE2 = {
+  titulo: 'Progreso de la fase 2',
+  intro:
+    'Fase 2 con %: el LLM propone la arquitectura, OPA la valida y, si la aprueba, se redactan los ADR y el diagrama C4.',
+  reintento: 'volver a lanzar la fase 2',
+}
+
+export function ProgresoEjecucion({
+  fase = 1,
+  nombreDocumento,
+  eventos,
+  conexion,
+  onCancelar,
+}: Props) {
+  const textos = fase === 2 ? TEXTOS_FASE2 : TEXTOS_FASE1
+  const [antes, despues] = textos.intro.split('%')
+  const idTitulo = useId()
   const fin = finDe(eventos)
   const progreso = eventos.findLast((evento) => evento.progreso !== null)?.progreso ?? 0
   const estado = fin?.estado ?? 'en_curso'
@@ -41,14 +65,15 @@ export function ProgresoEjecucion({ nombreDocumento, eventos, conexion, onCancel
   }, [eventos.length])
 
   return (
-    <section className="tarjeta" aria-labelledby="titulo-progreso">
+    <section className="tarjeta" aria-labelledby={idTitulo}>
       <div className="tarjeta__cabecera">
-        <h2 id="titulo-progreso">Progreso de la ejecución</h2>
+        <h2 id={idTitulo}>{textos.titulo}</h2>
         <Insignia estado={estado} conexion={conexion} />
       </div>
       <p className="tarjeta__intro">
-        Fase 1 con <strong>{nombreDocumento}</strong>: extracción, normalización y clasificación
-        de los requisitos con el LLM. Los eventos llegan en tiempo real desde el motor.
+        {antes}
+        <strong>{nombreDocumento}</strong>
+        {despues} Los eventos llegan en tiempo real desde el motor.
       </p>
 
       <div className="progreso">
@@ -56,7 +81,7 @@ export function ProgresoEjecucion({ nombreDocumento, eventos, conexion, onCancel
           className={`progreso__barra progreso__barra--${estado}`}
           max={100}
           value={porcentaje}
-          aria-label="Progreso de la ejecución"
+          aria-label={textos.titulo}
         />
         <span className="progreso__valor">{porcentaje} %</span>
         {puedeCancelar && (
@@ -83,7 +108,7 @@ export function ProgresoEjecucion({ nombreDocumento, eventos, conexion, onCancel
 
       {conexion === 'perdida' && !fin && (
         <p className="aviso aviso--error" role="alert">
-          Se perdió la conexión con el motor. Si se reinició la API, vuelve a procesar el documento.
+          Se perdió la conexión con el motor. Si se reinició la API, puedes {textos.reintento}.
         </p>
       )}
       {fin?.estado === 'fallida' && (
@@ -93,7 +118,7 @@ export function ProgresoEjecucion({ nombreDocumento, eventos, conexion, onCancel
       )}
       {fin?.estado === 'cancelada' && (
         <p className="aviso" role="status">
-          {fin.mensaje}. Puedes volver a procesar el documento cuando quieras.
+          {fin.mensaje}. Puedes {textos.reintento} cuando quieras.
         </p>
       )}
 
