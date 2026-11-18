@@ -1,0 +1,110 @@
+{
+  "@programName": "ZAP",
+  "@version": "2.17.0",
+  "@generated": "Fri, 30 Oct 2026 16:49:46",
+  "site": [
+    {
+      "@name": "http://usuarios:3000",
+      "@host": "usuarios",
+      "@port": "3000",
+      "@ssl": "false",
+      "alerts": [
+        {
+          "pluginid": "40018",
+          "alertRef": "40018",
+          "alert": "SQL Injection",
+          "name": "SQL Injection",
+          "riskcode": "3",
+          "confidence": "2",
+          "riskdesc": "High (Medium)",
+          "desc": "<p>SQL injection may be possible.</p><p>Uses &lt;input&gt; &amp; more.</p>",
+          "instances": [
+            { "uri": "http://usuarios:3000/api/usuarios?orden=1", "method": "GET", "param": "orden", "attack": "1' OR '1'='1", "evidence": "syntax error" },
+            { "uri": "http://usuarios:3000/api/usuarios?orden=2", "method": "GET", "param": "orden", "attack": "1 OR 1=1", "evidence": "syntax error" },
+            { "uri": "http://usuarios:3000/api/usuarios", "method": "POST", "param": "nombre", "attack": "x'", "evidence": "" }
+          ],
+          "count": "3",
+          "solution": "<p>Use prepared statements.</p>",
+          "reference": "<p>https://cheatsheetseries.owasp.org/cheatsheets/SQL_Injection_Prevention_Cheat_Sheet.html</p>",
+          "cweid": "89",
+          "wascid": "19"
+        },
+        {
+          "pluginid": "10054",
+          "alertRef": "10054-1",
+          "name": "Cookie without SameSite Attribute",
+          "riskcode": "2",
+          "confidence": "3",
+          "desc": "<p>A cookie has been set without the SameSite attribute.</p>",
+          "instances": [
+            { "uri": "http://usuarios:3000/api/usuarios/id", "method": "GET", "param": "sesion", "evidence": "Authorization: Bearer abc.def-123" }
+          ],
+          "solution": "",
+          "reference": "",
+          "cweid": "1275",
+          "wascid": "13"
+        },
+        {
+          "pluginid": "100000",
+          "alertRef": "100000-2",
+          "name": "A Server Error response code was returned by the server",
+          "riskcode": "1",
+          "confidence": "3",
+          "desc": "<p>A response code of 500 was returned by the server.</p>",
+          "instances": [
+            { "uri": "http://usuarios:3000/api/usuarios", "method": "POST", "param": "", "evidence": "500" }
+          ],
+          "solution": "",
+          "reference": "",
+          "cweid": "388",
+          "wascid": "20"
+        },
+        {
+          "pluginid": "100001",
+          "alertRef": "100001",
+          "name": "Unexpected Content-Type was returned",
+          "riskcode": "1",
+          "confidence": "3",
+          "desc": "<p>A Content-Type of text/html was returned by the server.</p>",
+          "instances": [
+            { "uri": "http://usuarios:3000/docs/", "method": "GET", "param": "", "evidence": "text/html" }
+          ],
+          "solution": "",
+          "reference": "",
+          "cweid": "-1",
+          "wascid": "-1"
+        },
+        {
+          "pluginid": "10037",
+          "alertRef": "10037",
+          "name": "Server Leaks Information via X-Powered-By",
+          "riskcode": "1",
+          "confidence": "0",
+          "desc": "<p>Marcada como falso positivo.</p>",
+          "instances": [
+            { "uri": "http://usuarios:3000/api/usuarios", "method": "GET", "param": "", "evidence": "X-Powered-By: Express" }
+          ],
+          "solution": "",
+          "reference": "",
+          "cweid": "497",
+          "wascid": "13"
+        },
+        {
+          "pluginid": "100000",
+          "alertRef": "100000-1",
+          "name": "A Client Error response code was returned by the server",
+          "riskcode": "0",
+          "confidence": "3",
+          "desc": "<p>A response code of 404 was returned by the server.</p>",
+          "instances": [
+            { "uri": "http://usuarios:3000/.env", "method": "GET", "param": "", "evidence": "404" }
+          ],
+          "solution": "",
+          "reference": "",
+          "cweid": "388",
+          "wascid": "20"
+        }
+      ]
+    }
+  ]
+}

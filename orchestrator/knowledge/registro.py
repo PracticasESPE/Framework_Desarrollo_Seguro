@@ -1,0 +1,534 @@
+"""Registro de ejecuciones del pipeline y de sus resultados como nodos en Neo4j.
+
+Modelo:
+    (:Ejecucion {id, fecha, estado, documento, version_conocimiento})
+    (:Ejecucion)-[:TIENE_REQUISITO]->(:Requisito {ejecucion_id, id, tipo, texto, ...})
+    (:Ejecucion)-[:REGISTRA]->(:Hallazgo {ejecucion_id, huella, ...})
+    (:Hallazgo)-[:ES]->(:CWE {id})
+"""
+
+import subprocess
+import uuid
+from datetime import UTC, datetime
+from pathlib import Path
+from typing import Any
+
+import neo4j
+
+from orchestrator.gates.hallazgos import Hallazgo
+from orchestrator.knowledge.grafo import ErrorGrafo
+
+RAIZ = Path(__file__).resolve().parents[2]
+
+# Posición de cada severidad para ordenar en Cypher de la más grave a la más leve.
+_RANGO_SEVERIDAD = (
+    "CASE h.severidad WHEN 'critica' THEN 0 WHEN 'alta' THEN 1 WHEN 'media' THEN 2 "
+    "WHEN 'baja' THEN 3 ELSE 4 END"
+)
+
+_CREAR_EJECUCION = """
+CREATE (e:Ejecucion {
+    id: $id,
+    fecha: $fecha,
+    estado: 'en_curso',
+    documento: $documento,
+    version_conocimiento: $version_conocimiento
+})
+"""
+
+# MERGE por (ejecucion_id, huella): registrar el mismo SARIF dos veces no duplica hallazgos.
+_REGISTRAR_HALLAZGOS = """
+MATCH (e:Ejecucion {id: $ejecucion_id})
+UNWIND $hallazgos AS dato
+MERGE (h:Hallazgo {ejecucion_id: $ejecucion_id, huella: dato.huella})
+SET h.herramienta = dato.herramienta,
+    h.regla_id = dato.regla_id,
+    h.mensaje = dato.mensaje,
+    h.severidad = dato.severidad,
+    h.archivo = dato.archivo,
+    h.linea_inicio = dato.linea_inicio,
+    h.linea_fin = dato.linea_fin,
+    h.cwe = dato.cwe,
+    h.fase = $fase
+MERGE (e)-[:REGISTRA]->(h)
+WITH h, dato
+UNWIND dato.cwe AS cwe_id
+MERGE (c:CWE {id: cwe_id})
+  ON CREATE SET c.origen = 'hallazgo'
+MERGE (h)-[:ES]->(c)
+"""
+
+_LISTAR_HALLAZGOS = f"""
+MATCH (:Ejecucion {{id: $ejecucion_id}})-[:REGISTRA]->(h:Hallazgo)
+RETURN h.herramienta AS herramienta, h.regla_id AS regla_id, h.severidad AS severidad,
+       h.archivo AS archivo, h.linea_inicio AS linea_inicio, h.cwe AS cwe, h.huella AS huella
+ORDER BY {_RANGO_SEVERIDAD}, h.herramienta, h.archivo, h.linea_inicio
+"""
+
+_ULTIMA_EJECUCION = "MATCH (e:Ejecucion) RETURN e.id AS id ORDER BY e.fecha DESC LIMIT 1"
+
+_FINALIZAR_EJECUCION = """
+MATCH (e:Ejecucion {id: $id})
+SET e.estado = $estado, e.fin = $fin
+RETURN e.id AS id
+"""
+
+
+def nuevo_id_ejecucion(ahora: datetime | None = None) -> str:
+    momento = ahora or datetime.now(UTC)
+    return f"ej-{momento:%Y%m%d-%H%M%S}-{uuid.uuid4().hex[:6]}"
+
+
+def version_conocimiento() -> str | None:
+    """Commit actual del repositorio: identifica la versión de la base de conocimiento usada."""
+    try:
+        proceso = subprocess.run(
+            ["git", "rev-parse", "--short", "HEAD"],
+            cwd=RAIZ,
+            capture_output=True,
+            text=True,
+            timeout=10,
+            check=False,
+        )
+    except OSError:
+        return None
+    if proceso.returncode != 0:
+        return None
+    return proceso.stdout.strip() or None
+
+
+def _ejecutar(driver: Any, consulta: str, base_datos: str, **parametros: Any):
+    try:
+        return driver.execute_query(consulta, parametros, database_=base_datos)
+    except neo4j.exceptions.Neo4jError as error:
+        raise ErrorGrafo(f"Neo4j rechazó la operación: {error.message}") from error
+
+
+def crear_ejecucion(
+    driver: Any,
+    documento: str | None = None,
+    base_datos: str = "neo4j",
+    id_ejecucion: str | None = None,
+    version: str | None = None,
+) -> str:
+    """Crea el nodo Ejecucion y devuelve su id."""
+    ejecucion_id = id_ejecucion or nuevo_id_ejecucion()
+    _ejecutar(
+        driver,
+        _CREAR_EJECUCION,
+        base_datos,
+        id=ejecucion_id,
+        fecha=datetime.now(UTC),
+        documento=documento,
+        version_conocimiento=version if version is not None else version_conocimiento(),
+    )
+    return ejecucion_id
+
+
+def registrar_hallazgos(
+    driver: Any,
+    ejecucion_id: str,
+    hallazgos: list[Hallazgo],
+    fase: int = 4,
+    base_datos: str = "neo4j",
+) -> int:
+    """Registra los hallazgos de una fase y los enlaza a su ejecución y a sus CWE."""
+    if not hallazgos:
+        return 0
+    if not existe_ejecucion(driver, ejecucion_id, base_datos):
+        raise ErrorGrafo(f"No existe la ejecución {ejecucion_id}")
+    _ejecutar(
+        driver,
+        _REGISTRAR_HALLAZGOS,
+        base_datos,
+        ejecucion_id=ejecucion_id,
+        fase=fase,
+        hallazgos=[h.model_dump(mode="json") for h in hallazgos],
+    )
+    return len({h.huella for h in hallazgos})
+
+
+def existe_ejecucion(driver: Any, ejecucion_id: str, base_datos: str = "neo4j") -> bool:
+    resultado = _ejecutar(
+        driver,
+        "MATCH (e:Ejecucion {id: $id}) RETURN count(e) AS total",
+        base_datos,
+        id=ejecucion_id,
+    )
+    return bool(resultado.records) and resultado.records[0]["total"] > 0
+
+
+def finalizar_ejecucion(
+    driver: Any, ejecucion_id: str, estado: str = "terminada", base_datos: str = "neo4j"
+) -> None:
+    resultado = _ejecutar(
+        driver,
+        _FINALIZAR_EJECUCION,
+        base_datos,
+        id=ejecucion_id,
+        estado=estado,
+        fin=datetime.now(UTC),
+    )
+    if not resultado.records:
+        raise ErrorGrafo(f"No existe la ejecución {ejecucion_id}")
+
+
+def ultima_ejecucion(driver: Any, base_datos: str = "neo4j") -> str | None:
+    resultado = _ejecutar(driver, _ULTIMA_EJECUCION, base_datos)
+    return resultado.records[0]["id"] if resultado.records else None
+
+
+def listar_hallazgos(
+    driver: Any, ejecucion_id: str, base_datos: str = "neo4j"
+) -> list[dict[str, Any]]:
+    """Hallazgos de una ejecución, de la severidad más grave a la más leve."""
+    resultado = _ejecutar(driver, _LISTAR_HALLAZGOS, base_datos, ejecucion_id=ejecucion_id)
+    return [registro.data() for registro in resultado.records]
+
+
+# --- Decisiones de los Security Gates (OPA) ----------------------------------------------------
+#
+#   (:Ejecucion)-[:TIENE_RESULTADO]->(:ResultadoGate {ejecucion_id, id: "gate1", gate, aprobado})
+#   (:ResultadoGate)-[:BASADA_EN {cumple, detalle, motivos}]->(:Regla {id: "gate1.severidad"})
+#   (:ResultadoGate)-[:BLOQUEADO_POR {regla}]->(:Hallazgo)
+
+_REGISTRAR_RESULTADO_GATE = """
+MATCH (e:Ejecucion {id: $ejecucion_id})
+MERGE (r:ResultadoGate {ejecucion_id: $ejecucion_id, id: $id})
+SET r.gate = $gate,
+    r.fase = $fase,
+    r.aprobado = $aprobado,
+    r.justificacion = $justificacion,
+    r.bloqueantes = $total_bloqueantes,
+    r.advertencias = $total_advertencias,
+    r.critica = $conteo.critica, r.alta = $conteo.alta, r.media = $conteo.media,
+    r.baja = $conteo.baja, r.info = $conteo.info,
+    r.fecha = $fecha,
+    r.version_conocimiento = $version
+MERGE (e)-[:TIENE_RESULTADO]->(r)
+WITH r
+CALL (r) {
+    UNWIND $criterios AS c
+    MERGE (g:Regla {id: c.regla})
+      ON CREATE SET g.lenguaje = 'rego', g.paquete = $paquete
+    MERGE (r)-[b:BASADA_EN]->(g)
+    SET b.cumple = c.cumple, b.detalle = c.detalle, b.motivos = c.motivos
+}
+WITH r
+UNWIND $bloqueos AS bloqueo
+MATCH (h:Hallazgo {ejecucion_id: $ejecucion_id, huella: bloqueo.huella})
+MERGE (r)-[x:BLOQUEADO_POR]->(h)
+SET x.regla = bloqueo.regla
+"""
+
+_LISTAR_RESULTADOS_GATE = """
+MATCH (:Ejecucion {id: $ejecucion_id})-[:TIENE_RESULTADO]->(r:ResultadoGate)
+OPTIONAL MATCH (r)-[b:BASADA_EN]->(g:Regla)
+WITH r, collect({regla: g.id, cumple: b.cumple}) AS criterios
+OPTIONAL MATCH (r)-[:BLOQUEADO_POR]->(h:Hallazgo)
+RETURN r.gate AS gate, r.aprobado AS aprobado, r.justificacion AS justificacion,
+       r.bloqueantes AS bloqueantes, r.advertencias AS advertencias,
+       criterios, count(DISTINCT h) AS hallazgos_bloqueantes
+ORDER BY gate
+"""
+
+
+def registrar_resultado_gate(
+    driver: Any,
+    ejecucion_id: str,
+    decision: Any,
+    base_datos: str = "neo4j",
+    version: str | None = None,
+) -> None:
+    """Guarda la decisión de un gate enlazada a su ejecución, sus reglas y sus hallazgos."""
+    if not existe_ejecucion(driver, ejecucion_id, base_datos):
+        raise ErrorGrafo(f"No existe la ejecución {ejecucion_id}")
+    motivos: dict[str, list[str]] = {}
+    for bloqueante in decision.bloqueantes:
+        motivos.setdefault(bloqueante.regla, []).append(bloqueante.motivo)
+    _ejecutar(
+        driver,
+        _REGISTRAR_RESULTADO_GATE,
+        base_datos,
+        ejecucion_id=ejecucion_id,
+        id=f"gate{decision.gate}",
+        gate=decision.gate,
+        fase={1: 4, 2: 8, 3: 11}[decision.gate],
+        aprobado=decision.aprobado,
+        justificacion=decision.justificacion,
+        total_bloqueantes=len(decision.bloqueantes),
+        total_advertencias=len(decision.advertencias),
+        conteo={s: decision.conteo.get(s, 0) for s in ("critica", "alta", "media", "baja", "info")},
+        fecha=datetime.now(UTC),
+        version=version if version is not None else version_conocimiento(),
+        paquete=f"gates.gate{decision.gate}",
+        criterios=[
+            {**c.model_dump(), "motivos": motivos.get(c.regla, [])} for c in decision.criterios
+        ],
+        bloqueos=[{"huella": b.huella, "regla": b.regla} for b in decision.bloqueantes if b.huella],
+    )
+
+
+def listar_resultados_gate(
+    driver: Any, ejecucion_id: str, base_datos: str = "neo4j"
+) -> list[dict[str, Any]]:
+    resultado = _ejecutar(driver, _LISTAR_RESULTADOS_GATE, base_datos, ejecucion_id=ejecucion_id)
+    return [registro.data() for registro in resultado.records]
+
+
+# --- Requisitos de la fase 1 -------------------------------------------------------------------
+#
+#   (:Ejecucion {documento, documento_sha256, herramienta_extraccion})
+#     -[:TIENE_REQUISITO]->(:Requisito {ejecucion_id, id: "RF-01", tipo, texto, ubicacion, ...})
+#
+# El Requisito es el inicio de la cadena de trazabilidad del plan técnico (listing 5.5):
+# (:Requisito)-[:ORIGINA]->(:Decision)-[:IMPLEMENTA_EN]->(:Componente)-[:TIENE]->(:Hallazgo)...
+
+# MERGE por (ejecucion_id, id): registrar el mismo modelo dos veces no duplica requisitos. Los que
+# ya no están en el modelo (se volvió a clasificar el documento) se eliminan de la ejecución.
+_REGISTRAR_REQUISITOS = """
+MATCH (e:Ejecucion {id: $ejecucion_id})
+SET e.documento = $documento.nombre,
+    e.documento_sha256 = $documento.sha256,
+    e.herramienta_extraccion = $documento.herramienta
+WITH e
+CALL (e) {
+    MATCH (e)-[:TIENE_REQUISITO]->(viejo:Requisito)
+    WHERE NOT viejo.id IN [r IN $requisitos | r.id]
+    DETACH DELETE viejo
+}
+WITH e
+UNWIND $requisitos AS dato
+MERGE (r:Requisito {ejecucion_id: $ejecucion_id, id: dato.id})
+SET r.tipo = dato.tipo,
+    r.texto = dato.texto,
+    r.ubicacion = dato.ubicacion,
+    r.actor = dato.actor,
+    r.accion = dato.accion,
+    r.entidades = dato.entidades,
+    r.servicio_sugerido = dato.servicio_sugerido,
+    r.etiquetas = dato.etiquetas,
+    r.orden = dato.orden
+MERGE (e)-[:TIENE_REQUISITO]->(r)
+"""
+
+_ULTIMA_EJECUCION_CON_REQUISITOS = """
+MATCH (e:Ejecucion)-[:TIENE_REQUISITO]->(:Requisito)
+RETURN DISTINCT e.id AS id, e.fecha AS fecha ORDER BY fecha DESC LIMIT 1
+"""
+
+_LISTAR_REQUISITOS = """
+MATCH (:Ejecucion {id: $ejecucion_id})-[:TIENE_REQUISITO]->(r:Requisito)
+RETURN r.id AS id, r.tipo AS tipo, r.texto AS texto, r.ubicacion AS ubicacion,
+       r.actor AS actor, r.servicio_sugerido AS servicio_sugerido, r.etiquetas AS etiquetas
+ORDER BY r.orden
+"""
+
+
+def registrar_requisitos(
+    driver: Any, ejecucion_id: str, modelo: Any, base_datos: str = "neo4j"
+) -> int:
+    """Guarda los requisitos de un ModeloRequisitos como nodos de su ejecución."""
+    if not existe_ejecucion(driver, ejecucion_id, base_datos):
+        raise ErrorGrafo(f"No existe la ejecución {ejecucion_id}")
+    _ejecutar(
+        driver,
+        _REGISTRAR_REQUISITOS,
+        base_datos,
+        ejecucion_id=ejecucion_id,
+        documento=modelo.documento.model_dump(mode="json"),
+        requisitos=[
+            {**r.model_dump(mode="json"), "orden": orden}
+            for orden, r in enumerate(modelo.requisitos)
+        ],
+    )
+    return len(modelo.requisitos)
+
+
+def ultima_ejecucion_con_requisitos(driver: Any, base_datos: str = "neo4j") -> str | None:
+    resultado = _ejecutar(driver, _ULTIMA_EJECUCION_CON_REQUISITOS, base_datos)
+    return resultado.records[0]["id"] if resultado.records else None
+
+
+_EJECUCION_DE_DOCUMENTO = """
+MATCH (e:Ejecucion {documento_sha256: $sha256})-[:TIENE_REQUISITO]->(:Requisito)
+RETURN DISTINCT e.id AS id, e.fecha AS fecha ORDER BY fecha DESC LIMIT 1
+"""
+
+
+def ejecucion_de_documento(driver: Any, sha256: str, base_datos: str = "neo4j") -> str | None:
+    """La ejecución más reciente con los requisitos de ese documento (por su huella SHA-256)."""
+    resultado = _ejecutar(driver, _EJECUCION_DE_DOCUMENTO, base_datos, sha256=sha256)
+    return resultado.records[0]["id"] if resultado.records else None
+
+
+def listar_requisitos(
+    driver: Any, ejecucion_id: str, base_datos: str = "neo4j"
+) -> list[dict[str, Any]]:
+    """Requisitos de una ejecución, en el orden del documento."""
+    resultado = _ejecutar(driver, _LISTAR_REQUISITOS, base_datos, ejecucion_id=ejecucion_id)
+    return [registro.data() for registro in resultado.records]
+
+
+# --- Decisiones arquitectónicas de la fase 2 ---------------------------------------------------
+#
+#   (:Ejecucion)-[:TIENE_DECISION]->(:Decision {ejecucion_id, id, tipo, estado, ...})
+#   (:Requisito)-[:ORIGINA]->(:Decision)                     plan técnico, listing 5.5
+#   (:Decision)-[:BASADA_EN {cumple, detalle, motivos}]->(:Regla {id: "arquitectura.sin_ciclos"})
+#   (:Decision)-[:APLICA]->(:Patron {id: "arq.gateway.001"})  patrones inferidos por OPA
+#
+# tipo: «arquitectura» (decisión del LLM aprobada por OPA), «patron» (patrón inferido) o
+# «rechazo» (OPA no aprobó ninguna propuesta: revisión humana).
+
+_REGISTRAR_DECISIONES = """
+MATCH (e:Ejecucion {id: $ejecucion_id})
+SET e.arquitectura_aprobada = $aprobada, e.intentos_arquitectura = $intentos
+WITH e
+CALL (e) {
+    MATCH (e)-[:TIENE_DECISION]->(vieja:Decision {fase: 2})
+    DETACH DELETE vieja
+}
+WITH e
+UNWIND $decisiones AS dato
+MERGE (d:Decision {ejecucion_id: $ejecucion_id, id: dato.id})
+SET d.tipo = dato.tipo,
+    d.estado = dato.estado,
+    d.titulo = dato.titulo,
+    d.decision = dato.decision,
+    d.justificacion = dato.justificacion,
+    d.motivos = dato.motivos,
+    d.fase = 2,
+    d.intentos = $intentos,
+    d.fecha = $fecha,
+    d.version_conocimiento = $version
+MERGE (e)-[:TIENE_DECISION]->(d)
+WITH d, dato
+CALL (d, dato) {
+    UNWIND dato.requisitos AS id_requisito
+    MATCH (r:Requisito {ejecucion_id: $ejecucion_id, id: id_requisito})
+    MERGE (r)-[:ORIGINA]->(d)
+}
+CALL (d, dato) {
+    UNWIND dato.reglas AS c
+    MERGE (g:Regla {id: c.regla})
+      ON CREATE SET g.lenguaje = 'rego', g.paquete = 'arquitectura'
+    MERGE (d)-[b:BASADA_EN]->(g)
+    SET b.cumple = c.cumple, b.detalle = c.detalle, b.motivos = c.motivos
+}
+CALL (d, dato) {
+    UNWIND dato.patrones AS patron
+    MERGE (p:Patron {id: patron.id})
+      ON CREATE SET p.patron = patron.patron, p.origen = 'inferencia'
+    MERGE (d)-[:APLICA]->(p)
+}
+"""
+
+_LISTAR_DECISIONES = """
+MATCH (:Ejecucion {id: $ejecucion_id})-[:TIENE_DECISION]->(d:Decision)
+OPTIONAL MATCH (r:Requisito)-[:ORIGINA]->(d)
+WITH d, collect(DISTINCT r.id) AS requisitos
+OPTIONAL MATCH (d)-[b:BASADA_EN]->(g:Regla)
+WITH d, requisitos, collect(DISTINCT {regla: g.id, cumple: b.cumple}) AS reglas
+OPTIONAL MATCH (d)-[:APLICA]->(p:Patron)
+RETURN d.id AS id, d.tipo AS tipo, d.estado AS estado, d.titulo AS titulo,
+       d.intentos AS intentos, requisitos, [x IN reglas WHERE x.regla IS NOT NULL] AS reglas,
+       p.id AS patron
+ORDER BY d.tipo, d.id
+"""
+
+
+def decisiones_del_ciclo(resultado: Any) -> list[dict[str, Any]]:
+    """Las decisiones que se guardan de un ciclo LLM ↔ OPA (ResultadoCiclo)."""
+    final = resultado.final
+    motivos: dict[str, list[str]] = {}
+    for bloqueante in final.decision.bloqueantes:
+        motivos.setdefault(bloqueante.regla, []).append(bloqueante.motivo)
+    reglas = [
+        {**c.model_dump(), "motivos": motivos.get(c.regla, [])} for c in final.decision.criterios
+    ]
+
+    if not resultado.aprobada:
+        return [
+            {
+                "id": "RECHAZO",
+                "tipo": "rechazo",
+                "estado": "rechazada",
+                "titulo": "Arquitectura rechazada por OPA: revisión humana",
+                "decision": (
+                    f"OPA no aprobó ninguna propuesta en {len(resultado.intentos)} intentos; "
+                    "la arquitectura queda pendiente de revisión humana"
+                ),
+                "justificacion": final.decision.justificacion,
+                "motivos": [b.motivo for b in final.decision.bloqueantes],
+                "requisitos": [],
+                "reglas": reglas,
+                "patrones": [],
+            }
+        ]
+
+    decisiones = [
+        {
+            "id": d.id,
+            "tipo": "arquitectura",
+            "estado": "aceptada",
+            "titulo": d.titulo,
+            "decision": d.decision,
+            "justificacion": d.justificacion,
+            "motivos": [],
+            "requisitos": d.requisitos,
+            "reglas": reglas,
+            "patrones": [],
+        }
+        for d in final.arquitectura.decisiones
+    ]
+    decisiones += [
+        {
+            "id": f"P-{p.patron}",
+            "tipo": "patron",
+            "estado": "aceptada",
+            "titulo": f"Aplicar el patrón {p.patron}",
+            "decision": f"Se aplica {p.patron} ({p.implementacion})",
+            "justificacion": p.motivo,
+            "motivos": [],
+            "requisitos": [],
+            "reglas": [],
+            "patrones": [{"id": p.id, "patron": p.patron}],
+        }
+        for p in final.decision.patrones
+    ]
+    return decisiones
+
+
+def registrar_decisiones(
+    driver: Any,
+    ejecucion_id: str,
+    resultado: Any,
+    base_datos: str = "neo4j",
+    version: str | None = None,
+) -> int:
+    """Guarda las decisiones del ciclo LLM ↔ OPA de la fase 2 como nodos Decision.
+
+    Reemplaza las de un ciclo anterior en la misma ejecución.
+    """
+    if not existe_ejecucion(driver, ejecucion_id, base_datos):
+        raise ErrorGrafo(f"No existe la ejecución {ejecucion_id}")
+    decisiones = decisiones_del_ciclo(resultado)
+    _ejecutar(
+        driver,
+        _REGISTRAR_DECISIONES,
+        base_datos,
+        ejecucion_id=ejecucion_id,
+        aprobada=resultado.aprobada,
+        intentos=len(resultado.intentos),
+        fecha=datetime.now(UTC),
+        version=version if version is not None else version_conocimiento(),
+        decisiones=decisiones,
+    )
+    return len(decisiones)
+
+
+def listar_decisiones(
+    driver: Any, ejecucion_id: str, base_datos: str = "neo4j"
+) -> list[dict[str, Any]]:
+    resultado = _ejecutar(driver, _LISTAR_DECISIONES, base_datos, ejecucion_id=ejecucion_id)
+    return [registro.data() for registro in resultado.records]

@@ -1,0 +1,294 @@
+{
+  "version_esquema": "1.0",
+  "documento": {
+    "nombre": "requisitos.docx",
+    "sha256": "0515668b00b815491f423ea5a507976c3c67e8bd6eb0bd8dde487f1b171dc72e",
+    "herramienta": "docling 2.148.0"
+  },
+  "servicios": [
+    {
+      "nombre": "usuarios",
+      "contexto": "Gestión de usuarios",
+      "responsabilidad": "Gestión del registro, autenticación, perfil y roles de clientes y administradores. Incluye activación por email, bloqueo por intentos fallidos, logout, edición de datos personales y eliminación de cuenta.",
+      "entidades": [
+        "Cliente",
+        "Direccion",
+        "Usuario"
+      ],
+      "requisitos": [
+        "RF-01",
+        "RF-02",
+        "RF-03",
+        "RF-04",
+        "RNF-01",
+        "RNF-04",
+        "RF-20"
+      ],
+      "base_datos": "usuarios_db",
+      "depende_de": [],
+      "etiquetas": [
+        "autenticacion",
+        "limite_peticiones",
+        "control_acceso_recursos",
+        "hash_password",
+        "autorizacion"
+      ]
+    },
+    {
+      "nombre": "catalogo",
+      "contexto": "Catálogo de productos",
+      "responsabilidad": "Mantenimiento y consulta del catálogo de productos. Permite búsqueda paginada, visualización de detalles, creación/edición/borrado por administradores y preservación de productos retirados en pedidos.",
+      "entidades": [
+        "Producto",
+        "Imagen",
+        "Categoria"
+      ],
+      "requisitos": [
+        "RF-05",
+        "RF-06",
+        "RF-07",
+        "RF-08",
+        "RNF-08"
+      ],
+      "base_datos": "catalogo_db",
+      "depende_de": [],
+      "etiquetas": [
+        "validacion_entrada"
+      ]
+    },
+    {
+      "nombre": "inventario",
+      "contexto": "Control de stock",
+      "responsabilidad": "Gestión del stock disponible de cada producto. Descuenta unidades al aceptar un pedido y devuelve unidades al cancelar o expirar pedidos.",
+      "entidades": [
+        "Stock"
+      ],
+      "requisitos": [
+        "RF-12"
+      ],
+      "base_datos": "inventario_db",
+      "depende_de": [
+        {
+          "servicio": "pedidos",
+          "tipo": "asincrona",
+          "motivo": "Recibe evento de pedido aceptado para descontar stock y de pedido cancelado para devolver stock"
+        }
+      ],
+      "etiquetas": []
+    },
+    {
+      "nombre": "pedidos",
+      "contexto": "Gestión de pedidos",
+      "responsabilidad": "Creación, validación, seguimiento y estado de los pedidos. Calcula precios a partir del catálogo, verifica disponibilidad, permite cancelación antes de envío y controla flujo de estados.",
+      "entidades": [
+        "Pedido",
+        "PedidoItem",
+        "Carrito"
+      ],
+      "requisitos": [
+        "RF-09",
+        "RF-10",
+        "RF-11",
+        "RF-13",
+        "RF-15",
+        "RF-17",
+        "RF-19"
+      ],
+      "base_datos": "pedidos_db",
+      "depende_de": [
+        {
+          "servicio": "catalogo",
+          "tipo": "sincrona",
+          "motivo": "Obtener precios y disponibilidad de productos al crear o validar un pedido"
+        }
+      ],
+      "etiquetas": [
+        "validacion_entrada",
+        "control_acceso_recursos",
+        "autorizacion"
+      ]
+    },
+    {
+      "nombre": "pagos",
+      "contexto": "Procesamiento de pagos",
+      "responsabilidad": "Integración con pasarela externa, envío de solicitudes de pago y recepción de notificaciones de resultado. Actualiza estado del pedido a pagado tras validar la notificación.",
+      "entidades": [
+        "Pago"
+      ],
+      "requisitos": [
+        "RF-14",
+        "RNF-02"
+      ],
+      "base_datos": "pagos_db",
+      "depende_de": [
+        {
+          "servicio": "pedidos",
+          "tipo": "asincrona",
+          "motivo": "Escucha evento de pedido creado para iniciar proceso de pago"
+        },
+        {
+          "servicio": "usuarios",
+          "tipo": "sincrona",
+          "motivo": "Validar que el cliente está autenticado antes de iniciar pago"
+        }
+      ],
+      "etiquetas": [
+        "validacion_entrada"
+      ]
+    },
+    {
+      "nombre": "avisos",
+      "contexto": "Notificaciones",
+      "responsabilidad": "Envío de correos electrónicos al cliente ante cambios de estado del pedido y eventos de pago.",
+      "entidades": [
+        "Aviso"
+      ],
+      "requisitos": [
+        "RF-16"
+      ],
+      "base_datos": "avisos_db",
+      "depende_de": [
+        {
+          "servicio": "pedidos",
+          "tipo": "asincrona",
+          "motivo": "Escucha eventos de cambio de estado del pedido para enviar notificaciones"
+        },
+        {
+          "servicio": "pagos",
+          "tipo": "asincrona",
+          "motivo": "Escucha notificaciones de pago para informar al cliente"
+        }
+      ],
+      "etiquetas": []
+    },
+    {
+      "nombre": "reportes",
+      "contexto": "Reportes y auditoría",
+      "responsabilidad": "Generación de reportes de ventas y registro inmutable de acciones de administradores sobre productos y pedidos.",
+      "entidades": [
+        "Reporte",
+        "Auditoria"
+      ],
+      "requisitos": [
+        "RF-18",
+        "RNF-03"
+      ],
+      "base_datos": "reportes_db",
+      "depende_de": [
+        {
+          "servicio": "pedidos",
+          "tipo": "asincrona",
+          "motivo": "Consume eventos de pedidos para alimentar reportes y auditoría"
+        },
+        {
+          "servicio": "usuarios",
+          "tipo": "asincrona",
+          "motivo": "Consume eventos de administración para auditoría"
+        }
+      ],
+      "etiquetas": [
+        "autorizacion",
+        "auditoria"
+      ]
+    }
+  ],
+  "transversales": [
+    "RNF-05",
+    "RNF-06",
+    "RNF-07",
+    "RNF-09",
+    "RNF-10"
+  ],
+  "etiquetas_transversales": [
+    "cifrado_transito",
+    "punto_unico_acceso",
+    "limite_peticiones"
+  ],
+  "decisiones": [
+    {
+      "id": "D-01",
+      "titulo": "División en microservicios",
+      "decision": "Crear 7 microservicios: usuarios, catalogo, inventario, pedidos, pagos, avisos y reportes.",
+      "justificacion": "Los requisitos están agrupados por dominios (gestión de usuarios, catálogo, stock, pedidos, pagos, notificaciones y reportes). Mantener entre 3 y 7 servicios evita microservicios diminutos y permite independencia de datos.",
+      "requisitos": [
+        "RF-01",
+        "RF-02",
+        "RF-03",
+        "RF-04",
+        "RF-05",
+        "RF-06",
+        "RF-07",
+        "RF-08",
+        "RF-09",
+        "RF-10",
+        "RF-11",
+        "RF-12",
+        "RF-13",
+        "RF-14",
+        "RF-15",
+        "RF-16",
+        "RF-17",
+        "RF-18",
+        "RF-19",
+        "RF-20",
+        "RNF-01",
+        "RNF-02",
+        "RNF-03",
+        "RNF-04",
+        "RNF-05",
+        "RNF-06",
+        "RNF-07",
+        "RNF-08",
+        "RNF-09",
+        "RNF-10"
+      ]
+    },
+    {
+      "id": "D-02",
+      "titulo": "Comunicación entre microservicios",
+      "decision": "Usar HTTP síncrono para lecturas críticas (precio del catálogo) y RabbitMQ eventos asíncronos para cambios de estado (pedido creado, pago result, notificaciones).",
+      "justificacion": "Requisitos de consistencia al crear pedidos requieren precios actuales (RF-10) → sincrono. Otros requisitos como notificaciones (RF-16) y actualización de stock (RF-12) se benefician de desacoplamiento y evitan ciclos.",
+      "requisitos": [
+        "RF-10",
+        "RF-12",
+        "RF-14",
+        "RF-16",
+        "RNF-09",
+        "RNF-06"
+      ]
+    },
+    {
+      "id": "D-03",
+      "titulo": "Seguridad y autenticación",
+      "decision": "Integrar Keycloak como IdP y usar JWT en el gateway Traefik. Aplicar TLS en todas las comunicaciones y límite de peticiones.",
+      "justificacion": "Requisitos RNF-05, RNF-06, RNF-04, RF-01, RF-02, RF-04 y RF-20 requieren autenticación, autorización y protección contra abuso.",
+      "requisitos": [
+        "RNF-05",
+        "RNF-06",
+        "RNF-04",
+        "RF-01",
+        "RF-02",
+        "RF-04",
+        "RF-20"
+      ]
+    },
+    {
+      "id": "D-04",
+      "titulo": "Gestión de secretos",
+      "decision": "Almacenar claves de pasarela y credenciales de bases de datos en Vault y acceder mediante variables de entorno seguras.",
+      "justificacion": "Cumple RNF-10 que prohíbe hardcode de claves.",
+      "requisitos": [
+        "RNF-10"
+      ]
+    },
+    {
+      "id": "D-05",
+      "titulo": "Bases de datos aisladas",
+      "decision": "Cada microservicio posee su propia base PostgreSQL, sin compartir esquemas.",
+      "justificacion": "RNF-09 exige que cada componente pueda escalar y fallar independientemente.",
+      "requisitos": [
+        "RNF-09"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,10 @@
+id: arq.bff.001
+patron: bff
+descripcion: Un backend por tipo de cliente que agrega y filtra datos de varios servicios
+aplica_cuando:
+  - etiqueta: varios_tipos_de_cliente
+  - etiqueta: agregacion_de_datos
+  - numero_servicios_minimo: 2
+controles_asociados: [ASVS-V4.1.1, ASVS-V13.2.1]
+cwe_mitigadas: [CWE-200, CWE-285]
+implementacion: nestjs

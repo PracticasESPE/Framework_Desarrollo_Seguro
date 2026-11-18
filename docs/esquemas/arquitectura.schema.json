@@ -1,0 +1,271 @@
+{
+  "$defs": {
+    "DecisionPropuesta": {
+      "additionalProperties": false,
+      "description": "Una decisión arquitectónica con su justificación: la base de un ADR.",
+      "properties": {
+        "id": {
+          "pattern": "^D-\\d{2}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "titulo": {
+          "maxLength": 60,
+          "minLength": 2,
+          "title": "Titulo",
+          "type": "string"
+        },
+        "decision": {
+          "description": "Qué se decidió",
+          "maxLength": 600,
+          "minLength": 10,
+          "title": "Decision",
+          "type": "string"
+        },
+        "justificacion": {
+          "description": "Por qué, con referencia a los requisitos",
+          "maxLength": 600,
+          "minLength": 10,
+          "title": "Justificacion",
+          "type": "string"
+        },
+        "requisitos": {
+          "items": {
+            "pattern": "^(RF|RNF)-\\d{2,3}$",
+            "type": "string"
+          },
+          "maxItems": 100,
+          "minItems": 1,
+          "title": "Requisitos",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "titulo",
+        "decision",
+        "justificacion",
+        "requisitos"
+      ],
+      "title": "DecisionPropuesta",
+      "type": "object"
+    },
+    "Dependencia": {
+      "additionalProperties": false,
+      "description": "Un servicio necesita a otro: por una llamada directa o reaccionando a sus eventos.",
+      "properties": {
+        "servicio": {
+          "description": "Servicio del que se depende",
+          "pattern": "^[a-z][a-z0-9_]{1,39}$",
+          "title": "Servicio",
+          "type": "string"
+        },
+        "tipo": {
+          "description": "sincrona: llamada HTTP directa; asincrona: eventos por RabbitMQ",
+          "enum": [
+            "sincrona",
+            "asincrona"
+          ],
+          "title": "Tipo",
+          "type": "string"
+        },
+        "motivo": {
+          "description": "Para qué lo necesita",
+          "maxLength": 600,
+          "minLength": 10,
+          "title": "Motivo",
+          "type": "string"
+        }
+      },
+      "required": [
+        "servicio",
+        "tipo",
+        "motivo"
+      ],
+      "title": "Dependencia",
+      "type": "object"
+    },
+    "DocumentoOrigen": {
+      "additionalProperties": false,
+      "properties": {
+        "nombre": {
+          "title": "Nombre",
+          "type": "string"
+        },
+        "sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Sha256",
+          "type": "string"
+        },
+        "herramienta": {
+          "title": "Herramienta",
+          "type": "string"
+        }
+      },
+      "required": [
+        "nombre",
+        "sha256",
+        "herramienta"
+      ],
+      "title": "DocumentoOrigen",
+      "type": "object"
+    },
+    "Servicio": {
+      "additionalProperties": false,
+      "properties": {
+        "nombre": {
+          "description": "En minúsculas, p. ej. «pedidos»",
+          "pattern": "^[a-z][a-z0-9_]{1,39}$",
+          "title": "Nombre",
+          "type": "string"
+        },
+        "contexto": {
+          "description": "Bounded context al que pertenece, p. ej. «Ventas»",
+          "maxLength": 60,
+          "minLength": 2,
+          "title": "Contexto",
+          "type": "string"
+        },
+        "responsabilidad": {
+          "description": "Qué hace y qué datos son suyos",
+          "maxLength": 600,
+          "minLength": 10,
+          "title": "Responsabilidad",
+          "type": "string"
+        },
+        "entidades": {
+          "description": "Entidades de las que es dueño",
+          "items": {
+            "maxLength": 60,
+            "minLength": 2,
+            "type": "string"
+          },
+          "maxItems": 20,
+          "title": "Entidades",
+          "type": "array"
+        },
+        "requisitos": {
+          "description": "Ids de los requisitos que cubre",
+          "items": {
+            "pattern": "^(RF|RNF)-\\d{2,3}$",
+            "type": "string"
+          },
+          "maxItems": 100,
+          "minItems": 1,
+          "title": "Requisitos",
+          "type": "array"
+        },
+        "base_datos": {
+          "description": "Base de datos que usa, p. ej. «pedidos_db»",
+          "pattern": "^[a-z][a-z0-9_]{1,39}$",
+          "title": "Base Datos",
+          "type": "string"
+        },
+        "depende_de": {
+          "items": {
+            "$ref": "#/$defs/Dependencia"
+          },
+          "maxItems": 15,
+          "title": "Depende De",
+          "type": "array"
+        },
+        "etiquetas": {
+          "description": "Etiquetas de seguridad de sus requisitos (las calcula el motor)",
+          "items": {
+            "enum": [
+              "autenticacion",
+              "autorizacion",
+              "control_acceso_recursos",
+              "validacion_entrada",
+              "hash_password",
+              "cifrado_transito",
+              "punto_unico_acceso",
+              "limite_peticiones",
+              "auditoria"
+            ],
+            "type": "string"
+          },
+          "title": "Etiquetas",
+          "type": "array"
+        }
+      },
+      "required": [
+        "nombre",
+        "contexto",
+        "responsabilidad",
+        "entidades",
+        "requisitos",
+        "base_datos",
+        "etiquetas"
+      ],
+      "title": "Servicio",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "arquitectura.json: la propuesta validada y trazable hasta los requisitos.",
+  "properties": {
+    "version_esquema": {
+      "const": "1.0",
+      "default": "1.0",
+      "title": "Version Esquema",
+      "type": "string"
+    },
+    "documento": {
+      "$ref": "#/$defs/DocumentoOrigen"
+    },
+    "servicios": {
+      "items": {
+        "$ref": "#/$defs/Servicio"
+      },
+      "maxItems": 15,
+      "minItems": 1,
+      "title": "Servicios",
+      "type": "array"
+    },
+    "transversales": {
+      "items": {
+        "pattern": "^(RF|RNF)-\\d{2,3}$",
+        "type": "string"
+      },
+      "title": "Transversales",
+      "type": "array"
+    },
+    "etiquetas_transversales": {
+      "items": {
+        "enum": [
+          "autenticacion",
+          "autorizacion",
+          "control_acceso_recursos",
+          "validacion_entrada",
+          "hash_password",
+          "cifrado_transito",
+          "punto_unico_acceso",
+          "limite_peticiones",
+          "auditoria"
+        ],
+        "type": "string"
+      },
+      "title": "Etiquetas Transversales",
+      "type": "array"
+    },
+    "decisiones": {
+      "items": {
+        "$ref": "#/$defs/DecisionPropuesta"
+      },
+      "maxItems": 20,
+      "minItems": 1,
+      "title": "Decisiones",
+      "type": "array"
+    }
+  },
+  "required": [
+    "documento",
+    "servicios",
+    "transversales",
+    "etiquetas_transversales",
+    "decisiones"
+  ],
+  "title": "Arquitectura",
+  "type": "object"
+}

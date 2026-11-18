@@ -1,0 +1,42 @@
+{
+  "version": "2.1.0",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "ZAP",
+          "rules": [
+            {
+              "id": "40018",
+              "shortDescription": { "text": "SQL Injection" },
+              "defaultConfiguration": { "level": "error" },
+              "properties": { "tags": ["CWE-89"] }
+            },
+            {
+              "id": "10038",
+              "shortDescription": { "text": "Content Security Policy (CSP) Header Not Set" },
+              "defaultConfiguration": { "level": "warning" },
+              "properties": { "tags": ["CWE-693"] }
+            }
+          ]
+        }
+      },
+      "results": [
+        {
+          "ruleId": "40018",
+          "level": "error",
+          "message": { "text": "SQL Injection en el parámetro correo de POST /api/usuarios" },
+          "locations": [{ "physicalLocation": { "artifactLocation": { "uri": "http://usuarios:3000/api/usuarios" } } }],
+          "partialFingerprints": { "zapAlerta": "40018-POST-/api/usuarios-correo" }
+        },
+        {
+          "ruleId": "10038",
+          "level": "warning",
+          "message": { "text": "Falta la cabecera Content-Security-Policy" },
+          "locations": [{ "physicalLocation": { "artifactLocation": { "uri": "http://usuarios:3000/api/usuarios" } } }],
+          "partialFingerprints": { "zapAlerta": "10038-GET-/api/usuarios" }
+        }
+      ]
+    }
+  ]
+}

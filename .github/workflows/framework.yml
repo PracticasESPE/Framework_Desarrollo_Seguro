@@ -1,0 +1,487 @@
+name: framework-desarrollo-seguro
+
+on:
+  pull_request:
+    branches: [dev, test, main]
+  push:
+    branches: [dev, test, main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: framework-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pipeline:
+    name: Pipeline por fases
+    # Versión fijada: ubuntu-latest pasa a Ubuntu 26 desde el 19/10/2026 y cambiaría el
+    # entorno a mitad del proyecto. Se actualiza a propósito, no por sorpresa.
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      security-events: write
+    # Neo4j propio de cada ejecución: nace y muere con el trabajo, solo es accesible
+    # desde el runner. La contraseña cambia en cada ejecución y no es un secreto.
+    services:
+      neo4j:
+        image: neo4j:5.26-community
+        env:
+          NEO4J_AUTH: neo4j/ci-${{ github.run_id }}
+        ports:
+          - 7687:7687
+        options: >-
+          --health-cmd "wget --no-verbose --tries=1 --spider http://localhost:7474 || exit 1"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 20
+          --health-start-period 30s
+    env:
+      NEO4J_URI: bolt://localhost:7687
+      NEO4J_PASSWORD: ci-${{ github.run_id }}
+      NEO4J_INTEGRACION: "1"
+      # Avisos de progreso en Telegram. Solo los usa el notificador, que no se los pasa a los
+      # comandos de cada fase. En PR desde forks llegan vacíos y el notificador no hace nada.
+      TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+      TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+    steps:
+      - name: Descargar el repositorio
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Preparar Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            services/usuarios/package-lock.json
+            spectral/package-lock.json
+
+      - name: Preparar uv (motor en Python)
+        uses: astral-sh/setup-uv@v10.3.0
+        with:
+          enable-cache: true
+
+      # Un solo mensaje por ejecución que se edita al empezar y terminar cada fase.
+      - name: Aviso de inicio (Telegram)
+        run: uv run python -m orchestrator.notify.cli inicio
+
+      - name: Pruebas del motor (pytest, incluye integración con Neo4j)
+        # pipefail: sin él, el código de salida sería el de tee y una prueba fallida no pararía el job.
+        run: |
+          set -o pipefail
+          mkdir -p salida/pruebas
+          uv run pytest -q --cov=orchestrator --cov-report=term \
+            --cov-report=xml:salida/pruebas/cobertura.xml \
+            --junitxml=salida/pruebas/pytest.xml | tee salida/pruebas/pytest.txt
+          {
+            echo "### Pruebas del motor (pytest)"
+            echo '```'
+            grep -E "^(Name|TOTAL|orchestrator)|passed|failed|error" salida/pruebas/pytest.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Preparar OPA
+        uses: open-policy-agent/setup-opa@v2
+        with:
+          version: 1.21.x
+
+      # Las decisiones de los gates las toman políticas Rego; se prueban antes de usarlas.
+      - name: Políticas OPA (opa test)
+        run: |
+          set -o pipefail
+          mkdir -p salida/politicas
+          opa check --strict policies/
+          opa test policies/ -v | tee salida/politicas/opa-test.txt
+          {
+            echo "### Políticas OPA (opa test)"
+            echo '```'
+            grep -E "^(PASS|FAIL|ERROR)" salida/politicas/opa-test.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Esquema de Neo4j (restricciones e índices)
+        run: uv run framework grafo esquema
+
+      # Modelos de Docling para analizar el diseño de las páginas y las tablas (unos 500 MB, de
+      # Hugging Face). Se guardan por versión de uv.lock para no descargarlos en cada ejecución.
+      - name: Caché de los modelos de Docling
+        uses: actions/cache@v5
+        with:
+          path: ~/.cache/huggingface
+          key: docling-modelos-${{ hashFiles('uv.lock') }}
+          restore-keys: docling-modelos-
+
+      # Fase 1 inicial: extracción del documento de requisitos 1 a Markdown con Docling. El modelo
+      # de requisitos con LLM se añade en las tareas siguientes del sprint 3.
+      - name: "Fase 1: Adquisición de requisitos"
+        run: >-
+          uv run python -m orchestrator.notify.cli ejecutar "Fase 1: Requisitos" --
+          uv run framework requisitos extraer evaluation/datasets/01_tienda_en_linea/requisitos.pdf
+
+      - name: "Fase 2: Análisis y propuesta arquitectónica"
+        run: |
+          echo "Pendiente - se implementa en el sprint 3 (arquitectura validada por OPA)"
+          uv run python -m orchestrator.notify.cli omitir "Fase 2: Arquitectura"
+
+      - name: "Fase 3: Generación y compilación del servicio"
+        id: fase3
+        working-directory: services/usuarios
+        env:
+          DATABASE_URL: postgresql://ci:ci@localhost:5432/ci
+        run: |
+          uv run python -m orchestrator.notify.cli ejecutar "Fase 3: Generación" -- bash -ec '
+            npm ci --ignore-scripts
+            npx prisma generate
+            npx tsc --noEmit
+            npm run build
+          '
+
+      # Una entrada de caché por día (unos 130 MB): evita guardar la base de Trivy en
+      # cada ejecución y agotar el límite de caché del repositorio.
+      - name: Fecha para la caché de Trivy
+        id: fecha
+        run: echo "hoy=$(date -u +%F)" >> "$GITHUB_OUTPUT"
+
+      - name: Caché de la base de datos de Trivy
+        uses: actions/cache@v5
+        with:
+          path: .trivy-cache
+          key: trivy-db-${{ steps.fecha.outputs.hoy }}
+          restore-keys: trivy-db-
+
+      # Cadena de Security Gates: Gate 1 (fase 4), Gate 2 (fase 8) y Gate 3 (fase 11). Los pasos
+      # de fase no llevan "if": si uno falla, GitHub omite los siguientes y ningún gate corre
+      # sobre un resultado rechazado. tests/test_notify_cli.py comprueba que siga siendo así.
+      - name: "Fase 4: Security Gate 1"
+        run: |
+          uv run python -m orchestrator.notify.cli ejecutar "Fase 4: Security Gate 1" -- bash scripts/gate1.sh
+
+      # Se ejecuta aunque el Gate 1 encuentre problemas, para normalizar sus resultados.
+      - name: "Fase 4 en el motor: hallazgos registrados en Neo4j"
+        if: ${{ !cancelled() && hashFiles('salida/security/sarif/*.sarif') != '' }}
+        run: >-
+          uv run framework run --fase 4 --grafo
+          --descripcion "CI ${{ github.event_name }} ${{ github.ref_name }} ${{ github.sha }}"
+
+      # P1: OPA decide cada gate con las políticas de policies/gates y deja la decisión, sus
+      # criterios y los hallazgos que la bloquean en Neo4j (nodos ResultadoGate), en la misma
+      # ejecución que la fase 4. Si OPA rechaza, el paso falla, Telegram y el resumen muestran el
+      # gate como rechazado y la cadena se detiene.
+      - name: "Decisión OPA: Gate 1"
+        if: ${{ !cancelled() && hashFiles('salida/security/sarif/*.sarif') != '' }}
+        run: >-
+          uv run python -m orchestrator.notify.cli decision "Fase 4: Security Gate 1" --
+          uv run framework gates decidir --gate 1 --grafo
+          ${{ steps.fase3.outcome == 'success' && '--compilacion-ok' || '' }}
+
+      - name: Hallazgos visibles en Neo4j
+        if: ${{ !cancelled() && hashFiles('salida/hallazgos/fase4.json') != '' }}
+        run: |
+          uv run framework hallazgos listar
+          echo "--- Contenido del grafo ---"
+          uv run framework grafo resumen
+
+      # Cuando el Gate 1 no encuentra nada, esto muestra cómo se ven los hallazgos en el
+      # grafo usando los SARIF de ejemplo de las pruebas, en una ejecución aparte.
+      - name: "Demostración: SARIF de ejemplo registrados en Neo4j"
+        if: ${{ !cancelled() }}
+        run: |
+          uv run framework hallazgos registrar tests/datos/sarif --documento "Ejemplos SARIF (demostración)"
+          uv run framework hallazgos listar
+          echo "--- Contenido del grafo ---"
+          uv run framework grafo resumen
+
+      - name: "Fases 5-6: Refinamiento iterativo"
+        run: |
+          echo "Pendiente - se implementa en el sprint 5"
+          uv run python -m orchestrator.notify.cli omitir "Fases 5-6: Refinamiento"
+
+      - name: "Fase 7: Integración de microservicios"
+        run: |
+          echo "Pendiente - se implementa en el sprint 5 (Traefik, RabbitMQ, Keycloak)"
+          uv run python -m orchestrator.notify.cli omitir "Fase 7: Integración"
+
+      - name: Instalar Spectral (Gate 2)
+        run: npm ci --ignore-scripts --prefix spectral
+
+      # Gate 2 inicial: contrato OpenAPI del servicio con reglas OWASP API Top 10 (Spectral) y
+      # políticas Rego de policies/integracion sobre el Docker Compose (Conftest).
+      - name: "Fase 8: Security Gate 2"
+        run: |
+          uv run python -m orchestrator.notify.cli ejecutar "Fase 8: Security Gate 2" -- bash scripts/gate2.sh
+
+      - name: "Decisión OPA: Gate 2"
+        if: >-
+          ${{ !cancelled() && hashFiles('salida/security/sarif/spectral.sarif',
+          'salida/security/sarif/conftest.sarif') != '' }}
+        run: >-
+          uv run python -m orchestrator.notify.cli decision "Fase 8: Security Gate 2" --
+          uv run framework gates decidir --gate 2 --grafo
+
+      # El resumen en JSON (salida/pruebas/jest.json) alimenta el criterio de pruebas del Gate 3.
+      - name: "Fase 9: Pruebas automatizadas"
+        working-directory: services/usuarios
+        run: |
+          uv run python -m orchestrator.notify.cli ejecutar "Fase 9: Pruebas" -- bash -ec '
+            mkdir -p ../../salida/pruebas
+            npm run test:cov -- --json --outputFile=../../salida/pruebas/jest.json
+          '
+
+      - name: "Fase 10: Contenerización"
+        run: |
+          uv run python -m orchestrator.notify.cli ejecutar "Fase 10: Contenedores" -- docker build -t fw-usuarios:ci services/usuarios
+
+      # Gate 3 inicial: Trivy image y SBOM con Syft sobre la imagen de la fase 10, y DAST con
+      # ZAP y Nuclei, autenticados, contra un entorno desechable (docker-compose.dast.yml).
+      - name: "Fase 11: DAST y Security Gate 3"
+        run: |
+          uv run python -m orchestrator.notify.cli ejecutar "Fase 11: DAST y Security Gate 3" -- bash scripts/gate3.sh
+
+      - name: "Decisión OPA: Gate 3"
+        if: >-
+          ${{ !cancelled() && hashFiles('salida/security/sarif/trivy-image.sarif',
+          'salida/security/sarif/zap.sarif', 'salida/security/sarif/nuclei.sarif') != '' }}
+        run: >-
+          uv run python -m orchestrator.notify.cli decision "Fase 11: DAST y Security Gate 3" --
+          uv run framework gates decidir --gate 3 --grafo
+
+      - name: Decisiones de los gates en Neo4j
+        if: ${{ !cancelled() && hashFiles('salida/gates/gate*.json') != '' }}
+        run: uv run framework gates listar
+
+      - name: "Publicar SARIF: Semgrep"
+        if: always() && hashFiles('salida/security/sarif/semgrep.sarif') != ''
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: salida/security/sarif/semgrep.sarif
+          category: semgrep
+
+      - name: "Publicar SARIF: Gitleaks"
+        if: always() && hashFiles('salida/security/sarif/gitleaks.sarif') != ''
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: salida/security/sarif/gitleaks.sarif
+          category: gitleaks
+
+      - name: "Publicar SARIF: Trivy fs"
+        if: always() && hashFiles('salida/security/sarif/trivy-fs.sarif') != ''
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: salida/security/sarif/trivy-fs.sarif
+          category: trivy-fs
+
+      - name: "Publicar SARIF: Trivy config"
+        if: always() && hashFiles('salida/security/sarif/trivy-config.sarif') != ''
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: salida/security/sarif/trivy-config.sarif
+          category: trivy-config
+
+      - name: "Publicar SARIF: Hadolint"
+        if: always() && hashFiles('salida/security/sarif/hadolint.sarif') != ''
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: salida/security/sarif/hadolint.sarif
+          category: hadolint
+
+      - name: "Publicar SARIF: Spectral"
+        if: always() && hashFiles('salida/security/sarif/spectral.sarif') != ''
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: salida/security/sarif/spectral.sarif
+          category: spectral
+
+      - name: "Publicar SARIF: Conftest"
+        if: always() && hashFiles('salida/security/sarif/conftest.sarif') != ''
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: salida/security/sarif/conftest.sarif
+          category: conftest
+
+      - name: "Publicar SARIF: Trivy image"
+        if: always() && hashFiles('salida/security/sarif/trivy-image.sarif') != ''
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: salida/security/sarif/trivy-image.sarif
+          category: trivy-image
+
+      - name: "Publicar SARIF: ZAP"
+        if: always() && hashFiles('salida/security/sarif/zap.sarif') != ''
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: salida/security/sarif/zap.sarif
+          category: zap
+
+      # Nuclei solo genera su SARIF cuando encuentra algo.
+      - name: "Publicar SARIF: Nuclei"
+        if: always() && hashFiles('salida/security/sarif/nuclei.sarif') != ''
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: salida/security/sarif/nuclei.sarif
+          category: nuclei
+
+      - name: Guardar los SARIF como artefacto
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: sarif-gate1
+          path: |
+            salida/security/sarif/
+            salida/openapi/
+            salida/sbom/
+            salida/dast/
+            salida/hallazgos/
+            salida/pruebas/
+            salida/gates/
+            salida/requisitos/
+          if-no-files-found: ignore
+          retention-days: 14
+
+      # Mensajes nuevos (no ediciones) para que Telegram avise del resultado final.
+      - name: Aviso de fin (Telegram)
+        if: success()
+        run: uv run python -m orchestrator.notify.cli fin
+
+      - name: Aviso de fallo (Telegram)
+        if: failure()
+        run: uv run python -m orchestrator.notify.cli fallo
+
+      - name: Aviso de cancelación (Telegram)
+        if: cancelled()
+        run: uv run python -m orchestrator.notify.cli cancelado
+
+  # La plantilla de la fase 3 debe producir siempre un servicio que compile: si un cambio en ella
+  # rompe el TypeScript o el esquema Prisma, se detecta aquí y no al generar un sistema. Las
+  # validaciones de la especificación y el texto generado los cubre pytest en el pipeline.
+  plantilla:
+    name: Plantilla NestJS (servicio de ejemplo)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    # Base de datos del servicio de ejemplo para probar sus controles en ejecución.
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: ci
+          POSTGRES_PASSWORD: ci
+          POSTGRES_DB: pedidos_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ci -d pedidos_db"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - name: Descargar el repositorio
+        uses: actions/checkout@v6
+
+      - name: Preparar uv
+        uses: astral-sh/setup-uv@v10.3.0
+
+      - name: Preparar Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+
+      # La misma versión de Copier que uv.lock; sin --trust: la plantilla no ejecuta nada.
+      - name: Generar el servicio de ejemplo (pedidos)
+        run: >-
+          uvx copier@9.19.1 copy --defaults
+          --data-file templates/microservicio_nestjs/ejemplos/pedidos.yml
+          templates/microservicio_nestjs salida/servicios/pedidos
+
+      - name: Instalar dependencias (sin scripts de instalación)
+        working-directory: salida/servicios/pedidos
+        run: npm install --ignore-scripts --no-audit --no-fund
+
+      - name: Esquema Prisma y cliente
+        working-directory: salida/servicios/pedidos
+        env:
+          DATABASE_URL: postgresql://ci:ci@localhost:5432/pedidos_db
+        run: |
+          npx prisma validate
+          npm run prisma:generate
+
+      - name: Compilación (tsc y nest build)
+        working-directory: salida/servicios/pedidos
+        run: |
+          npm run typecheck
+          npm run build
+
+      # Arranca el módulo sin base de datos: un fallo de inyección de dependencias (un servicio o
+      # un controlador mal registrado) solo aparece aquí, no al compilar.
+      - name: Contrato OpenAPI del servicio generado
+        working-directory: salida/servicios/pedidos
+        run: |
+          npm run openapi -- openapi/pedidos.json
+          node -e "const d = require('./openapi/pedidos.json'); const n = Object.keys(d.paths).length; console.log(n + ' rutas'); if (n !== 4) process.exit(1);"
+
+      # Arranca el servicio con un Keycloak simulado (claves y JWKS propios) y comprueba las
+      # cabeceras de Helmet, el guard, el ValidationPipe y el filtro de errores.
+      - name: Controles transversales (cabeceras, token y errores)
+        working-directory: salida/servicios/pedidos
+        env:
+          DATABASE_URL: postgresql://ci:ci@localhost:5432/pedidos_db
+        run: |
+          set -o pipefail
+          npm run prisma:push
+          node ../../../templates/microservicio_nestjs/verificacion/probar-controles.mjs | tee controles.txt
+          {
+            echo "### Controles transversales del servicio generado"
+            echo '```'
+            cat controles.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  # El dashboard es la interfaz del propio framework, no parte de lo que genera. Por eso no entra
+  # en el Gate 1, cuyos SARIF alimentan la decisión de OPA y las métricas de cada ejecución, sino
+  # que se revisa aquí con las mismas herramientas. Trivy fs y Gitleaks del Gate 1 ya cubren su
+  # package-lock.json y su historial.
+  dashboard:
+    name: Dashboard (React + Vite)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: dashboard
+    steps:
+      - name: Descargar el repositorio
+        uses: actions/checkout@v6
+
+      - name: Preparar Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: dashboard/package-lock.json
+
+      - name: Instalar dependencias (sin scripts de instalación)
+        run: npm ci --ignore-scripts
+
+      - name: ESLint (eslint-plugin-security y reglas con tipos)
+        run: npm run lint
+
+      - name: Pruebas (Vitest)
+        run: npm test
+
+      - name: Compilación (tsc y Vite)
+        run: npm run build
+
+      - name: Semgrep (SAST)
+        working-directory: .
+        run: >-
+          docker run --rm -v "$PWD:/src" semgrep/semgrep:1.172.0
+          semgrep scan --config p/typescript --config p/react --metrics=off --error
+          --severity ERROR --severity WARNING
+          --exclude "*.test.ts" --exclude "*.test.tsx" dashboard/src

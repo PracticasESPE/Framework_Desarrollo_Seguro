@@ -1,0 +1,548 @@
+# Respuesta esperada del documento de requisitos 3 (citas médicas).
+# Solo la usa la evaluación: el framework recibe requisitos.{pdf,docx,txt,md} y nunca este archivo.
+# Cada "texto" es literal del documento, para medir qué requisitos encuentra la fase 1.
+# Etiquetas: vocabulario de ../vocabulario.yaml. Controles, riesgos y patrones: knowledge_base/.
+documento: 03_citas_medicas
+titulo: Citas médicas
+version: "1.0"
+complejidad: alta
+
+servicios:
+  - nombre: usuarios
+    responsabilidad: Cuentas de pacientes y personal, doble factor, delegación a menores y derechos sobre los datos
+  - nombre: agenda
+    responsabilidad: Horarios de los médicos, reservas, reglas de uso, teleconsulta e indicadores
+  - nombre: historia_clinica
+    responsabilidad: Consultas, diagnósticos, recetas, accesos de urgencia y registro de quién consulta cada historia
+  - nombre: laboratorio
+    responsabilidad: Recepción de los resultados del laboratorio externo y su revisión
+  - nombre: pagos
+    responsabilidad: Copagos con la pasarela externa, confirmación de citas y devoluciones
+  - nombre: notificaciones
+    responsabilidad: Recordatorios y avisos por correo y mensaje de texto, sin datos de salud
+
+# Orientativo: una propuesta razonable, no la única válida. Sirve para comparar la fase 2.
+patrones:
+  - patron: api_gateway
+    motivo: Única dirección de entrada y límites de peticiones y de búsquedas (11.1 y 11.3)
+  - patron: bff
+    motivo: La web de pacientes y la aplicación del personal reciben cada una solo lo que necesitan (11.2)
+  - patron: database_per_service
+    motivo: Cada servicio tiene sus datos y la historia clínica solo la toca su servicio (11.5)
+  - patron: event_driven
+    motivo: Avisos, recordatorios y resultados de laboratorio reaccionan a eventos (5.3, 6.2 y 8.1)
+  - patron: saga
+    motivo: Reserva y pago se confirman juntos, y se compensan si el pago no llega o el médico cancela (7.2 y 7.3)
+  - patron: circuit_breaker
+    motivo: Si el laboratorio no responde, el resto del sistema sigue funcionando (6.3)
+
+requisitos:
+  - id: RF-01
+    ubicacion: "2, tabla de acceso a la historia clínica"
+    texto: "Cada perfil solo ve de la historia clínica lo que indica la siguiente tabla."
+    tipo: funcional
+    actor: sistema
+    entidades: [HistoriaClinica]
+    servicio: historia_clinica
+    etiquetas: [autorizacion, control_acceso_recursos]
+    controles_asvs: [ASVS-V4.1.3, ASVS-V4.2.1]
+    riesgos_api: [API3:2023, API5:2023]
+    nota: El detalle de qué ve cada perfil está en una tabla; la fase 1 debe leerla para entender el requisito.
+
+  - id: RF-02
+    ubicacion: "3.1"
+    texto: "El paciente se registra con su correo, su número de cédula y su fecha de nacimiento; la cuenta se activa cuando confirma el correo, y una misma cédula no puede tener dos cuentas."
+    tipo: funcional
+    actor: paciente
+    entidades: [Paciente]
+    servicio: usuarios
+    etiquetas: [autenticacion, validacion_entrada]
+    controles_asvs: [ASVS-V5.1.3]
+    riesgos_api: [API2:2023]
+
+  - id: RF-03
+    ubicacion: "3.2"
+    texto: "Si alguien falla cinco veces seguidas la contraseña de una cuenta, el sistema le pide además un código que se envía al correo del paciente."
+    tipo: funcional
+    actor: sistema
+    entidades: [Paciente]
+    servicio: usuarios
+    etiquetas: [autenticacion, limite_peticiones]
+    controles_asvs: [ASVS-V11.1.4]
+    riesgos_api: [API2:2023]
+
+  - id: RF-04
+    ubicacion: "3.3"
+    texto: "Un paciente puede gestionar desde su propia cuenta las citas de sus hijos menores de edad, y solo las de ellos."
+    tipo: funcional
+    actor: paciente
+    entidades: [Paciente, Cita]
+    servicio: usuarios
+    etiquetas: [autorizacion, control_acceso_recursos]
+    controles_asvs: [ASVS-V4.2.1, ASVS-V4.1.3]
+    riesgos_api: [API1:2023]
+    nota: Acceso delegado a recursos de otra persona.
+
+  - id: RF-05
+    ubicacion: "3.4"
+    texto: "El personal médico y administrativo entra con su contraseña y además con un código de un solo uso que le da una aplicación de autenticación en el móvil."
+    tipo: funcional
+    actor: medico
+    entidades: [Usuario]
+    servicio: usuarios
+    etiquetas: [autenticacion]
+    controles_asvs: []
+    riesgos_api: [API2:2023]
+    nota: Doble factor. La base de conocimiento v1 no tiene los controles de ASVS V2.7 y V2.8.
+
+  - id: RNF-01
+    ubicacion: "3.5"
+    texto: "La sesión del personal se cierra sola tras 10 minutos sin actividad, y la de los pacientes tras 30 minutos."
+    tipo: no_funcional
+    actor: sistema
+    entidades: [Sesion]
+    servicio: usuarios
+    etiquetas: [autenticacion]
+    controles_asvs: [ASVS-V3.3.1]
+    riesgos_api: [API2:2023]
+    nota: Requisito no funcional dentro de una sección de requisitos funcionales.
+
+  - id: RF-06
+    ubicacion: "4.1"
+    texto: "Cada médico define su propio horario de atención por sede y por día, en bloques de 20 o 40 minutos según la especialidad."
+    tipo: funcional
+    actor: medico
+    entidades: [Horario, Sede]
+    servicio: agenda
+    etiquetas: [autorizacion, control_acceso_recursos]
+    controles_asvs: [ASVS-V4.2.1]
+    riesgos_api: [API1:2023]
+
+  - id: RF-07
+    ubicacion: "4.2"
+    texto: "El paciente busca horarios libres por especialidad, médico, sede y fecha, y reserva una cita en línea."
+    tipo: funcional
+    actor: paciente
+    entidades: [Horario, Cita]
+    servicio: agenda
+    etiquetas: []
+    controles_asvs: []
+    riesgos_api: []
+
+  - id: RF-08
+    ubicacion: "4.3"
+    texto: "Un mismo horario nunca puede quedar reservado para dos pacientes, aunque lo reserven en el mismo instante desde la web y desde recepción."
+    tipo: funcional
+    actor: sistema
+    entidades: [Cita, Horario]
+    servicio: agenda
+    etiquetas: []
+    controles_asvs: [ASVS-V11.1.6]
+    riesgos_api: [API6:2023]
+    nota: Condición de carrera entre dos canales de reserva.
+
+  - id: RF-09
+    ubicacion: "4.4"
+    texto: "Un paciente puede tener como máximo dos citas pendientes por especialidad, para que nadie acapare la agenda."
+    tipo: funcional
+    actor: sistema
+    entidades: [Cita]
+    servicio: agenda
+    etiquetas: [limite_peticiones]
+    controles_asvs: [ASVS-V11.1.4]
+    riesgos_api: [API6:2023]
+
+  - id: RF-10
+    ubicacion: "4.5"
+    texto: "Si un paciente falta a tres citas en seis meses sin cancelarlas, durante el mes siguiente solo puede reservar a través de recepción."
+    tipo: funcional
+    actor: sistema
+    entidades: [Cita, Paciente]
+    servicio: agenda
+    etiquetas: [autorizacion]
+    controles_asvs: [ASVS-V11.1.1]
+    riesgos_api: [API6:2023]
+
+  - id: RF-11
+    ubicacion: "4.6"
+    texto: "Recepción reserva, cambia y cancela citas en nombre de cualquier paciente que llame o acuda a la sede."
+    tipo: funcional
+    actor: recepcion
+    entidades: [Cita]
+    servicio: agenda
+    etiquetas: [autorizacion]
+    controles_asvs: [ASVS-V4.1.3]
+    riesgos_api: [API5:2023]
+
+  - id: RF-12
+    ubicacion: "4.7"
+    texto: "El paciente cancela o cambia su cita sin costo hasta 24 horas antes de la hora reservada."
+    tipo: funcional
+    actor: paciente
+    entidades: [Cita]
+    servicio: agenda
+    etiquetas: [autorizacion, control_acceso_recursos]
+    controles_asvs: [ASVS-V4.2.1, ASVS-V11.1.1]
+    riesgos_api: [API1:2023]
+
+  - id: RF-13
+    ubicacion: "5.1"
+    texto: "Durante la consulta, el médico registra el motivo, la exploración, el diagnóstico con su código CIE-10 y el tratamiento."
+    tipo: funcional
+    actor: medico
+    entidades: [Consulta, Diagnostico]
+    servicio: historia_clinica
+    etiquetas: [validacion_entrada]
+    controles_asvs: [ASVS-V5.1.4]
+    riesgos_api: []
+
+  - id: RF-14
+    ubicacion: "5.2"
+    texto: "El médico solo puede abrir la historia clínica de los pacientes que tienen o tuvieron una cita con él."
+    tipo: funcional
+    actor: medico
+    entidades: [HistoriaClinica]
+    servicio: historia_clinica
+    etiquetas: [autorizacion, control_acceso_recursos]
+    controles_asvs: [ASVS-V4.2.1, ASVS-V4.1.1, ASVS-V13.1.4]
+    riesgos_api: [API1:2023]
+
+  - id: RF-15
+    ubicacion: "5.3"
+    texto: "En una urgencia, un médico puede abrir la historia de cualquier paciente indicando el motivo; ese acceso queda registrado y la dirección médica recibe un aviso en el momento."
+    tipo: funcional
+    actor: medico
+    entidades: [HistoriaClinica, RegistroAuditoria]
+    servicio: historia_clinica
+    etiquetas: [autorizacion, auditoria]
+    controles_asvs: [ASVS-V4.1.3]
+    riesgos_api: [API1:2023]
+    nota: >-
+      Acceso de emergencia que salta la regla de RF-14 de forma controlada. La base de conocimiento
+      v1 no tiene los controles de registro de ASVS V7.1 a V7.3.
+
+  - id: RF-16
+    ubicacion: "5.4"
+    texto: "Una nota de consulta firmada ya no se puede modificar, y cualquier corrección se añade como una nota nueva que hace referencia a la anterior."
+    tipo: funcional
+    actor: medico
+    entidades: [Consulta]
+    servicio: historia_clinica
+    etiquetas: [auditoria]
+    controles_asvs: []
+    riesgos_api: []
+    nota: Integridad del registro clínico. La base de conocimiento v1 no tiene un control específico.
+
+  - id: RF-17
+    ubicacion: "5.5"
+    texto: "Queda registro de cada persona que consulta una historia clínica, con la fecha y el motivo, y el paciente puede ver quién ha consultado la suya."
+    tipo: funcional
+    actor: sistema
+    entidades: [HistoriaClinica, RegistroAuditoria]
+    servicio: historia_clinica
+    etiquetas: [auditoria, control_acceso_recursos]
+    controles_asvs: [ASVS-V4.2.1]
+    riesgos_api: [API1:2023]
+    nota: La base de conocimiento v1 no tiene los controles de registro de ASVS V7.1 a V7.3.
+
+  - id: RF-18
+    ubicacion: "5.6"
+    texto: "El médico emite recetas electrónicas con un código que la farmacia usa para comprobar que la receta es auténtica."
+    tipo: funcional
+    actor: medico
+    entidades: [Receta]
+    servicio: historia_clinica
+    etiquetas: [control_acceso_recursos, limite_peticiones]
+    controles_asvs: [ASVS-V4.2.1, ASVS-V11.1.4]
+    riesgos_api: [API1:2023, API4:2023]
+    nota: >-
+      Verificación por código: no debe poderse adivinar ni probar de forma masiva, y no debe
+      exponer más datos de los necesarios. El documento no lo dice; la fase 2 debe inferirlo.
+
+  - id: RF-19
+    ubicacion: "5.7"
+    texto: "El paciente descarga en PDF su historia clínica completa cuando la necesite."
+    tipo: funcional
+    actor: paciente
+    entidades: [HistoriaClinica]
+    servicio: historia_clinica
+    etiquetas: [autorizacion, control_acceso_recursos]
+    controles_asvs: [ASVS-V4.2.1]
+    riesgos_api: [API1:2023]
+
+  - id: RNF-02
+    ubicacion: "5.8"
+    texto: "Las historias clínicas se guardan cifradas y se conservan al menos 15 años, aunque el paciente cierre su cuenta."
+    tipo: no_funcional
+    actor: sistema
+    entidades: [HistoriaClinica]
+    servicio: historia_clinica
+    etiquetas: []
+    controles_asvs: [ASVS-V6.2.2]
+    riesgos_api: []
+    nota: >-
+      Cifrado en reposo y conservación. El vocabulario solo tiene cifrado_transito, y la base de
+      conocimiento v1 no tiene los controles de ASVS V6.1 ni de protección de datos (V8).
+
+  - id: RF-20
+    ubicacion: "6.1"
+    texto: "El laboratorio externo envía al sistema los resultados de cada examen, y el sistema solo acepta envíos autenticados del laboratorio con archivos PDF de hasta 5 MB."
+    tipo: funcional
+    actor: laboratorio
+    entidades: [ResultadoLaboratorio]
+    servicio: laboratorio
+    etiquetas: [autenticacion, validacion_entrada]
+    controles_asvs: [ASVS-V5.1.3, ASVS-V9.2.1]
+    riesgos_api: [API10:2023]
+
+  - id: RF-21
+    ubicacion: "6.2"
+    texto: "Cuando llega un resultado, el médico que pidió el examen recibe un aviso, y el paciente lo ve en su cuenta solo después de que el médico lo haya revisado."
+    tipo: funcional
+    actor: medico
+    entidades: [ResultadoLaboratorio]
+    servicio: laboratorio
+    etiquetas: [autorizacion]
+    controles_asvs: [ASVS-V11.1.1, ASVS-V4.2.1]
+    riesgos_api: [API1:2023]
+
+  - id: RNF-03
+    ubicacion: "6.3"
+    texto: "Si el laboratorio no responde, el resto del sistema sigue funcionando y los resultados se reciben cuando vuelva a estar disponible."
+    tipo: no_funcional
+    actor: sistema
+    entidades: [ResultadoLaboratorio]
+    servicio: laboratorio
+    etiquetas: []
+    controles_asvs: []
+    riesgos_api: []
+    nota: Requisito no funcional dentro de una sección de requisitos funcionales. Origen de circuit_breaker.
+
+  - id: RF-22
+    ubicacion: "7.1"
+    texto: "El paciente paga el copago de la cita en línea con tarjeta, a través de una pasarela de pagos externa, y la red nunca guarda los datos de la tarjeta."
+    tipo: funcional
+    actor: paciente
+    entidades: [Pago, Cita]
+    servicio: pagos
+    etiquetas: []
+    controles_asvs: []
+    riesgos_api: []
+    nota: Minimización de datos de tarjeta. La base de conocimiento v1 no tiene controles de protección de datos (ASVS V8).
+
+  - id: RF-23
+    ubicacion: "7.2"
+    texto: "Una cita reservada en línea solo queda confirmada cuando se aprueba su pago, y si no se paga en 15 minutos el horario vuelve a quedar libre."
+    tipo: funcional
+    actor: sistema
+    entidades: [Cita, Pago]
+    servicio: pagos
+    etiquetas: []
+    controles_asvs: []
+    riesgos_api: []
+
+  - id: RF-24
+    ubicacion: "7.3"
+    texto: "Si el médico cancela una cita ya pagada, el pago se devuelve al paciente de forma automática."
+    tipo: funcional
+    actor: sistema
+    entidades: [Cita, Pago]
+    servicio: pagos
+    etiquetas: []
+    controles_asvs: []
+    riesgos_api: []
+
+  - id: RF-25
+    ubicacion: "7.4"
+    texto: "La pasarela avisa de cada pago aprobado o devuelto, y el sistema solo acepta los avisos que demuestren venir de la pasarela."
+    tipo: funcional
+    actor: pasarela
+    entidades: [Pago]
+    servicio: pagos
+    etiquetas: [autenticacion, validacion_entrada]
+    controles_asvs: [ASVS-V5.1.3, ASVS-V9.2.1]
+    riesgos_api: [API10:2023]
+
+  - id: RF-26
+    ubicacion: "8.1"
+    texto: "El paciente recibe un recordatorio por correo y por mensaje de texto 24 horas antes de su cita."
+    tipo: funcional
+    actor: sistema
+    entidades: [Notificacion, Cita]
+    servicio: notificaciones
+    etiquetas: []
+    controles_asvs: []
+    riesgos_api: []
+
+  - id: RNF-04
+    ubicacion: "8.2"
+    texto: "Los recordatorios y los correos nunca incluyen el motivo de la consulta, el diagnóstico ni la especialidad, solo la fecha, la hora y la sede."
+    tipo: no_funcional
+    actor: sistema
+    entidades: [Notificacion]
+    servicio: notificaciones
+    etiquetas: []
+    controles_asvs: []
+    riesgos_api: []
+    nota: >-
+      Minimización de datos de salud en canales externos. Requisito no funcional dentro de una
+      sección funcional; la base de conocimiento v1 no tiene controles de ASVS V8.
+
+  - id: RF-27
+    ubicacion: "9.1"
+    texto: "La dirección médica consulta indicadores de ocupación de la agenda, de ausencias y de tiempos de espera por sede y especialidad, sin ver datos que identifiquen a los pacientes."
+    tipo: funcional
+    actor: direccion_medica
+    entidades: [Cita]
+    servicio: agenda
+    etiquetas: [autorizacion]
+    controles_asvs: [ASVS-V4.1.3]
+    riesgos_api: [API3:2023, API5:2023]
+
+  - id: RF-28
+    ubicacion: "9.2"
+    texto: "La dirección médica gestiona los médicos, sus especialidades y las sedes donde atiende cada uno."
+    tipo: funcional
+    actor: direccion_medica
+    entidades: [Medico, Sede]
+    servicio: usuarios
+    etiquetas: [autorizacion]
+    controles_asvs: [ASVS-V4.1.3]
+    riesgos_api: [API5:2023]
+
+  - id: RF-29
+    ubicacion: "10, primera historia"
+    texto: "Como paciente, quiero entrar a una teleconsulta desde el enlace que aparece en mi cita, para no ir a la clínica cuando mi médico lo permita."
+    tipo: funcional
+    actor: paciente
+    entidades: [Cita]
+    servicio: agenda
+    etiquetas: [autorizacion, control_acceso_recursos]
+    controles_asvs: [ASVS-V4.2.1]
+    riesgos_api: [API1:2023]
+    nota: Requisito escrito como historia de usuario. El enlace solo debe servir al paciente y al médico de esa cita.
+
+  - id: RF-30
+    ubicacion: "10, segunda historia"
+    texto: "Como médico, quiero ver en una sola pantalla mis citas del día en todas las sedes, para organizar mis traslados."
+    tipo: funcional
+    actor: medico
+    entidades: [Cita, Sede]
+    servicio: agenda
+    etiquetas: [autorizacion, control_acceso_recursos]
+    controles_asvs: [ASVS-V4.2.1]
+    riesgos_api: [API1:2023]
+    nota: Requisito escrito como historia de usuario.
+
+  - id: RF-31
+    ubicacion: "10, tercera historia"
+    texto: "Como paciente, quiero pedir que se corrijan mis datos personales y que se eliminen los que ya no sean necesarios, para ejercer mis derechos sobre ellos."
+    tipo: funcional
+    actor: paciente
+    entidades: [Paciente]
+    servicio: usuarios
+    etiquetas: [autorizacion, control_acceso_recursos]
+    controles_asvs: [ASVS-V4.2.1]
+    riesgos_api: [API1:2023]
+    nota: >-
+      Requisito escrito como historia de usuario. Choca con la conservación de RNF-02: la historia
+      clínica no se elimina. La base de conocimiento v1 no tiene controles de ASVS V8.
+
+  - id: RNF-05
+    ubicacion: "11.1"
+    texto: "Toda la comunicación con el sistema debe viajar cifrada, y pacientes y personal deben entrar siempre por una única dirección."
+    tipo: no_funcional
+    actor: sistema
+    entidades: []
+    servicio: transversal
+    etiquetas: [cifrado_transito, punto_unico_acceso]
+    controles_asvs: [ASVS-V9.1.1, ASVS-V14.4.5, ASVS-V1.14.1]
+    riesgos_api: [API8:2023]
+
+  - id: RNF-06
+    ubicacion: "11.2"
+    texto: "La web de los pacientes y la aplicación del personal son distintas, y cada una recibe solo la información que necesita."
+    tipo: no_funcional
+    actor: sistema
+    entidades: []
+    servicio: transversal
+    etiquetas: []
+    controles_asvs: []
+    riesgos_api: [API3:2023]
+    nota: Origen del patrón bff.
+
+  - id: RNF-07
+    ubicacion: "11.3"
+    texto: "Ninguna persona ni ningún equipo puede hacer más de 60 peticiones por minuto, y como máximo 20 de ellas pueden ser búsquedas de horarios libres."
+    tipo: no_funcional
+    actor: sistema
+    entidades: []
+    servicio: transversal
+    etiquetas: [limite_peticiones]
+    controles_asvs: [ASVS-V11.1.4]
+    riesgos_api: [API4:2023]
+
+  - id: RNF-08
+    ubicacion: "11.4"
+    texto: "El sistema debe estar disponible el 99,5 % del tiempo en el horario de atención de las clínicas, de 07:00 a 20:00."
+    tipo: no_funcional
+    actor: sistema
+    entidades: []
+    servicio: transversal
+    etiquetas: []
+    controles_asvs: []
+    riesgos_api: []
+
+  - id: RNF-09
+    ubicacion: "11.5"
+    texto: "La agenda, la historia clínica, el laboratorio y los pagos deben poder actualizarse por separado, cada uno con sus propios datos, y a los datos de la historia clínica solo accede su propio servicio."
+    tipo: no_funcional
+    actor: sistema
+    entidades: []
+    servicio: transversal
+    etiquetas: []
+    controles_asvs: [ASVS-V1.14.1]
+    riesgos_api: []
+    nota: Origen del patrón database_per_service.
+
+  - id: RNF-10
+    ubicacion: "11.6"
+    texto: "Los mensajes de error no muestran detalles internos del sistema."
+    tipo: no_funcional
+    actor: sistema
+    entidades: []
+    servicio: transversal
+    etiquetas: []
+    controles_asvs: [ASVS-V7.4.1, ASVS-V14.3.2]
+    riesgos_api: [API8:2023]
+
+  - id: RNF-11
+    ubicacion: "11.7"
+    texto: "Las claves del laboratorio, de la pasarela, del envío de mensajes y de las bases de datos se guardan en un almacén de secretos y nunca en el código."
+    tipo: no_funcional
+    actor: sistema
+    entidades: []
+    servicio: transversal
+    etiquetas: []
+    controles_asvs: [ASVS-V2.10.4, ASVS-V6.4.1]
+    riesgos_api: []
+    nota: El vocabulario de etiquetas no tiene una para secretos; queda cubierto por los controles.
+
+  - id: RNF-12
+    ubicacion: "11.8"
+    texto: "Se hace un respaldo cifrado cada día, y cada tres meses se comprueba que se puede restaurar."
+    tipo: no_funcional
+    actor: sistema
+    entidades: []
+    servicio: transversal
+    etiquetas: []
+    controles_asvs: []
+    riesgos_api: []
+    nota: La base de conocimiento v1 no tiene controles de respaldo ni de protección de datos (ASVS V8).
+
+# Frases que no deben convertirse en requisitos: miden los falsos positivos de la fase 1.
+fuera_de_alcance:
+  - El inventario de la farmacia.
+  - La facturación a las aseguradoras.
+  - Digitalizar las historias clínicas antiguas en papel.
+  - Una aplicación móvil propia.

@@ -1,0 +1,31 @@
+import 'dotenv/config';
+import { NestFactory } from '@nestjs/core';
+import type { NestExpressApplication } from '@nestjs/platform-express';
+import { configurarSwagger } from './openapi/configuracion';
+import { configurarHttp } from './seguridad/http';
+import { validarConfiguracionJwt } from './seguridad/jwt-auth.guard';
+import { {{ servicio_clase }}Module } from './{{ servicio_archivo }}.module';
+
+async function bootstrap(): Promise<void> {
+  // Sin emisor y audiencia de Keycloak el servicio no arranca (falla cerrado).
+  validarConfiguracionJwt();
+
+  // Sin el lector por defecto: configurarHttp solo acepta JSON y con límite de tamaño.
+  const app = await NestFactory.create<NestExpressApplication>({{ servicio_clase }}Module, {
+    bodyParser: false,
+  });
+
+  // Helmet, sin X-Powered-By y solo JSON, antes de cualquier ruta (también de /docs).
+  // El guard de Keycloak, el ValidationPipe y el filtro de errores los registra el módulo.
+  configurarHttp(app);
+
+  // Coincide con la ruta /api/{{ servicio_archivo }} que usará el gateway Traefik.
+  app.setGlobalPrefix('api');
+
+  // Swagger en /docs con el mismo contrato que analiza el Gate 2 (Spectral).
+  configurarSwagger(app);
+
+  await app.listen(process.env.PORT ?? {{ puerto }});
+}
+
+void bootstrap();

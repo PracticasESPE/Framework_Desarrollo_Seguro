@@ -1,0 +1,18 @@
+# Compose inseguro A PROPÓSITO: sirve para demostrar que las políticas bloquean.
+# No se usa en ningún entorno. Ver policies/integracion/README.md.
+services:
+  api:
+    image: node:latest
+    privileged: true
+    ports:
+      - '3000:3000'
+    environment:
+      DATABASE_URL: postgresql://api:${API_DB_PASSWORD}@pagos-db:5432/pagos
+      JWT_SECRET: cambiame
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+
+  pagos-db:
+    image: postgres
+    ports:
+      - 5432

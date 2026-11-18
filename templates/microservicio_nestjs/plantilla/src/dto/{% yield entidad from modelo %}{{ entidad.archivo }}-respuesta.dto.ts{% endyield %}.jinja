@@ -1,0 +1,25 @@
+{%- from '_macros/tipos.jinja' import swagger, ts_tipo -%}
+{%- set opcionales = entidad.campos | rejectattr('requerido') | list -%}
+{%- set textos = entidad.campos | selectattr('tipo', 'equalto', 'texto') | list -%}
+import { ApiProperty{{ ', ApiPropertyOptional' if opcionales }} } from '@nestjs/swagger';
+{%- if textos %}
+import { PATRON_SIN_CONTROL } from '../comun/validacion';
+{%- endif %}
+
+/**
+ * {{ entidad.clase }} tal como la devuelve la API. Los límites coinciden con Crear{{ entidad.clase }}Dto
+ * y con prisma/schema.prisma (Gate 2, OWASP API4).
+ */
+export class {{ entidad.clase }}RespuestaDto {
+  @ApiProperty({ format: 'uuid', maxLength: 36 })
+  id!: string;
+{% for c in entidad.campos %}
+  @{{ 'ApiProperty' if c.requerido else 'ApiPropertyOptional' }}({ {{ swagger(c, respuesta=true) }} })
+  {{ c.propiedad }}{{ '!' if c.requerido else '?' }}: {{ ts_tipo(c) }};
+{% endfor %}
+  @ApiProperty({ format: 'date-time', maxLength: 30 })
+  creadoEn!: string;
+
+  @ApiProperty({ format: 'date-time', maxLength: 30 })
+  actualizadoEn!: string;
+}

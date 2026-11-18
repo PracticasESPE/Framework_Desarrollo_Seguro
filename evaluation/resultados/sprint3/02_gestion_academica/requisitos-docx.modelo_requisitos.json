@@ -1,0 +1,576 @@
+{
+  "version_esquema": "1.0",
+  "documento": {
+    "nombre": "requisitos.docx",
+    "sha256": "16229f92f9915de13e2034d8a2d537bc321a91a39e7637bca70b9157d89be410",
+    "herramienta": "docling 2.148.0"
+  },
+  "requisitos": [
+    {
+      "actor": "instituto",
+      "accion": "proveer sistema en línea accesible y registrar cambios de notas",
+      "entidades": [
+        "Estudiante",
+        "Docente",
+        "PersonalAdministrativo",
+        "Nota",
+        "PeriodoAcademico"
+      ],
+      "servicio_sugerido": "portal",
+      "etiquetas": [],
+      "id": "RF-01",
+      "tipo": "funcional",
+      "texto": "El instituto quiere un sistema en línea para estudiantes, docentes y personal administrativo, que se pueda usar desde cualquier lugar y que deje constancia de cada cambio en las notas. Tiene dos periodos académicos al año.",
+      "ubicacion": "1, párrafo 2"
+    },
+    {
+      "actor": "sistema",
+      "accion": "enforce profile action restrictions",
+      "entidades": [
+        "Perfil"
+      ],
+      "servicio_sugerido": "transversal",
+      "etiquetas": [
+        "autorizacion"
+      ],
+      "id": "RF-02",
+      "tipo": "funcional",
+      "texto": "Cada perfil solo puede hacer lo que indica la siguiente tabla, y cualquier otra acción le está prohibida.",
+      "ubicacion": "2, párrafo 1"
+    },
+    {
+      "actor": "sistema",
+      "accion": "no permitir registro por cuenta propia",
+      "entidades": [
+        "Usuario"
+      ],
+      "servicio_sugerido": "usuarios",
+      "etiquetas": [
+        "autenticacion"
+      ],
+      "id": "RF-03",
+      "tipo": "funcional",
+      "texto": "Las cuentas de estudiantes y docentes las crea la secretaría, y nadie puede registrarse por su cuenta.",
+      "ubicacion": "3.1"
+    },
+    {
+      "actor": "usuario",
+      "accion": "cambiar contraseña temporal al primer ingreso",
+      "entidades": [
+        "Usuario"
+      ],
+      "servicio_sugerido": "usuarios",
+      "etiquetas": [
+        "autenticacion"
+      ],
+      "id": "RF-04",
+      "tipo": "funcional",
+      "texto": "La primera vez que una persona entra al sistema, debe cambiar la contraseña temporal que recibió por correo.",
+      "ubicacion": "3.2"
+    },
+    {
+      "actor": "usuario",
+      "accion": "autenticarse con contraseña y código de un solo uso",
+      "entidades": [
+        "Usuario"
+      ],
+      "servicio_sugerido": "usuarios",
+      "etiquetas": [
+        "autenticacion"
+      ],
+      "id": "RF-05",
+      "tipo": "funcional",
+      "texto": "Los docentes, la secretaría y la coordinación entran con su contraseña y además con un código de un solo uso que les da una aplicación de autenticación en el móvil.",
+      "ubicacion": "3.3"
+    },
+    {
+      "actor": "sistema",
+      "accion": "cerrar sesión tras 15 minutos inactividad",
+      "entidades": [
+        "Sesion"
+      ],
+      "servicio_sugerido": "usuarios",
+      "etiquetas": [
+        "autenticacion"
+      ],
+      "id": "RF-06",
+      "tipo": "funcional",
+      "texto": "Si una sesión pasa 15 minutos sin actividad, se cierra sola, porque muchos equipos del instituto son compartidos.",
+      "ubicacion": "3.4"
+    },
+    {
+      "actor": "sistema",
+      "accion": "almacenar contraseñas con hash y longitud mínima 12",
+      "entidades": [
+        "Usuario"
+      ],
+      "servicio_sugerido": "usuarios",
+      "etiquetas": [
+        "hash_password",
+        "validacion_entrada"
+      ],
+      "id": "RNF-01",
+      "tipo": "no_funcional",
+      "texto": "Las contraseñas tienen al menos 12 caracteres y nunca se guardan tal como se escriben.",
+      "ubicacion": "3.5"
+    },
+    {
+      "actor": "secretaria",
+      "accion": "registra estudiantes",
+      "entidades": [
+        "Estudiante"
+      ],
+      "servicio_sugerido": "estudiantes",
+      "etiquetas": [
+        "validacion_entrada"
+      ],
+      "id": "RF-07",
+      "tipo": "funcional",
+      "texto": "La secretaría registra a los estudiantes uno a uno o en bloque desde un archivo CSV de hasta 2.000 filas, y si alguna fila tiene datos inválidos el sistema rechaza el archivo completo e indica cuáles son.",
+      "ubicacion": "4.1"
+    },
+    {
+      "actor": "coordinacion",
+      "accion": "define oferta de asignaturas",
+      "entidades": [
+        "Asignatura",
+        "Paralelo",
+        "Docente"
+      ],
+      "servicio_sugerido": "asignaturas",
+      "etiquetas": [],
+      "id": "RF-08",
+      "tipo": "funcional",
+      "texto": "La coordinación define en cada periodo las asignaturas que se ofrecen, con sus paralelos, horarios, docentes y número de cupos.",
+      "ubicacion": "4.2"
+    },
+    {
+      "actor": "coordinacion",
+      "accion": "define requisitos previos",
+      "entidades": [
+        "Asignatura"
+      ],
+      "servicio_sugerido": "asignaturas",
+      "etiquetas": [],
+      "id": "RF-09",
+      "tipo": "funcional",
+      "texto": "Una asignatura puede exigir haber aprobado otras antes, y esos requisitos previos los define la coordinación.",
+      "ubicacion": "4.3"
+    },
+    {
+      "actor": "estudiante",
+      "accion": "consulta oferta",
+      "entidades": [
+        "Oferta",
+        "Paralelo"
+      ],
+      "servicio_sugerido": "asignaturas",
+      "etiquetas": [],
+      "id": "RF-10",
+      "tipo": "funcional",
+      "texto": "El estudiante consulta la oferta del periodo con los horarios y los cupos que quedan en cada paralelo.",
+      "ubicacion": "4.4"
+    },
+    {
+      "actor": "estudiante",
+      "accion": "matricular en línea dentro de fechas de matrícula",
+      "entidades": [
+        "Matrícula",
+        "Periodo"
+      ],
+      "servicio_sugerido": "matriculas",
+      "etiquetas": [],
+      "id": "RF-11",
+      "tipo": "funcional",
+      "texto": "El estudiante se matricula en línea, y solo entre las fechas de matrícula que fija la coordinación para cada periodo.",
+      "ubicacion": "5.1"
+    },
+    {
+      "actor": "estudiante",
+      "accion": "impedir matricular asignatura sin requisitos o con conflicto horario",
+      "entidades": [
+        "Asignatura",
+        "Requisito",
+        "Horario"
+      ],
+      "servicio_sugerido": "matriculas",
+      "etiquetas": [
+        "validacion_entrada"
+      ],
+      "id": "RF-12",
+      "tipo": "funcional",
+      "texto": "El sistema no deja matricular una asignatura si el estudiante no aprobó sus requisitos previos o si su horario choca con otra asignatura ya elegida.",
+      "ubicacion": "5.2"
+    },
+    {
+      "actor": "sistema",
+      "accion": "asignar cupos por orden de llegada y evitar doble último cupo",
+      "entidades": [
+        "Cupo",
+        "Paralelo"
+      ],
+      "servicio_sugerido": "matriculas",
+      "etiquetas": [],
+      "id": "RF-13",
+      "tipo": "funcional",
+      "texto": "Los cupos se asignan por orden de llegada, y dos estudiantes nunca pueden quedarse a la vez con el último cupo de un paralelo.",
+      "ubicacion": "5.3"
+    },
+    {
+      "actor": "estudiante",
+      "accion": "limitar cambios de matrícula a 20 por día",
+      "entidades": [
+        "Matrícula"
+      ],
+      "servicio_sugerido": "matriculas",
+      "etiquetas": [
+        "limite_peticiones"
+      ],
+      "id": "RNF-02",
+      "tipo": "no_funcional",
+      "texto": "Para evitar programas que reserven cupos de forma automática, cada estudiante puede hacer como máximo 20 cambios en su matrícula por día.",
+      "ubicacion": "5.4"
+    },
+    {
+      "actor": "secretaria",
+      "accion": "confirmar matrícula tras verificación de pago",
+      "entidades": [
+        "Matrícula",
+        "Pago"
+      ],
+      "servicio_sugerido": "matriculas",
+      "etiquetas": [],
+      "id": "RF-14",
+      "tipo": "funcional",
+      "texto": "La matrícula queda confirmada cuando la secretaría verifica el pago del arancel, que el estudiante hace en el banco fuera del sistema.",
+      "ubicacion": "5.5"
+    },
+    {
+      "actor": "docente",
+      "accion": "registrar asistencia",
+      "entidades": [
+        "Clase",
+        "Paralelo"
+      ],
+      "servicio_sugerido": "asistencia",
+      "etiquetas": [],
+      "id": "RF-15",
+      "tipo": "funcional",
+      "texto": "El docente registra la asistencia de cada clase, y solo en los paralelos que tiene asignados.",
+      "ubicacion": "6.1"
+    },
+    {
+      "actor": "docente",
+      "accion": "registrar notas parciales y calcular promedio",
+      "entidades": [
+        "Estudiante",
+        "Nota"
+      ],
+      "servicio_sugerido": "notas",
+      "etiquetas": [
+        "validacion_entrada"
+      ],
+      "id": "RF-16",
+      "tipo": "funcional",
+      "texto": "El docente registra tres notas parciales por estudiante, cada una entre 0 y 10 con dos decimales, y el sistema calcula el promedio final.",
+      "ubicacion": "6.2"
+    },
+    {
+      "actor": "docente",
+      "accion": "publicar notas y restringir cambios con aprobación",
+      "entidades": [
+        "Nota",
+        "Estudiante"
+      ],
+      "servicio_sugerido": "notas",
+      "etiquetas": [
+        "autorizacion"
+      ],
+      "id": "RF-17",
+      "tipo": "funcional",
+      "texto": "Las notas se publican a los estudiantes cuando el docente las da por terminadas; una vez publicadas, el docente solo puede cambiarlas con la aprobación de la coordinación y explicando el motivo.",
+      "ubicacion": "6.3"
+    },
+    {
+      "actor": "sistema",
+      "accion": "registrar historial de cambios de notas",
+      "entidades": [
+        "Nota"
+      ],
+      "servicio_sugerido": "notas",
+      "etiquetas": [
+        "auditoria"
+      ],
+      "id": "RF-18",
+      "tipo": "funcional",
+      "texto": "Cada cambio de una nota guarda el valor anterior, el nuevo, quién lo hizo, quién lo aprobó y cuándo, y ese historial no se puede borrar.",
+      "ubicacion": "6.4"
+    },
+    {
+      "actor": "estudiante",
+      "accion": "consultar notas y asistencia propias",
+      "entidades": [
+        "Estudiante",
+        "Nota",
+        "Asistencia"
+      ],
+      "servicio_sugerido": "asistencia",
+      "etiquetas": [
+        "control_acceso_recursos"
+      ],
+      "id": "RF-19",
+      "tipo": "funcional",
+      "texto": "El estudiante consulta solo sus propias notas y su asistencia, nunca las de sus compañeros.",
+      "ubicacion": "6.5"
+    },
+    {
+      "actor": "coordinacion",
+      "accion": "bloquear notas al cerrar periodo",
+      "entidades": [
+        "Nota"
+      ],
+      "servicio_sugerido": "notas",
+      "etiquetas": [
+        "autorizacion"
+      ],
+      "id": "RF-20",
+      "tipo": "funcional",
+      "texto": "Al cerrar el periodo, la coordinación bloquea todas las notas y ya nadie puede modificarlas.",
+      "ubicacion": "6.6"
+    },
+    {
+      "actor": "estudiante",
+      "accion": "pide y recibe certificados en PDF",
+      "entidades": [
+        "Certificado"
+      ],
+      "servicio_sugerido": "certificados",
+      "etiquetas": [],
+      "id": "RF-21",
+      "tipo": "funcional",
+      "texto": "El estudiante pide en línea certificados de matrícula y de notas, y los recibe en PDF en menos de un día hábil.",
+      "ubicacion": "7.1"
+    },
+    {
+      "actor": "empresa",
+      "accion": "comprobar autenticidad del certificado",
+      "entidades": [
+        "Certificado"
+      ],
+      "servicio_sugerido": "certificados",
+      "etiquetas": [],
+      "id": "RF-22",
+      "tipo": "funcional",
+      "texto": "Cada certificado lleva un código con el que cualquier empresa puede comprobar en la web del instituto que es auténtico, sin ver más datos que los del propio certificado.",
+      "ubicacion": "7.2"
+    },
+    {
+      "actor": "sistema",
+      "accion": "consulta si una persona está matriculada en el periodo actual",
+      "entidades": [
+        "Persona",
+        "Periodo"
+      ],
+      "servicio_sugerido": "biblioteca",
+      "etiquetas": [
+        "control_acceso_recursos"
+      ],
+      "id": "RF-23",
+      "tipo": "funcional",
+      "texto": "El sistema de la biblioteca del instituto consulta de forma automática si una persona está matriculada en el periodo actual, solo recibe como respuesta sí o no, y ningún otro sistema puede hacer esa consulta.",
+      "ubicacion": "8.1"
+    },
+    {
+      "actor": "estudiante",
+      "accion": "recibe correo de notificación de notas y matrícula",
+      "entidades": [
+        "Nota",
+        "Matrícula"
+      ],
+      "servicio_sugerido": "notificaciones",
+      "etiquetas": [],
+      "id": "RF-24",
+      "tipo": "funcional",
+      "texto": "El estudiante recibe un correo cuando se publican sus notas y cuando su matrícula queda confirmada.",
+      "ubicacion": "9.1"
+    },
+    {
+      "actor": "docente",
+      "accion": "recibe recordatorio de cierre de plazo de registro de notas",
+      "entidades": [
+        "Nota"
+      ],
+      "servicio_sugerido": "notificaciones",
+      "etiquetas": [],
+      "id": "RF-25",
+      "tipo": "funcional",
+      "texto": "Los docentes reciben un recordatorio tres días antes de que cierre el plazo para registrar las notas.",
+      "ubicacion": "9.2"
+    },
+    {
+      "actor": "estudiante",
+      "accion": "anular una asignatura hasta la cuarta semana de clases",
+      "entidades": [
+        "Asignatura"
+      ],
+      "servicio_sugerido": "cursos",
+      "etiquetas": [],
+      "id": "RF-26",
+      "tipo": "funcional",
+      "texto": "Como estudiante, quiero anular una asignatura hasta la cuarta semana de clases, para no reprobarla si no puedo seguirla.",
+      "ubicacion": "10, viñeta 1"
+    },
+    {
+      "actor": "coordinador",
+      "accion": "generar reporte del porcentaje de aprobados por asignatura y por docente",
+      "entidades": [
+        "Asignatura",
+        "Docente"
+      ],
+      "servicio_sugerido": "reportes",
+      "etiquetas": [],
+      "id": "RF-27",
+      "tipo": "funcional",
+      "texto": "Como coordinador, quiero un reporte del porcentaje de aprobados por asignatura y por docente, para detectar a tiempo las asignaturas con problemas.",
+      "ubicacion": "10, viñeta 2"
+    },
+    {
+      "actor": "docente",
+      "accion": "descargar lista de estudiantes con notas en hoja de cálculo",
+      "entidades": [
+        "Estudiante",
+        "Nota"
+      ],
+      "servicio_sugerido": "estudiantes",
+      "etiquetas": [],
+      "id": "RF-28",
+      "tipo": "funcional",
+      "texto": "Como docente, quiero descargar en una hoja de cálculo la lista de mis estudiantes con sus notas, para poder trabajar sin conexión.",
+      "ubicacion": "10, viñeta 3"
+    },
+    {
+      "actor": "docente",
+      "accion": "añadir enlaces a materiales y mostrar vista previa",
+      "entidades": [
+        "Curso",
+        "Material"
+      ],
+      "servicio_sugerido": "materiales",
+      "etiquetas": [],
+      "id": "RF-29",
+      "tipo": "funcional",
+      "texto": "Como docente, quiero añadir a mis cursos enlaces a materiales de otras páginas web y que el sistema muestre una vista previa de cada uno, para que los estudiantes sepan qué van a abrir.",
+      "ubicacion": "10, viñeta 4"
+    },
+    {
+      "actor": "sistema",
+      "accion": "viajar cifrado y pasar por una única dirección",
+      "entidades": [
+        "Sistema"
+      ],
+      "servicio_sugerido": "transversal",
+      "etiquetas": [
+        "cifrado_transito",
+        "punto_unico_acceso"
+      ],
+      "id": "RNF-03",
+      "tipo": "no_funcional",
+      "texto": "Todo el acceso al sistema debe viajar cifrado y pasar por una única dirección, tanto desde el campus como desde fuera.",
+      "ubicacion": "11.1"
+    },
+    {
+      "actor": "sistema",
+      "accion": "atender 1200 estudiantes simultáneos y registrar en <=3s",
+      "entidades": [
+        "Estudiante"
+      ],
+      "servicio_sugerido": "transversal",
+      "etiquetas": [],
+      "id": "RNF-04",
+      "tipo": "no_funcional",
+      "texto": "Durante las dos semanas de matrícula, el sistema debe atender a 1.200 estudiantes conectados a la vez sin que una matrícula tarde más de tres segundos.",
+      "ubicacion": "11.2"
+    },
+    {
+      "actor": "usuario",
+      "accion": "no exceder 60 peticiones por minuto",
+      "entidades": [],
+      "servicio_sugerido": "transversal",
+      "etiquetas": [
+        "limite_peticiones"
+      ],
+      "id": "RNF-05",
+      "tipo": "no_funcional",
+      "texto": "Ninguna persona ni ningún equipo puede hacer más de 60 peticiones por minuto.",
+      "ubicacion": "11.3"
+    },
+    {
+      "actor": "sistema",
+      "accion": "actualizar matrícula, calificaciones y certificados por separado y no bloquear matrícula ni notas si fallan certificados",
+      "entidades": [
+        "Matrícula",
+        "Calificación",
+        "Certificado"
+      ],
+      "servicio_sugerido": "transversal",
+      "etiquetas": [],
+      "id": "RF-30",
+      "tipo": "funcional",
+      "texto": "La matrícula, las calificaciones y los certificados deben poder actualizarse por separado, y un fallo en los certificados no puede impedir matricularse ni registrar notas.",
+      "ubicacion": "11.4"
+    },
+    {
+      "actor": "sistema",
+      "accion": "respaldar notas y datos personales diariamente y permitir recuperación de los últimos 30 días",
+      "entidades": [
+        "Nota",
+        "DatosPersonales"
+      ],
+      "servicio_sugerido": "transversal",
+      "etiquetas": [],
+      "id": "RF-31",
+      "tipo": "funcional",
+      "texto": "Las notas y los datos personales se respaldan cada día y se pueden recuperar tal como estaban en cualquiera de los últimos 30 días.",
+      "ubicacion": "11.5"
+    },
+    {
+      "actor": "sistema",
+      "accion": "no mostrar detalles internos en mensajes de error",
+      "entidades": [],
+      "servicio_sugerido": "transversal",
+      "etiquetas": [],
+      "id": "RNF-06",
+      "tipo": "no_funcional",
+      "texto": "Los mensajes de error no muestran detalles internos del sistema.",
+      "ubicacion": "11.6"
+    },
+    {
+      "actor": "sistema",
+      "accion": "no incluir claves de BD ni de biblioteca en código",
+      "entidades": [
+        "BaseDatos",
+        "Biblioteca"
+      ],
+      "servicio_sugerido": "transversal",
+      "etiquetas": [],
+      "id": "RNF-07",
+      "tipo": "no_funcional",
+      "texto": "Las claves de las bases de datos y la que usa la biblioteca no pueden estar escritas en el código.",
+      "ubicacion": "11.7"
+    },
+    {
+      "actor": "sistema",
+      "accion": "documentar cada versión de la consulta y retirar versiones antiguas con un mes de aviso",
+      "entidades": [
+        "Consulta",
+        "Biblioteca"
+      ],
+      "servicio_sugerido": "biblioteca",
+      "etiquetas": [],
+      "id": "RF-32",
+      "tipo": "funcional",
+      "texto": "Cada versión de la consulta que usa la biblioteca está documentada, y una versión antigua solo se retira después de avisar con un mes de anticipación.",
+      "ubicacion": "11.8"
+    }
+  ]
+}

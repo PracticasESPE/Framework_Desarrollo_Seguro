@@ -1,0 +1,122 @@
+{
+  "documento": "02_gestion_academica",
+  "titulo": "Gestión académica",
+  "pasos": {
+    "clasificar": {
+      "correcto": true,
+      "segundos": 526.7
+    },
+    "registrar": {
+      "correcto": true,
+      "segundos": 10.0
+    },
+    "proponer": {
+      "correcto": true,
+      "segundos": 21.8
+    },
+    "adr": {
+      "correcto": true,
+      "segundos": 45.1
+    },
+    "diagrama": {
+      "correcto": true,
+      "segundos": 1.6
+    }
+  },
+  "fase1": {
+    "documento": "02_gestion_academica",
+    "referencia": 38,
+    "modelo": 39,
+    "encontrados": 38,
+    "exhaustividad": 1.0,
+    "falsos_positivos": 1,
+    "fuera_de_alcance_como_requisito": 0,
+    "tipo_correcto": 33,
+    "acierto_tipo": 0.868,
+    "etiquetas_precision": 0.947,
+    "etiquetas_exhaustividad": 0.5,
+    "etiquetas_f1": 0.654,
+    "no_encontrados": [],
+    "tipo_incorrecto": [
+      "RNF-01: funcional (esperado no_funcional)",
+      "RF-12: no_funcional (esperado funcional)",
+      "RNF-06: funcional (esperado no_funcional)",
+      "RNF-07: funcional (esperado no_funcional)",
+      "RNF-10: funcional (esperado no_funcional)"
+    ],
+    "falsos_positivos_texto": [
+      "RF-01 [1, párrafo 2] El instituto quiere un sistema en línea para estudiantes, docentes y personal ad"
+    ]
+  },
+  "ciclo": {
+    "aprobada": true,
+    "intentos": 1,
+    "rechazos": [],
+    "patrones": [
+      "api_gateway",
+      "circuit_breaker",
+      "database_per_service",
+      "event_driven",
+      "saga"
+    ],
+    "patrones_referencia": [
+      "api_gateway",
+      "circuit_breaker",
+      "database_per_service",
+      "event_driven"
+    ],
+    "avisos": [
+      "arquitectura.cadena_sincrona",
+      "arquitectura.cadena_sincrona",
+      "arquitectura.cadena_sincrona",
+      "arquitectura.cadena_sincrona",
+      "arquitectura.cadena_sincrona",
+      "arquitectura.cadena_sincrona",
+      "arquitectura.cadena_sincrona",
+      "arquitectura.cadena_sincrona",
+      "arquitectura.cadena_sincrona",
+      "arquitectura.cadena_sincrona"
+    ]
+  },
+  "fase2": {
+    "documento": "02_gestion_academica",
+    "servicios_propuestos": [
+      "usuarios",
+      "catalogo",
+      "matriculas",
+      "notas",
+      "asistencia",
+      "certificados",
+      "notificaciones"
+    ],
+    "servicios_referencia": [
+      "usuarios",
+      "oferta",
+      "matriculas",
+      "calificaciones",
+      "certificados",
+      "notificaciones"
+    ],
+    "nombres_coincidentes": [
+      "certificados",
+      "matriculas",
+      "notificaciones",
+      "usuarios"
+    ],
+    "requisitos_emparejados": 38,
+    "requisitos_referencia": 38,
+    "pares_precision": 0.616,
+    "pares_exhaustividad": 0.565,
+    "pares_f1": 0.589,
+    "correspondencia": {
+      "calificaciones": "notas",
+      "certificados": "certificados",
+      "matriculas": "matriculas",
+      "notificaciones": "notificaciones",
+      "oferta": "catalogo",
+      "transversal": "transversal",
+      "usuarios": "usuarios"
+    }
+  },
+  "adr": 8
+}

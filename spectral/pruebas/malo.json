@@ -1,0 +1,7 @@
+{"openapi":"3.0.0","info":{"title":"Malo","version":"1.0","description":"x"},
+ "servers":[{"url":"https://api.fw.local","description":"Entorno local","x-internal":true}],
+ "paths":{"/usuarios":{"get":{"operationId":"a","summary":"a","description":"a","tags":["t"],
+   "parameters":[{"name":"api_key","in":"query","schema":{"type":"string","maxLength":10}}],
+   "responses":{"200":{"description":"ok","content":{"application/json":{"schema":{"$ref":"#/components/schemas/UsuarioRespuesta"}}}}}}}},
+ "tags":[{"name":"t"}],
+ "components":{"schemas":{"UsuarioRespuesta":{"type":"object","properties":{"passwordHash":{"type":"string","maxLength":60}}}}}}

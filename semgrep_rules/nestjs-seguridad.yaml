@@ -1,0 +1,157 @@
+rules:
+  - id: nestjs-validationpipe-sin-whitelist
+    languages: [typescript]
+    severity: WARNING
+    message: >-
+      ValidationPipe sin 'whitelist: true'. El servicio aceptaría propiedades que el DTO
+      no declara (asignación masiva). Usa whitelist: true y forbidNonWhitelisted: true.
+    patterns:
+      - pattern: new ValidationPipe(...)
+      - pattern-not: |
+          new ValidationPipe({ ..., whitelist: true, ... })
+    metadata:
+      category: security
+      technology: [nestjs]
+      confidence: HIGH
+      cwe: ["CWE-915: Improperly Controlled Modification of Dynamically-Determined Object Attributes"]
+      owasp: ["API3:2023 Broken Object Property Level Authorization"]
+
+  - id: prisma-sql-crudo-inseguro
+    languages: [typescript]
+    severity: ERROR
+    message: >-
+      $queryRawUnsafe y $executeRawUnsafe arman el SQL como texto y permiten inyección SQL.
+      Usa $queryRaw con plantillas etiquetadas o el cliente tipado de Prisma.
+    patterns:
+      - pattern: $DB.$FN(...)
+      - metavariable-regex:
+          metavariable: $FN
+          regex: '^\$(queryRawUnsafe|executeRawUnsafe)$'
+    metadata:
+      category: security
+      technology: [prisma]
+      confidence: HIGH
+      cwe: ["CWE-89: Improper Neutralization of Special Elements used in an SQL Command ('SQL Injection')"]
+      owasp: ["A03:2021 Injection"]
+
+  - id: nestjs-cors-abierto
+    languages: [typescript]
+    severity: WARNING
+    message: >-
+      CORS abierto a cualquier origen. Indica la lista de orígenes permitidos
+      (por ejemplo origin: ['https://tienda.example.com']).
+    pattern-either:
+      - pattern: $APP.enableCors()
+      - pattern: |
+          $APP.enableCors({ ..., origin: "*", ... })
+      - pattern: |
+          $APP.enableCors({ ..., origin: true, ... })
+      - pattern: |
+          NestFactory.create($MODULE, { ..., cors: true, ... })
+    metadata:
+      category: security
+      technology: [nestjs]
+      confidence: HIGH
+      cwe: ["CWE-942: Permissive Cross-domain Policy with Untrusted Domains"]
+      owasp: ["API8:2023 Security Misconfiguration"]
+
+  - id: jwt-secreto-en-codigo
+    languages: [typescript]
+    severity: ERROR
+    message: >-
+      Secreto JWT escrito en el código. Léelo de una variable de entorno o de un
+      gestor de secretos; quien vea el repositorio podría firmar tokens válidos.
+    pattern-either:
+      - pattern: |
+          JwtModule.register({ ..., secret: "...", ... })
+      - pattern: |
+          super({ ..., secretOrKey: "...", ... })
+      - pattern: |
+          new $CLS({ ..., secretOrKey: "...", ... })
+      - pattern: jwt.sign($PAYLOAD, "...", ...)
+      - pattern: jwt.verify($TOKEN, "...", ...)
+      - pattern: |
+          $S.sign($PAYLOAD, { ..., secret: "...", ... })
+      - pattern: |
+          $S.signAsync($PAYLOAD, { ..., secret: "...", ... })
+    metadata:
+      category: security
+      technology: [nestjs, jwt]
+      confidence: HIGH
+      cwe: ["CWE-798: Use of Hard-coded Credentials"]
+      owasp: ["API2:2023 Broken Authentication"]
+
+  - id: jwt-ignora-expiracion
+    languages: [typescript]
+    severity: ERROR
+    message: >-
+      ignoreExpiration: true hace que se acepten tokens vencidos. Déjalo en false.
+    pattern-either:
+      - pattern: |
+          super({ ..., ignoreExpiration: true, ... })
+      - pattern: |
+          new $CLS({ ..., ignoreExpiration: true, ... })
+      - pattern: |
+          $X.verify(..., { ..., ignoreExpiration: true, ... })
+    metadata:
+      category: security
+      technology: [nestjs, jwt]
+      confidence: HIGH
+      cwe: ["CWE-613: Insufficient Session Expiration"]
+      owasp: ["API2:2023 Broken Authentication"]
+
+  - id: tls-verificacion-desactivada
+    languages: [typescript]
+    severity: ERROR
+    message: >-
+      Se desactiva la verificación del certificado TLS. Un atacante en la red podría
+      suplantar al servidor. Mantén rejectUnauthorized en true.
+    pattern-either:
+      - pattern: |
+          $FN(..., { ..., rejectUnauthorized: false, ... })
+      - pattern: |
+          new $CLS(..., { ..., rejectUnauthorized: false, ... })
+      - pattern: |
+          new $CLS(..., { ..., ssl: { ..., rejectUnauthorized: false, ... }, ... })
+      - pattern: process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0"
+    metadata:
+      category: security
+      technology: [nodejs]
+      confidence: HIGH
+      cwe: ["CWE-295: Improper Certificate Validation"]
+      owasp: ["API8:2023 Security Misconfiguration"]
+
+  - id: hash-criptografico-debil
+    languages: [typescript]
+    severity: WARNING
+    message: >-
+      MD5 y SHA-1 son algoritmos débiles. Usa SHA-256 o superior; para contraseñas,
+      un algoritmo específico como argon2 o scrypt.
+    pattern-either:
+      - pattern: createHash("md5")
+      - pattern: createHash("sha1")
+      - pattern: $C.createHash("md5")
+      - pattern: $C.createHash("sha1")
+    metadata:
+      category: security
+      technology: [nodejs]
+      confidence: HIGH
+      cwe: ["CWE-327: Use of a Broken or Risky Cryptographic Algorithm"]
+      owasp: ["A02:2021 Cryptographic Failures"]
+
+  - id: prisma-findmany-sin-limite
+    languages: [typescript]
+    severity: WARNING
+    message: >-
+      findMany sin 'take' devuelve todos los registros. Con muchos datos puede agotar
+      memoria y tiempo. Agrega un límite (take) y paginación.
+    patterns:
+      - pattern: $MODEL.findMany(...)
+      - pattern-not: |
+          $MODEL.findMany({ ..., take: $N, ... })
+    metadata:
+      category: security
+      technology: [prisma]
+      confidence: MEDIUM
+      cwe: ["CWE-770: Allocation of Resources Without Limits or Throttling"]
+      owasp: ["API4:2023 Unrestricted Resource Consumption"]

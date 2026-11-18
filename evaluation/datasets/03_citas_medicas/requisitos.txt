@@ -1,0 +1,107 @@
+Citas médicas: documento de requisitos
+
+Versión 1.0, noviembre de 2026.
+
+1. Contexto
+
+Una red de tres clínicas privadas de la misma ciudad, con 45 médicos de 12 especialidades, agenda hoy las citas por teléfono y guarda las historias clínicas en papel en cada sede. Cuando un paciente se atiende en otra sede, el médico no tiene su historia; las líneas telefónicas se saturan por la mañana y una de cada cinco citas se pierde porque el paciente no acude ni avisa.
+
+La red quiere que los pacientes reserven y paguen sus citas en línea, que la historia clínica sea electrónica y compartida entre las tres sedes, y que los resultados del laboratorio externo lleguen solos. La dirección es consciente de que los datos de salud son datos personales especialmente protegidos y de que una filtración afectaría a la confianza de sus pacientes.
+
+2. Perfiles
+
+Perfil | Quién es | Qué hace en el sistema
+Paciente | Persona que se atiende en la red | Reserva y paga citas, ve sus resultados y su historia
+Médico | Profesional que atiende en una o varias sedes | Gestiona su agenda y registra las consultas
+Recepción | Personal de cada sede | Atiende a los pacientes y gestiona las citas
+Dirección médica | Responsables médicos de la red | Gestiona médicos y sedes y revisa indicadores
+Administrador | Personal de sistemas | Gestiona las cuentas del personal
+
+Cada perfil solo ve de la historia clínica lo que indica la siguiente tabla.
+
+Información | Paciente | Médico | Recepción | Dirección médica
+Datos de contacto | Los suyos | De sus pacientes | Sí | Sí
+Citas | Las suyas | Las de su agenda | Todas | Todas
+Notas y diagnósticos | Los suyos | De sus pacientes | No | No
+Resultados de laboratorio | Los suyos | De sus pacientes | No | No
+Pagos | Los suyos | No | Sí | Solo totales
+
+3. Cuentas
+
+1. El paciente se registra con su correo, su número de cédula y su fecha de nacimiento; la cuenta se activa cuando confirma el correo, y una misma cédula no puede tener dos cuentas.
+2. Si alguien falla cinco veces seguidas la contraseña de una cuenta, el sistema le pide además un código que se envía al correo del paciente.
+3. Un paciente puede gestionar desde su propia cuenta las citas de sus hijos menores de edad, y solo las de ellos.
+4. El personal médico y administrativo entra con su contraseña y además con un código de un solo uso que le da una aplicación de autenticación en el móvil.
+5. La sesión del personal se cierra sola tras 10 minutos sin actividad, y la de los pacientes tras 30 minutos.
+
+4. Agenda y citas
+
+1. Cada médico define su propio horario de atención por sede y por día, en bloques de 20 o 40 minutos según la especialidad.
+2. El paciente busca horarios libres por especialidad, médico, sede y fecha, y reserva una cita en línea.
+3. Un mismo horario nunca puede quedar reservado para dos pacientes, aunque lo reserven en el mismo instante desde la web y desde recepción.
+4. Un paciente puede tener como máximo dos citas pendientes por especialidad, para que nadie acapare la agenda.
+5. Si un paciente falta a tres citas en seis meses sin cancelarlas, durante el mes siguiente solo puede reservar a través de recepción.
+6. Recepción reserva, cambia y cancela citas en nombre de cualquier paciente que llame o acuda a la sede.
+7. El paciente cancela o cambia su cita sin costo hasta 24 horas antes de la hora reservada.
+
+5. Consulta e historia clínica
+
+1. Durante la consulta, el médico registra el motivo, la exploración, el diagnóstico con su código CIE-10 y el tratamiento.
+2. El médico solo puede abrir la historia clínica de los pacientes que tienen o tuvieron una cita con él.
+3. En una urgencia, un médico puede abrir la historia de cualquier paciente indicando el motivo; ese acceso queda registrado y la dirección médica recibe un aviso en el momento.
+4. Una nota de consulta firmada ya no se puede modificar, y cualquier corrección se añade como una nota nueva que hace referencia a la anterior.
+5. Queda registro de cada persona que consulta una historia clínica, con la fecha y el motivo, y el paciente puede ver quién ha consultado la suya.
+6. El médico emite recetas electrónicas con un código que la farmacia usa para comprobar que la receta es auténtica.
+7. El paciente descarga en PDF su historia clínica completa cuando la necesite.
+8. Las historias clínicas se guardan cifradas y se conservan al menos 15 años, aunque el paciente cierre su cuenta.
+
+6. Laboratorio
+
+1. El laboratorio externo envía al sistema los resultados de cada examen, y el sistema solo acepta envíos autenticados del laboratorio con archivos PDF de hasta 5 MB.
+2. Cuando llega un resultado, el médico que pidió el examen recibe un aviso, y el paciente lo ve en su cuenta solo después de que el médico lo haya revisado.
+3. Si el laboratorio no responde, el resto del sistema sigue funcionando y los resultados se reciben cuando vuelva a estar disponible.
+
+7. Pagos
+
+1. El paciente paga el copago de la cita en línea con tarjeta, a través de una pasarela de pagos externa, y la red nunca guarda los datos de la tarjeta.
+2. Una cita reservada en línea solo queda confirmada cuando se aprueba su pago, y si no se paga en 15 minutos el horario vuelve a quedar libre.
+3. Si el médico cancela una cita ya pagada, el pago se devuelve al paciente de forma automática.
+4. La pasarela avisa de cada pago aprobado o devuelto, y el sistema solo acepta los avisos que demuestren venir de la pasarela.
+
+8. Recordatorios
+
+1. El paciente recibe un recordatorio por correo y por mensaje de texto 24 horas antes de su cita.
+2. Los recordatorios y los correos nunca incluyen el motivo de la consulta, el diagnóstico ni la especialidad, solo la fecha, la hora y la sede.
+
+9. Dirección médica
+
+1. La dirección médica consulta indicadores de ocupación de la agenda, de ausencias y de tiempos de espera por sede y especialidad, sin ver datos que identifiquen a los pacientes.
+2. La dirección médica gestiona los médicos, sus especialidades y las sedes donde atiende cada uno.
+
+10. Historias de usuario
+
+En los talleres con pacientes y médicos surgieron estas peticiones:
+
+- Como paciente, quiero entrar a una teleconsulta desde el enlace que aparece en mi cita, para no ir a la clínica cuando mi médico lo permita.
+- Como médico, quiero ver en una sola pantalla mis citas del día en todas las sedes, para organizar mis traslados.
+- Como paciente, quiero pedir que se corrijan mis datos personales y que se eliminen los que ya no sean necesarios, para ejercer mis derechos sobre ellos.
+
+11. Condiciones generales
+
+1. Toda la comunicación con el sistema debe viajar cifrada, y pacientes y personal deben entrar siempre por una única dirección.
+2. La web de los pacientes y la aplicación del personal son distintas, y cada una recibe solo la información que necesita.
+3. Ninguna persona ni ningún equipo puede hacer más de 60 peticiones por minuto, y como máximo 20 de ellas pueden ser búsquedas de horarios libres.
+4. El sistema debe estar disponible el 99,5 % del tiempo en el horario de atención de las clínicas, de 07:00 a 20:00.
+5. La agenda, la historia clínica, el laboratorio y los pagos deben poder actualizarse por separado, cada uno con sus propios datos, y a los datos de la historia clínica solo accede su propio servicio.
+6. Los mensajes de error no muestran detalles internos del sistema.
+7. Las claves del laboratorio, de la pasarela, del envío de mensajes y de las bases de datos se guardan en un almacén de secretos y nunca en el código.
+8. Se hace un respaldo cifrado cada día, y cada tres meses se comprueba que se puede restaurar.
+
+12. Fuera del alcance
+
+En esta primera versión la red no necesita lo siguiente:
+
+- El inventario de la farmacia.
+- La facturación a las aseguradoras.
+- Digitalizar las historias clínicas antiguas en papel.
+- Una aplicación móvil propia.

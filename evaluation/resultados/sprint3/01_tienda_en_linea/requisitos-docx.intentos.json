@@ -1,0 +1,404 @@
+{
+  "documento": {
+    "nombre": "requisitos.docx",
+    "sha256": "0515668b00b815491f423ea5a507976c3c67e8bd6eb0bd8dde487f1b171dc72e",
+    "herramienta": "docling 2.148.0"
+  },
+  "aprobada": true,
+  "maximo_intentos": 3,
+  "intentos": [
+    {
+      "numero": 1,
+      "fecha": "2026-11-15T01:08:36.160333Z",
+      "origen": "llm",
+      "retroalimentacion": [],
+      "arquitectura": {
+        "version_esquema": "1.0",
+        "documento": {
+          "nombre": "requisitos.docx",
+          "sha256": "0515668b00b815491f423ea5a507976c3c67e8bd6eb0bd8dde487f1b171dc72e",
+          "herramienta": "docling 2.148.0"
+        },
+        "servicios": [
+          {
+            "nombre": "usuarios",
+            "contexto": "Gestión de Usuarios y Autenticación",
+            "responsabilidad": "Registro, activación por email, login con bloqueo por intentos fallidos, gestión de perfil, logout, eliminación de cuenta y manejo seguro de credenciales.",
+            "entidades": [
+              "Cliente",
+              "Cuenta",
+              "Direccion"
+            ],
+            "requisitos": [
+              "RF-02",
+              "RF-03",
+              "RF-04",
+              "RF-05",
+              "RNF-01",
+              "RF-21"
+            ],
+            "base_datos": "usuarios_db",
+            "depende_de": [],
+            "etiquetas": [
+              "autenticacion",
+              "limite_peticiones",
+              "control_acceso_recursos",
+              "hash_password",
+              "autorizacion",
+              "auditoria"
+            ]
+          },
+          {
+            "nombre": "catalogo",
+            "contexto": "Catálogo de Productos",
+            "responsabilidad": "Búsqueda y visualización de productos, gestión de creación, modificación y retiro de productos por administradores, manejo de fotos y disponibilidad.",
+            "entidades": [
+              "Producto",
+              "Foto",
+              "Categoria"
+            ],
+            "requisitos": [
+              "RF-06",
+              "RF-07",
+              "RF-08",
+              "RF-09",
+              "RNF-08"
+            ],
+            "base_datos": "catalogo_db",
+            "depende_de": [],
+            "etiquetas": [
+              "validacion_entrada"
+            ]
+          },
+          {
+            "nombre": "pedidos",
+            "contexto": "Gestión de Pedidos y Carrito",
+            "responsabilidad": "Manejo del carrito, creación y validación de pedidos, cálculo de precios, control de stock, flujo de estados del pedido, cancelación, generación de eventos de pago y auditoría.",
+            "entidades": [
+              "Carrito",
+              "Pedido",
+              "Stock",
+              "Producto",
+              "Direccion",
+              "EstadoPedido"
+            ],
+            "requisitos": [
+              "RF-01",
+              "RF-10",
+              "RF-11",
+              "RF-12",
+              "RF-13",
+              "RF-14",
+              "RF-16",
+              "RF-17",
+              "RF-18",
+              "RF-20"
+            ],
+            "base_datos": "pedidos_db",
+            "depende_de": [
+              {
+                "servicio": "usuarios",
+                "tipo": "sincrona",
+                "motivo": "validar identidad del cliente y obtener datos de cuenta"
+              },
+              {
+                "servicio": "catalogo",
+                "tipo": "sincrona",
+                "motivo": "obtener precios y disponibilidad al crear el pedido"
+              },
+              {
+                "servicio": "pagos",
+                "tipo": "asincrona",
+                "motivo": "recibir notificación de pago y actualizar estado del pedido"
+              }
+            ],
+            "etiquetas": [
+              "validacion_entrada",
+              "control_acceso_recursos",
+              "autorizacion"
+            ]
+          },
+          {
+            "nombre": "pagos",
+            "contexto": "Procesamiento de Pagos",
+            "responsabilidad": "Iniciar pagos mediante pasarela externa, validar notificaciones firmadas, registrar resultados y emitir eventos de pago aceptado o rechazado.",
+            "entidades": [
+              "Pago",
+              "Transaction"
+            ],
+            "requisitos": [
+              "RNF-02",
+              "RF-15"
+            ],
+            "base_datos": "pagos_db",
+            "depende_de": [
+              {
+                "servicio": "pedidos",
+                "tipo": "asincrona",
+                "motivo": "recibir solicitud de pago para el pedido"
+              }
+            ],
+            "etiquetas": [
+              "validacion_entrada"
+            ]
+          },
+          {
+            "nombre": "ventas",
+            "contexto": "Reportes y Analítica de Ventas",
+            "responsabilidad": "Generar reportes de ventas por rango de fechas y proporcionar datos a los administradores.",
+            "entidades": [
+              "Venta",
+              "Pedido"
+            ],
+            "requisitos": [
+              "RF-19"
+            ],
+            "base_datos": "ventas_db",
+            "depende_de": [
+              {
+                "servicio": "pedidos",
+                "tipo": "sincrona",
+                "motivo": "consultar pedidos para calcular métricas de venta"
+              }
+            ],
+            "etiquetas": []
+          }
+        ],
+        "transversales": [
+          "RNF-03",
+          "RNF-04",
+          "RNF-05",
+          "RNF-06",
+          "RNF-07",
+          "RNF-09",
+          "RNF-10"
+        ],
+        "etiquetas_transversales": [
+          "auditoria",
+          "autorizacion",
+          "cifrado_transito",
+          "punto_unico_acceso",
+          "limite_peticiones"
+        ],
+        "decisiones": [
+          {
+            "id": "D-01",
+            "titulo": "División en 5 microservicios",
+            "decision": "Se crean los microservicios usuarios, catalogo, pedidos, pagos y ventas.",
+            "justificacion": "Los requisitos se agrupan naturalmente en contextos delimitados (autenticación, catálogo, flujo de pedido, pago y reportes). Esta separación evita servicios diminutos y permite escalar cada dominio de forma independiente.",
+            "requisitos": [
+              "RF-01",
+              "RF-02",
+              "RF-06",
+              "RF-10",
+              "RF-15",
+              "RF-19"
+            ]
+          },
+          {
+            "id": "D-02",
+            "titulo": "Patrón de comunicación",
+            "decision": "Comunicación síncrona HTTP entre pedidos‑usuarios y pedidos‑catalogo; eventos asíncronos vía RabbitMQ entre pedidos y pagos.",
+            "justificacion": "La validación de cliente y precios necesita respuesta inmediata (RF-02, RF-11). La notificación de pago es mejor manejarla de forma desacoplada y resiliente (RF-15, RF-16).",
+            "requisitos": [
+              "RF-01",
+              "RF-11",
+              "RF-15",
+              "RF-16",
+              "RF-20"
+            ]
+          },
+          {
+            "id": "D-03",
+            "titulo": "Uso de RabbitMQ para eventos de dominio",
+            "decision": "Se emplea RabbitMQ para publicar eventos de \"pedido creado\", \"pago recibido\", \"pedido cancelado\" y \"estado actualizado\".",
+            "justificacion": "Los eventos permiten que pagos, notificaciones y auditoría reaccionen sin crear dependencias circulares y cumplen con la necesidad de independencia de fallos (RNF-09).",
+            "requisitos": [
+              "RF-15",
+              "RF-17",
+              "RF-16",
+              "RNF-09"
+            ]
+          },
+          {
+            "id": "D-04",
+            "titulo": "Base de datos por microservicio",
+            "decision": "Cada microservicio posee su propia base PostgreSQL aislada.",
+            "justificacion": "Garantiza la independencia de datos y la capacidad de escalar o actualizar cada dominio sin afectar a los demás, cumpliendo RNF-09 y facilitando la gestión de secretos (RNF-10).",
+            "requisitos": [
+              "RNF-09",
+              "RNF-10",
+              "RNF-05"
+            ]
+          },
+          {
+            "id": "D-05",
+            "titulo": "Seguridad y calidad de servicio transversal",
+            "decision": "Se usa Keycloak para autenticación y autorización, TLS para todas las comunicaciones, límite de 100 rps por cliente/IP y mensajes de error genéricos.",
+            "justificacion": "Cumple con RNF-05 (cifrado), RNF-06 (rate limiting), RNF-07 (errores claros), RNF-04 (solo personal admin) y RNF-01 (hash de contraseñas).",
+            "requisitos": [
+              "RNF-05",
+              "RNF-06",
+              "RNF-07",
+              "RNF-04",
+              "RNF-01"
+            ]
+          }
+        ]
+      },
+      "decision": {
+        "aprobado": true,
+        "bloqueantes": [],
+        "advertencias": [
+          {
+            "regla": "arquitectura.cadena_sincrona",
+            "motivo": "Cadena de llamadas síncronas ventas -> pedidos -> catalogo: si catalogo falla o tarda, arrastra a los demás; considera eventos"
+          },
+          {
+            "regla": "arquitectura.cadena_sincrona",
+            "motivo": "Cadena de llamadas síncronas ventas -> pedidos -> usuarios: si usuarios falla o tarda, arrastra a los demás; considera eventos"
+          },
+          {
+            "regla": "arquitectura.ciclo_de_eventos",
+            "motivo": "pagos, pedidos dependen unos de otros en círculo (pagos -> pedidos (asincrona), pedidos -> pagos (asincrona)): es una saga coreografiada; documenta sus eventos y la compensación si un paso falla"
+          }
+        ],
+        "criterios": [
+          {
+            "regla": "arquitectura.base_datos_propia",
+            "cumple": true,
+            "detalle": "Cada servicio tiene su propia base de datos (Database per Service)"
+          },
+          {
+            "regla": "arquitectura.sin_ciclos",
+            "cumple": true,
+            "detalle": "Las llamadas síncronas entre servicios no forman ciclos"
+          },
+          {
+            "regla": "arquitectura.dependencias_conocidas",
+            "cumple": true,
+            "detalle": "Cada dependencia apunta a otro servicio de la arquitectura"
+          },
+          {
+            "regla": "arquitectura.servicios_unicos",
+            "cumple": true,
+            "detalle": "Hay al menos un servicio y no hay nombres repetidos"
+          }
+        ],
+        "rasgos": [
+          {
+            "etiqueta": "autenticacion_centralizada",
+            "motivo": "Hay requisitos de autenticación y varios servicios: se autentica una sola vez, en la entrada"
+          },
+          {
+            "etiqueta": "autonomia_de_datos",
+            "motivo": "Cada servicio tiene su propia base de datos"
+          },
+          {
+            "etiqueta": "comunicacion_asincrona",
+            "motivo": "Dependencias por eventos: pagos -> pedidos, pedidos -> pagos"
+          },
+          {
+            "etiqueta": "dependencia_sincrona_externa",
+            "motivo": "Llamadas síncronas entre servicios: pedidos -> catalogo, pedidos -> usuarios, ventas -> pedidos"
+          },
+          {
+            "etiqueta": "punto_unico_acceso",
+            "motivo": "Hay requisitos de punto único de entrada o de límite de peticiones"
+          },
+          {
+            "etiqueta": "transaccion_entre_servicios",
+            "motivo": "pedidos coordina operaciones que involucran a otros servicios"
+          }
+        ],
+        "patrones": [
+          {
+            "id": "arq.basedatos.001",
+            "patron": "database_per_service",
+            "implementacion": "prisma_postgresql",
+            "controles": [
+              "ASVS-V4.1.3",
+              "ASVS-V13.1.4"
+            ],
+            "cwe": [
+              "CWE-284",
+              "CWE-668"
+            ],
+            "por": [
+              "autonomia_de_datos"
+            ],
+            "motivo": "Cada servicio tiene su propia base de datos"
+          },
+          {
+            "id": "arq.eventos.001",
+            "patron": "event_driven",
+            "implementacion": "rabbitmq",
+            "controles": [
+              "ASVS-V5.1.3"
+            ],
+            "cwe": [
+              "CWE-20",
+              "CWE-345"
+            ],
+            "por": [
+              "comunicacion_asincrona"
+            ],
+            "motivo": "Dependencias por eventos: pagos -> pedidos, pedidos -> pagos"
+          },
+          {
+            "id": "arq.gateway.001",
+            "patron": "api_gateway",
+            "implementacion": "traefik",
+            "controles": [
+              "ASVS-V4.1.1",
+              "ASVS-V1.4.1"
+            ],
+            "cwe": [
+              "CWE-284",
+              "CWE-306"
+            ],
+            "por": [
+              "autenticacion_centralizada",
+              "punto_unico_acceso"
+            ],
+            "motivo": "Hay requisitos de autenticación y varios servicios: se autentica una sola vez, en la entrada; Hay requisitos de punto único de entrada o de límite de peticiones"
+          },
+          {
+            "id": "arq.resiliencia.001",
+            "patron": "circuit_breaker",
+            "implementacion": "nestjs_interceptor_con_reintentos_y_timeout",
+            "controles": [
+              "ASVS-V11.1.4"
+            ],
+            "cwe": [
+              "CWE-400",
+              "CWE-770"
+            ],
+            "por": [
+              "dependencia_sincrona_externa"
+            ],
+            "motivo": "Llamadas síncronas entre servicios: pedidos -> catalogo, pedidos -> usuarios, ventas -> pedidos"
+          },
+          {
+            "id": "arq.transaccion.001",
+            "patron": "saga",
+            "implementacion": "rabbitmq",
+            "controles": [
+              "ASVS-V11.1.1",
+              "ASVS-V11.1.6"
+            ],
+            "cwe": [
+              "CWE-362",
+              "CWE-841"
+            ],
+            "por": [
+              "transaccion_entre_servicios"
+            ],
+            "motivo": "pedidos coordina operaciones que involucran a otros servicios"
+          }
+        ],
+        "justificacion": "Arquitectura aprobada: cumple los 4 criterios; patrones inferidos: api_gateway, circuit_breaker, database_per_service, event_driven, saga"
+      }
+    }
+  ]
+}

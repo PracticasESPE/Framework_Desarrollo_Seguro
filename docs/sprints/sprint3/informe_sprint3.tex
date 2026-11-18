@@ -1,0 +1,657 @@
+% Informe del sprint 3 del framework de desarrollo seguro.
+% Compilar con XeLaTeX (dos pasadas para el índice):
+%   latexmk -xelatex informe_sprint3.tex
+\documentclass[11pt,a4paper]{report}
+
+% ---------- Idioma y tipografía ----------
+\usepackage{fontspec}
+\usepackage[spanish,es-noshorthands,es-tabla]{babel}
+\setmonofont{Latin Modern Mono}[Scale=0.95]
+
+% ---------- Página ----------
+\usepackage[a4paper,top=2.6cm,bottom=2.6cm,left=2.5cm,right=2.5cm,headheight=14pt]{geometry}
+\usepackage{xcolor}
+\usepackage{titlesec}
+\usepackage{fancyhdr}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{colortbl}
+\usepackage{enumitem}
+\usepackage{caption}
+\usepackage{float}
+\usepackage[most]{tcolorbox}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,fit,backgrounds}
+\usepackage[htt]{hyphenat}  % permite cortar los nombres largos en \texttt
+\usepackage{xurl}
+\usepackage[hidelinks]{hyperref}
+
+% ---------- Colores (los mismos del plan técnico v2) ----------
+\definecolor{azulfw}{HTML}{2A64A8}
+\definecolor{azulclaro}{HTML}{E4EEF9}
+\definecolor{verdefw}{HTML}{3E6B12}
+\definecolor{verdeclaro}{HTML}{EAF1E1}
+\definecolor{ocrefw}{HTML}{8A4E0B}
+\definecolor{ocreclaro}{HTML}{FCF0DF}
+\definecolor{rojofw}{HTML}{A33A3A}
+\definecolor{rojoclaro}{HTML}{F8E3E3}
+\definecolor{grisfw}{HTML}{6B6B6B}
+
+% ---------- Títulos ----------
+\titleformat{\chapter}[hang]{\huge\bfseries\color{azulfw}}{\thechapter.}{0.5em}{}
+\titlespacing*{\chapter}{0pt}{0pt}{1.2em}
+\titleformat{\section}{\Large\bfseries\color{azulfw}}{\thesection}{0.6em}{}
+\titleformat{\subsection}{\large\bfseries}{\thesubsection}{0.6em}{}
+\addto\captionsspanish{\renewcommand{\contentsname}{\color{azulfw}Índice}}
+
+% ---------- Encabezado y pie ----------
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small\color{grisfw}Framework de desarrollo seguro guiado por conocimiento}
+\fancyhead[R]{\small\color{grisfw}Informe del sprint 3}
+\fancyfoot[C]{\small\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+\fancypagestyle{plain}{\fancyhf{}\fancyfoot[C]{\small\thepage}\renewcommand{\headrulewidth}{0pt}}
+
+% ---------- Tablas ----------
+\renewcommand{\arraystretch}{1.25}
+\newcolumntype{L}{>{\raggedright\arraybackslash}X}
+\newcolumntype{P}[1]{>{\raggedright\arraybackslash}p{#1}}
+\newcolumntype{C}[1]{>{\centering\arraybackslash}p{#1}}
+\captionsetup{font=small,labelsep=colon}
+\setlist{itemsep=0.25em,topsep=0.4em}
+
+% ---------- Recuadros ----------
+\newtcolorbox{cajaverde}[1]{enhanced,colback=verdeclaro,colframe=verdefw,
+  coltitle=white,fonttitle=\bfseries,title={#1},arc=1.5mm,boxrule=0.6pt,
+  left=2mm,right=2mm,top=1mm,bottom=1mm}
+\newtcolorbox{cajaazul}[1]{enhanced,colback=azulclaro,colframe=azulfw,
+  coltitle=white,fonttitle=\bfseries,title={#1},arc=1.5mm,boxrule=0.6pt,
+  left=2mm,right=2mm,top=1mm,bottom=1mm}
+\newtcolorbox{cajaocre}[1]{enhanced,colback=ocreclaro,colframe=ocrefw,
+  coltitle=white,fonttitle=\bfseries,title={#1},arc=1.5mm,boxrule=0.6pt,
+  left=2mm,right=2mm,top=1mm,bottom=1mm}
+
+\newcommand{\pr}[1]{\href{https://github.com/PracticasESPE/Framework_Desarrollo_Seguro/pull/#1}{\##1}}
+\newcommand{\run}[1]{\href{https://github.com/PracticasESPE/Framework_Desarrollo_Seguro/actions/runs/#1}{#1}}
+\newcommand{\filasprint}[1]{\rowcolor{azulclaro}\multicolumn{5}{l}{\bfseries #1}\\}
+
+\hypersetup{pdftitle={Informe del sprint 3},pdfauthor={Marcelo Acuña Gamboa, Abner Arboleda}}
+
+\begin{document}
+
+% ======================================================================
+% PORTADA
+% ======================================================================
+\begin{titlepage}
+\centering
+\vspace*{4.2cm}
+{\color{azulfw}\rule{\textwidth}{0.8pt}}\par\vspace{0.9cm}
+{\fontsize{24}{30}\selectfont\bfseries Framework de desarrollo seguro\\
+basado en métodos computacionales\\ guiados por conocimiento\par}
+\vspace{0.9cm}{\color{azulfw}\rule{\textwidth}{0.8pt}}\par
+\vspace{1.1cm}
+{\Large Informe del sprint 3\par}
+\vspace{0.3cm}
+{\large Fases 1 y 2: del documento de requisitos a la arquitectura validada\par}
+\vspace{0.3cm}
+{\normalsize 4 al 13 de noviembre de 2026\par}
+\vspace{2.2cm}
+{\normalsize
+\begin{tabular}{rl}
+Marcelo Acuña Gamboa & Participante 1: motor e IA\\
+Abner Arboleda & Participante 2: plataforma y seguridad\\
+\end{tabular}\par}
+\vfill
+{\normalsize Universidad de las Fuerzas Armadas – ESPE \quad$\bullet$\quad Ingeniería de Software\par}
+\vspace{0.4cm}
+{\normalsize Versión 1.0 \quad$\bullet$\quad 15 de noviembre de 2026\par}
+\end{titlepage}
+
+\tableofcontents
+
+% ======================================================================
+\chapter{Resumen del sprint}
+% ======================================================================
+
+\section{Objetivo}
+
+El sprint 3 construye las dos primeras fases del framework. La fase 1 convierte el documento de
+requisitos del cliente en un modelo estructurado y clasificado; la fase 2 propone la arquitectura
+de microservicios, la valida con OPA y la documenta con ADR y un diagrama C4. Además, el sprint
+debía entregar el dataset de evaluación y la primera versión del dashboard.
+
+\begin{cajaazul}{Sin hito propio: prepara el del 27 de noviembre}
+El sprint no tiene hito de control. Entrega la entrada del hito del 27/11 (\emph{el framework
+genera microservicios desde un documento de requisitos y les aplica el Security Gate 1}):
+\texttt{modelo\_requisitos.json} y \texttt{arquitectura.json}.
+\end{cajaazul}
+
+\begin{cajaverde}{Resultado: las fases 1 y 2 funcionan de punta a punta}
+El 15/11/2026 se ejecutó la cadena completa con los tres documentos del dataset: carga,
+extracción con Docling, clasificación con el LLM, registro en Neo4j, propuesta de arquitectura con
+el ciclo LLM ↔ OPA, ADR y diagrama C4. Los tres documentos llegaron al final sin intervención
+manual: se encontraron los 111 requisitos de la referencia, OPA aprobó las tres arquitecturas y
+quedaron 29 decisiones enlazadas a sus requisitos y reglas en el grafo (capítulo~\ref{cap:prueba}).
+\end{cajaverde}
+
+\section{Indicadores}
+
+\begin{table}[H]
+\centering
+\caption{Indicadores del sprint 3, medidos el 15/11/2026 sobre \texttt{dev} y en local.}
+\begin{tabularx}{\textwidth}{@{}P{6.2cm}L@{}}
+\toprule
+\textbf{Indicador} & \textbf{Valor}\\
+\midrule
+Días y horas del sprint & 8 días, 64 horas de equipo (32 por integrante)\\
+Pull requests fusionados en \texttt{dev} & 24 (\pr{179} a \pr{202}; 10 de Marcelo y 14 de Abner), más el de este informe\\
+Duración del pipeline en CI & 12 min 20 s (ejecución \run{43660815603}, todas las fases en verde)\\
+Requisitos encontrados (fase 1) & 111 de 111 en los tres documentos; 1 falso positivo\\
+Clasificación funcional / no funcional & 86\,\% de aciertos (96 de 111)\\
+Arquitecturas aprobadas por OPA & 3 de 3, las tres al primer intento; 29 nodos \texttt{Decision} en Neo4j\\
+Agrupación de requisitos en servicios & F1 por pares de 0,82, 0,66 y 0,83 frente a la referencia\\
+Pruebas del motor (pytest) & 676 en verde y 15 omitidas (requieren Neo4j o son las lentas de PDF); 94\,\% de cobertura de \texttt{orchestrator/}\\
+Pruebas de políticas Rego & 87 en verde (gates y arquitectura)\\
+Pruebas del dashboard (Vitest) & 33 en verde; ESLint con \texttt{eslint-plugin-security} y Semgrep en su propio job de CI\\
+Alertas abiertas en GitHub Security & 47, las mismas del sprint 2, todas de severidad advertencia o baja\\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+% ======================================================================
+\chapter{Trabajo realizado}
+% ======================================================================
+
+\section{Cumplimiento del cronograma}
+
+La tabla compara el cronograma del plan con lo entregado. La columna PR indica el pull request con
+el que cada tarea entró en \texttt{dev}.
+
+{\small
+\begin{longtable}{@{}P{1.55cm}P{4.6cm}P{4.6cm}P{1.6cm}P{1.6cm}@{}}
+\caption{Tareas del sprint 3 por integrante y pull request asociado.}\\
+\toprule
+\textbf{Fecha} & \textbf{Marcelo (motor e IA)} & \textbf{Abner (plataforma y seguridad)} & \textbf{PR Marcelo} & \textbf{PR Abner}\\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Fecha} & \textbf{Marcelo (motor e IA)} & \textbf{Abner (plataforma y seguridad)} & \textbf{PR Marcelo} & \textbf{PR Abner}\\
+\midrule
+\endhead
+\filasprint{Sprint 3: fases 1 y 2}
+04/11 mié & Docling: extracción de PDF, DOCX y TXT. & Dataset: documento de requisitos 1 (tienda en línea). & \pr{185} & \pr{179}\\
+05/11 jue & Normalización del texto y esquema Pydantic \texttt{Requisito}. & Documentos 2 y 3 (gestión académica y citas médicas). & \pr{186} & \pr{180}\\
+06/11 vie & Clasificación RF/RNF y etiquetas de seguridad con LLM. & Dashboard React + Vite: estructura y carga del documento. & \pr{187}, \pr{188} & \pr{182}, \pr{184}\\
+09/11 lun & Requisitos guardados como nodos en Neo4j. & Dashboard: progreso por fase con Server-Sent Events. & \pr{192} & \pr{190}\\
+10/11 mar & Propuesta de arquitectura con LLM. & API del motor: endpoints de ejecución y estado. & \pr{194} & \pr{191}\\
+11/11 mié & OPA: reglas arquitectónicas e inferencia de patrones. & Generación de ADR en Markdown. & \pr{196} & \pr{197}\\
+12/11 jue & Ciclo LLM ↔ OPA y nodos \texttt{Decision}. & Diagrama C4 en Mermaid. & \pr{202} & \pr{201}\\
+13/11 vie & Fases 1--2 con los 3 documentos y demostración. & Revisión de ADR y diagramas, correcciones del dashboard e informe. & pendiente & este PR\\
+\bottomrule
+\end{longtable}}
+
+Además del cronograma entraron trabajos que surgieron durante el sprint: dos excepciones con
+caducidad en el Gate 3 por CVE de \texttt{zlib} en la imagen base (\pr{181}, \pr{183}), la
+corrección de la lectura de PDF en rutas con tildes (\pr{189}), la gestión de la cuota del LLM con
+caché y respaldo entre proveedores (\pr{193}), el registro automático de los requisitos en Neo4j
+desde el dashboard (\pr{198}), la segmentación de documentos sin estructura (\pr{200}) y un script
+de demostración del ciclo LLM ↔ OPA que sirvió de guía para \pr{202} (\pr{199}).
+
+Las tareas de plataforma entraron en su fecha o con un día de diferencia (\pr{180} y \pr{182}).
+En el motor, \pr{192}, \pr{194} y \pr{196} entraron a tiempo, pero las de la fase 1 se retrasaron
+entre tres y cuatro días (\pr{185} el 07/11, \pr{186} y \pr{187} el 09/11) y el ciclo LLM ↔ OPA
+tres días (\pr{202} el 15/11). Al cierre, la issue \#58 sigue abierta aunque su PR está fusionado,
+porque el PR no incluía \texttt{closes}, y la tarea \#60 está pendiente.
+
+\section{Motor e IA}
+
+\subsection{Fase 1: del documento al modelo de requisitos}
+\begin{itemize}
+\item \textbf{Extracción} (\pr{185}): Docling convierte PDF y DOCX a Markdown sin OCR, con límite
+de páginas y de tiempo; TXT y Markdown se leen directamente. Las pruebas comprueban que se
+conservan todas las frases de la referencia en los tres documentos y los cuatro formatos.
+\item \textbf{Normalización y esquema} (\pr{186}, \pr{188}, \pr{200}): el texto se limpia de
+caracteres invisibles y se divide en unidades con su ubicación (sección, viñeta o párrafo). Los
+documentos sin títulos se dividen en oraciones.
+\item \textbf{Clasificación} (\pr{187}): el LLM clasifica cada sección en un lote. El texto del
+cliente va entre marcas con un código aleatorio para que no pueda cerrar el bloque ni dar órdenes
+al modelo, y la respuesta se valida con Pydantic. El resultado es
+\texttt{modelo\_requisitos.json}, con su JSON Schema en \texttt{docs/esquemas/}.
+\item \textbf{Registro en Neo4j} (\pr{192}): \texttt{(:Ejecucion)-[:TIENE\_REQUISITO]->(:Requisito)}.
+\end{itemize}
+
+\subsection{Fase 2: de los requisitos a la arquitectura}
+\begin{itemize}
+\item \textbf{Propuesta} (\pr{194}): el modelo de razonamiento propone bounded contexts,
+microservicios con su base de datos, dependencias síncronas o por eventos y decisiones con su
+justificación. El motor comprueba que cada requisito quede asignado una sola vez.
+\item \textbf{Reglas de OPA} (\pr{196}): cuatro reglas bloqueantes (base de datos propia,
+dependencias conocidas, servicios únicos y sin ciclos de llamadas síncronas), dos advertencias y la
+inferencia de los patrones de la base de conocimiento a partir de los rasgos de la arquitectura.
+\item \textbf{Ciclo LLM ↔ OPA} (\pr{202}): si OPA rechaza, el LLM recibe los motivos de todos los
+rechazos anteriores, como mucho tres veces. Cada intento queda en
+\texttt{<nombre>.intentos.json} y las decisiones aprobadas en Neo4j como nodos \texttt{Decision}
+enlazados a sus requisitos (\texttt{ORIGINA}), a las reglas (\texttt{BASADA\_EN}) y a los patrones
+(\texttt{APLICA}). En este PR la regla de ciclos pasó a mirar solo las llamadas síncronas: un ciclo
+de eventos es una saga coreografiada y ahora genera una advertencia.
+\end{itemize}
+
+\section{Plataforma y seguridad}
+
+\subsection{Dataset de evaluación}
+Tres documentos de requisitos (\pr{179}, \pr{180}) escritos como los entregaría un cliente:
+tienda en línea, gestión académica y citas médicas, cada uno en PDF, DOCX, TXT y Markdown. Cada
+documento tiene su referencia (\texttt{referencia.yaml}) con 30, 38 y 43 requisitos clasificados,
+sus etiquetas de seguridad y los servicios esperados. Es también la entrada de los experimentos
+DSR, por lo que queda congelado.
+
+\subsection{Dashboard y API del motor}
+\begin{itemize}
+\item \textbf{Dashboard v0 y v1} (\pr{182}, \pr{184}, \pr{190}): React + Vite, servido por la
+propia API sin CORS. Carga del documento o escritura de los requisitos, progreso de cada fase en
+tiempo real con Server-Sent Events, cancelación, reanudación al recargar y tabla de los requisitos
+identificados.
+\item \textbf{API} (\pr{191}): \texttt{POST /documentos} con validación del contenido;
+\texttt{POST /ejecuciones}, estado, eventos SSE y cancelación; \texttt{GET
+/documentos/\{id\}/requisitos}. Documentada en \texttt{/docs}.
+\item \textbf{Registro automático en Neo4j} (\pr{198}): al terminar la fase 1 desde el dashboard,
+los requisitos quedan en el grafo sin ejecutar comandos; si Neo4j no está, la fase termina igual y
+lo avisa.
+\end{itemize}
+
+\subsection{Gestión de los proveedores de LLM}
+La cuota gratuita de Groq se agotó durante las pruebas del 09/11. \pr{193} añadió:
+\begin{itemize}
+\item una caché en disco de las respuestas (repetir un documento no gasta cuota);
+\item el tratamiento del límite de uso (se respeta \texttt{retry-after} y se distingue la cuota
+diaria);
+\item el respaldo entre proveedores (\texttt{LLM\_RESPALDO}) y la medición de tokens por documento.
+\end{itemize}
+
+\begin{table}[H]
+\centering
+\caption{Groq frente a Gemini con los tres documentos (10/11/2026, caché vacía).}
+\begin{tabularx}{\textwidth}{@{}LC{2.0cm}C{1.6cm}C{2.2cm}C{2.4cm}@{}}
+\toprule
+\textbf{Proveedor} & \textbf{Tokens} & \textbf{Tiempo} & \textbf{Tipo correcto} & \textbf{F1 de etiquetas}\\
+\midrule
+Groq (\texttt{gpt-oss-20b}) & 96\,167 & 589 s & 89\,\% & 0,67\\
+Gemini (\texttt{gemini-3.5-flash-lite}) & 45\,011 & 142 s & 85\,\% & 0,66\\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+Groq sigue como proveedor principal y Gemini como respaldo. Para la evaluación de la tesis se usa un
+solo proveedor y sin respaldo, porque mezclar modelos cambia los resultados.
+
+\subsection{ADR y diagrama C4}
+\begin{itemize}
+\item \textbf{ADR} (\pr{197}): un ADR por decisión de la arquitectura y otro por patrón que infiere
+OPA, solo si OPA aprobó. Los hechos (decisión, requisitos, controles ASVS y CWE con su nombre) salen
+de datos validados; el LLM rápido solo redacta el contexto y las consecuencias, como indica la
+tabla 6.1 del plan, y su texto se descarta si cita identificadores que no son del ADR.
+\item \textbf{Diagrama C4} (\pr{201}): \texttt{docs/arquitectura.md} con el contexto (actores de
+los requisitos) y los contenedores (gateway, identidad, bus de eventos, servicios y sus bases de
+datos), sin LLM. El nivel de contenedores se dibuja con un \texttt{flowchart} con el estilo de C4
+porque la sintaxis \texttt{C4Container} de Mermaid superponía las flechas.
+\end{itemize}
+
+% ======================================================================
+\chapter{Prueba de las fases 1 y 2 con los tres documentos}\label{cap:prueba}
+% ======================================================================
+
+El 15/11 se ejecutó la cadena completa con la versión DOCX de cada documento, con Groq como
+proveedor y Gemini como respaldo, Neo4j levantado y la caché vacía para la fase 1:
+
+\begin{center}
+\small\ttfamily
+requisitos clasificar → evaluar (fase 1) → arquitectura proponer → evaluar (fase 2)\\
+→ arquitectura adr → arquitectura diagrama
+\end{center}
+
+\section{Fase 1: requisitos}
+
+\begin{table}[H]
+\centering
+\caption{Fase 1 frente a la referencia del dataset.}
+\begin{tabularx}{\textwidth}{@{}LC{1.9cm}C{1.6cm}C{1.9cm}C{3.4cm}@{}}
+\toprule
+\textbf{Documento} & \textbf{Encontrados} & \textbf{Falsos positivos} & \textbf{Tipo correcto} & \textbf{Etiquetas (P / R / F1)}\\
+\midrule
+1 Tienda en línea & 30/30 & 0 & 87\,\% & 100\,\% / 53\,\% / 0,69\\
+2 Gestión académica & 38/38 & 0 & 87\,\% & 100\,\% / 39\,\% / 0,56\\
+3 Citas médicas & 43/43 & 1 & 86\,\% & 70\,\% / 36\,\% / 0,47\\
+\midrule
+\textbf{Total} & \textbf{111/111} & \textbf{1} & \textbf{86\,\%} & F1 medio 0,57\\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+La extracción y la segmentación no pierden requisitos, y la distinción entre funcional y no
+funcional acierta en 86\,\% de los casos. El punto débil son las \textbf{etiquetas de seguridad}:
+la precisión es alta, pero el modelo omite entre la mitad y dos tercios de las etiquetas que
+esperaba la referencia. Como las etiquetas deciden qué patrones y controles infiere OPA, mejorar su
+exhaustividad es la prioridad de la fase 1. Los resultados varían entre ejecuciones: el mismo
+documento 1 dio un F1 de 0,76 el 10/11.
+
+\section{Fase 2: arquitectura}
+
+\begin{table}[H]
+\centering
+\caption{Fase 2: ciclo LLM ↔ OPA y comparación con los servicios de la referencia.}
+\begin{tabularx}{\textwidth}{@{}LC{1.7cm}C{1.9cm}C{2.4cm}C{2.4cm}@{}}
+\toprule
+\textbf{Documento} & \textbf{Intentos} & \textbf{Servicios (ref.)} & \textbf{Nombres que coinciden} & \textbf{F1 de agrupación}\\
+\midrule
+1 Tienda en línea & 1 & 6 (5) & 3 & 0,82\\
+2 Gestión académica & 1 & 6 (6) & 2 & 0,66\\
+3 Citas médicas & 1 & 7 (6) & 5 & 0,83\\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+OPA aprobó las tres propuestas al primer intento e infirió en las tres los cinco patrones de la
+base de conocimiento que aplican (API Gateway, Database per Service, Event-Driven, Circuit Breaker
+y Saga). En Neo4j quedaron 10, 10 y 9 nodos \texttt{Decision}. La agrupación de requisitos en
+servicios es buena en los documentos 1 y 3. En el documento 2 el LLM organizó los servicios de
+otra forma (por ejemplo, \texttt{auth} e \texttt{integraciones} en lugar de \texttt{usuarios} y
+\texttt{notificaciones}), lo que baja el F1 sin que la arquitectura sea incorrecta. El F1 de
+agrupación mide la coincidencia con una propuesta de referencia, no la validez de la arquitectura.
+
+Antes de \pr{202}, la regla de ciclos también bloqueaba los ciclos que pasan por eventos. En
+pruebas del 10/11 y 11/11 OPA rechazó por ese motivo propuestas del LLM, y al devolverle los
+motivos se aprobaron en el segundo o tercer intento.
+
+\section{ADR, diagrama y coste}
+
+\begin{table}[H]
+\centering
+\caption{Salidas finales y coste de cada documento (15/11/2026).}
+\begin{tabularx}{\textwidth}{@{}LC{2.4cm}C{2.4cm}C{2.4cm}C{1.7cm}@{}}
+\toprule
+\textbf{Documento} & \textbf{ADR (plantilla)} & \textbf{Tokens fase 1} & \textbf{Tokens ADR} & \textbf{Tiempo}\\
+\midrule
+1 Tienda en línea & 10 (0) & 26\,220 & 23\,996 & 341 s\\
+2 Gestión académica & 10 (1) & 31\,917 & 25\,128 & 402 s\\
+3 Citas médicas & 9 (0) & 33\,464 & 20\,757 & 441 s\\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+Un ADR del documento 2 se redactó con la plantilla del motor porque el LLM no cumplió el esquema en
+tres intentos; el ADR lo indica en su campo «Redacción». Los tres diagramas C4 se generaron con
+todos sus patrones enlazados a su ADR. Con la cuota gratuita de Groq (200\,000 tokens al día), el
+ciclo completo de un documento cuesta alrededor de un tercio de la cuota diaria; con la caché,
+repetirlo no cuesta nada.
+
+% ======================================================================
+\chapter{Revisión de los ADR y diagramas, y correcciones del dashboard}
+% ======================================================================
+
+La revisión de la tarea \#59 regeneró los ADR y el diagrama del documento 1 con las reglas de
+\pr{202}, comparó el resultado con lo que estaba en el repositorio y recorrió el dashboard con el
+flujo completo en escritorio y en un móvil de 390 píxeles.
+
+\section{Hallazgos y correcciones}
+
+{\small
+\begin{longtable}{@{}P{3.6cm}P{5.2cm}P{5.4cm}@{}}
+\caption{Hallazgos de la revisión del sprint 3 y su corrección (este PR).}\\
+\toprule
+\textbf{Hallazgo} & \textbf{Causa} & \textbf{Corrección}\\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Hallazgo} & \textbf{Causa} & \textbf{Corrección}\\
+\midrule
+\endhead
+El ADR-0001 del repositorio citaba las marcas internas del prompt (\texttt{<requisito-f845ef5a …>}) & El LLM copió el formato de los datos en lugar de redactar. Ocurre de forma intermitente: en la regeneración volvió a pasar en otro ADR. No es un riesgo de seguridad, porque el texto está escapado. & El prompt pide citar los requisitos solo por su id; el motor rechaza una redacción con esas marcas y la pide otra vez indicando el motivo; si vuelve a fallar, usa la plantilla. Dos pruebas nuevas.\\
+El índice de los ADR y \texttt{docs/arquitectura.md} describían la regla de ciclos anterior & \pr{202} cambió la regla a ciclos de llamadas síncronas después de generarlos. & Se regeneraron \texttt{docs/adr/} y \texttt{docs/arquitectura.md}.\\
+El diagrama de contexto mostraba actores duplicados o que no son personas & El LLM escribe el actor de cada requisito libremente: \emph{medico} y \emph{médico}, \emph{perfil} (la tabla de roles) o menciones sueltas como \emph{empresa}. & Se unen las variantes con y sin tilde, se excluye \emph{perfil} y los actores de un solo requisito se agrupan en «Otros actores». Cuatro pruebas nuevas.\\
+En el móvil la página se desbordaba 201 píxeles hacia la derecha & Tres causas: la columna de la tarjeta de requisitos crecía hasta el ancho de su tabla; las rutas largas en \texttt{<code>} no se partían; y el texto oculto «Acción» de la tabla de documentos, con posición absoluta, escapaba de su contenedor. & \texttt{minmax(0, 1fr)} en las tarjetas, \texttt{overflow-wrap} en el código y \texttt{position: relative} en el contenedor de las tablas. Desborde medido después: 0 píxeles.\\
+El aviso de API apagada indicaba \texttt{uv run framework api} & Ese comando no arranca en Windows cuando la ruta del proyecto tiene tildes. & El aviso indica \texttt{uv run python -m orchestrator.cli api}, que funciona en todos los casos.\\
+\bottomrule
+\end{longtable}}
+
+\section{Lo que queda para el motor}
+
+\begin{itemize}
+\item Los actores salen con nombres poco cuidados (\emph{direccionmedica}, \emph{coordinacion} sin
+tilde). Conviene normalizarlos en la clasificación de la fase 1, no en el diagrama.
+\item La exhaustividad de las etiquetas de seguridad (36 a 53\,\%) limita lo que OPA puede inferir.
+\item El ADR que se redactó con plantilla en el documento 2 muestra que un esquema más simple para la
+redacción reduciría los reintentos.
+\end{itemize}
+
+% ======================================================================
+\chapter{Estado del pipeline al cierre}
+% ======================================================================
+
+\section{Las fases 1 y 2}
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+  font=\sffamily\footnotesize,
+  caja/.style={draw=azulfw,fill=azulclaro,rounded corners=2pt,align=center,minimum height=1.05cm,text width=2.25cm},
+  gate/.style={draw=ocrefw,fill=ocreclaro,rounded corners=2pt,align=center,minimum height=1.05cm,text width=2.25cm},
+  fin/.style={draw=verdefw,fill=verdeclaro,rounded corners=2pt,align=center,minimum height=0.95cm,text width=3.0cm},
+  flecha/.style={-{Stealth[length=2.2mm]},thick,color=grisfw},
+  node distance=0.55cm and 0.45cm]
+\node[caja] (doc) {Documento\\(dashboard o API)};
+\node[caja,right=of doc] (f1) {Fase 1\\Docling y\\clasificación LLM};
+\node[caja,right=of f1] (llm) {Fase 2\\propuesta\\del LLM};
+\node[gate,right=of llm] (opa) {OPA\\4 reglas y\\patrones};
+\node[fin,below=1.0cm of f1] (req) {Neo4j: Requisito};
+\node[fin,below=1.0cm of opa] (dec) {Neo4j: Decision\\→ Regla, Patrón};
+\node[fin,right=1.0cm of dec] (adr) {ADR y C4\\(\texttt{docs/})};
+\draw[flecha] (doc) -- (f1);
+\draw[flecha] (f1) -- (llm);
+\draw[flecha] (llm) -- (opa);
+\draw[flecha] (opa.north) to[bend right=35] node[above,font=\sffamily\scriptsize]{rechazo: motivos (máx. 3)} (llm.north);
+\draw[flecha] (f1) -- (req);
+\draw[flecha] (opa) -- (dec);
+\draw[flecha] (dec) -- (adr);
+\end{tikzpicture}
+\caption{Recorrido de las fases 1 y 2. Si OPA rechaza la propuesta, el LLM recibe los motivos y
+propone otra; solo una arquitectura aprobada genera ADR y diagrama.}
+\end{figure}
+
+\section{Fases del pipeline}
+
+\begin{table}[H]
+\centering
+\caption{Estado de cada fase al cierre del sprint 3.}
+\begin{tabularx}{\textwidth}{@{}P{0.9cm}P{4.0cm}P{2.6cm}L@{}}
+\toprule
+\textbf{Fase} & \textbf{Nombre} & \textbf{Estado} & \textbf{Detalle}\\
+\midrule
+1 & Adquisición de requisitos & Completa en local & Dashboard, API y CLI. En CI solo se ejecuta la extracción con Docling del PDF del documento 1, sin LLM.\\
+2 & Análisis y propuesta arquitectónica & Completa en local & CLI con ciclo LLM ↔ OPA, ADR y C4. En CI aparece como omitida.\\
+3 & Generación & Versión inicial & Compila el servicio de referencia; la generación desde la arquitectura es el sprint 4.\\
+4 & Security Gate 1 & Con decisión OPA & Sin cambios en este sprint.\\
+5--6 & Refinamiento iterativo & Pendiente & Sprint 5.\\
+7 & Integración & Parcial & Keycloak con guard JWT; Traefik y RabbitMQ en el sprint 5.\\
+8--11 & Gates 2 y 3, pruebas e imagen & Con decisión OPA & Sin cambios salvo las excepciones de \texttt{zlib} del Gate 3.\\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+Las fases 1 y 2 no se ejecutan completas en CI porque necesitan la clave del LLM y consumen cuota.
+La planificación del sprint 3 proponía usar en los PR un \texttt{modelo\_requisitos.json} y un
+\texttt{arquitectura.json} fijos y llamar al LLM solo en los \emph{push} a \texttt{dev}; queda
+pendiente.
+
+% ======================================================================
+\chapter{Incidencias y lecciones aprendidas}\label{cap:incidencias}
+% ======================================================================
+
+Como en los sprints anteriores, ninguna incidencia se resolvió relajando un gate o una regla.
+
+{\small
+\begin{longtable}{@{}P{3.3cm}P{4.5cm}P{5.0cm}P{1.2cm}@{}}
+\caption{Incidencias del sprint 3 y su corrección.}\\
+\toprule
+\textbf{Incidencia} & \textbf{Causa} & \textbf{Corrección} & \textbf{PR}\\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Incidencia} & \textbf{Causa} & \textbf{Corrección} & \textbf{PR}\\
+\midrule
+\endhead
+Gate 3 rechazado el 06/11 y el 07/11 & Dos CVE altas de \texttt{zlib} publicadas en la imagen \emph{distroless}, sin versión corregida todavía. & Excepciones en \texttt{.trivyignore.yaml} con justificación (Node no usa la \texttt{zlib} del sistema) y caducidad el 21/11. & \pr{181}, \pr{183}\\
+La fase 1 fallaba con todos los PDF en Windows & docling-parse no abre sus propios recursos si la ruta tiene tildes. & El PDF se lee con pypdfium2. El CI no lo detectaba porque sus rutas son ASCII. & \pr{189}\\
+Cuota diaria de Groq agotada el 09/11 & Unos 28\,000 tokens por documento frente a 200\,000 diarios del plan gratuito. & Caché de respuestas, \texttt{retry-after}, distinción de la cuota diaria y respaldo con Gemini. & \pr{193}\\
+Gemini no podía clasificar & El adaptador enviaba el esquema en un formato que la API rechazaba, y Gemini devolvía las ubicaciones con entidades HTML. & JSON Schema estándar sin \texttt{maxItems}; las ubicaciones se decodifican. & \pr{193}\\
+Una clave de API apareció en un mensaje de error & Se pegó en \texttt{LLM\_RESPALDO} y el error repetía el valor recibido. & Ningún error ni \texttt{/configuracion} repiten el valor; la CLI no muestra variables locales. Se recomendó rotar la clave. & \pr{193}\\
+\texttt{dev} con marcas de conflicto & Se fusionó un PR con un conflicto sin resolver en \texttt{cli.py}; el CI falló. & PR de corrección inmediato. & \pr{195}\\
+Repetir \texttt{arquitectura proponer} daba la misma propuesta rechazada & La caché devuelve la misma respuesta a la misma pregunta. & El ciclo pasa al LLM los motivos del rechazo, lo que cambia la pregunta. & \pr{199}, \pr{202}\\
+Errores de TLS al descargar modelos (local) & El antivirus intercepta las conexiones TLS e inyecta su script en las páginas, que la CSP bloquea. & Diagnóstico; no requiere cambios en el código. & --\\
+\bottomrule
+\end{longtable}}
+
+\begin{cajaocre}{Lecciones principales}
+\begin{itemize}[leftmargin=1.2em]
+\item \textbf{El LLM es un recurso limitado.} La cuota diaria condiciona cuánto se puede probar. La
+caché y el respaldo son parte del diseño, no un añadido, y la evaluación debe fijar un único
+proveedor.
+\item \textbf{Validar lo que escribe el LLM, también la forma.} Además del esquema, hubo que
+comprobar que no inventara identificadores ni copiara las marcas del prompt. Cada comprobación que
+se añadió vino de un fallo observado en una ejecución real.
+\item \textbf{Probar en el entorno del usuario.} Dos fallos (PDF con tildes y el comando
+\texttt{framework}) solo aparecían en Windows con rutas no ASCII, que el CI no reproduce.
+\item \textbf{Cerrar las issues con el PR.} Cuatro tareas fusionadas (\#46, \#48, \#50 y \#58)
+quedaron con su issue abierta porque el PR no incluía \texttt{closes}; hubo que cerrarlas a mano.
+\end{itemize}
+\end{cajaocre}
+
+% ======================================================================
+\chapter{Seguridad del propio framework}
+% ======================================================================
+
+Controles del capítulo 10 del plan añadidos en el sprint 3:
+
+{\small
+\begin{longtable}{@{}P{4.2cm}P{10.2cm}@{}}
+\caption{Controles implementados en el sprint 3.}\\
+\toprule
+\textbf{Riesgo} & \textbf{Control activo}\\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Riesgo} & \textbf{Control activo}\\
+\midrule
+\endhead
+Archivo malicioso como documento (CWE-434, 22, 400, 409) & Lista permitida de formatos y comprobación del contenido, máximo de 10 MB cortando la lectura, nombre generado por el servidor y límites de descompresión del DOCX.\\
+Inyección de instrucciones en el LLM & El texto del cliente va entre marcas con un código aleatorio; toda respuesta se valida con Pydantic; el motor rechaza identificadores inventados y marcas copiadas.\\
+Decisiones de arquitectura delegadas al LLM & OPA aprueba o rechaza con reglas versionadas y probadas; solo una arquitectura aprobada genera ADR y diagrama.\\
+Contenido no confiable en Markdown y Mermaid & El texto de los requisitos y del LLM se escapa antes de escribirse: no puede abrir HTML, imágenes, enlaces ni instrucciones de Mermaid.\\
+API sin autenticación & Escucha solo en 127.0.0.1; cabeceras CSP, \texttt{nosniff} y \texttt{frame-ancestors 'none'}; una ejecución a la vez y errores sin detalles internos.\\
+Exposición de claves de LLM & Las claves se leen como \texttt{SecretStr}; ningún error ni endpoint repite valores de configuración; la caché no guarda prompts ni documentos.\\
+Dependencias del dashboard & \texttt{npm ci -{}-ignore-scripts}, ESLint con \texttt{eslint-plugin-security} y Semgrep en un job propio de CI.\\
+Vulnerabilidades sin corrección en la imagen base & Excepciones con justificación y fecha de caducidad; al caducar, el Gate 3 vuelve a bloquear.\\
+\bottomrule
+\end{longtable}}
+
+% ======================================================================
+\chapter{Pendientes y planificación del sprint 4}
+% ======================================================================
+
+\section{Pendientes}
+
+\begin{table}[H]
+\centering
+\caption{Pendientes al cierre del sprint 3.}
+\begin{tabularx}{\textwidth}{@{}LP{2.6cm}P{2.2cm}@{}}
+\toprule
+\textbf{Pendiente} & \textbf{Responsable} & \textbf{Para el}\\
+\midrule
+Tarea \#60: capturas de las fases 1 y 2 con los tres documentos (este informe adelanta las cifras) & Marcelo & 17/11\\
+Cerrar la issue \#58, ya fusionada en \pr{202} & Marcelo & 17/11\\
+El ruleset de \texttt{dev} está desactivado: no exige PR ni el check \texttt{Pipeline por fases} (pendiente del sprint 2) & Abner & 17/11\\
+Activar las alertas de Dependabot (pendiente del sprint 2) & Abner & 17/11\\
+Ejecutar las fases 1 y 2 en CI con entradas fijas en los PR y LLM solo en \texttt{dev} & Ambos & 20/11\\
+Promover \texttt{dev} a \texttt{test} y \texttt{main}: llevan 64 commits de retraso & Ambos & antes del 27/11\\
+Retirar las excepciones de \texttt{zlib} cuando se publique la imagen corregida (caducan el 21/11) & Abner & 21/11\\
+Mejorar la exhaustividad de las etiquetas de seguridad y normalizar los actores & Marcelo & sprint 4\\
+Unificar quién decide cada gate (script u OPA) y conservar los resultados de Neo4j de CI & Ambos & antes de la evaluación\\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{Objetivo del sprint 4}
+
+\begin{cajaazul}{Sprint 4: fases 3 y 4 (16 al 27 de noviembre de 2026)}
+Generar los microservicios NestJS a partir de \texttt{arquitectura.json} con una plantilla Copier
+y el LLM, verificar que compilan y aplicarles el Security Gate 1. Hito del 27/11: \emph{fases 1-4,
+genera microservicios y aplica Gate 1}.
+\end{cajaazul}
+
+{\small
+\begin{longtable}{@{}P{1.55cm}P{5.6cm}P{5.6cm}@{}}
+\caption{Cronograma del sprint 4 por integrante (issues \#61 a \#79).}\\
+\toprule
+\textbf{Fecha} & \textbf{Marcelo (motor e IA)} & \textbf{Abner (plataforma y seguridad)}\\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Fecha} & \textbf{Marcelo (motor e IA)} & \textbf{Abner (plataforma y seguridad)}\\
+\midrule
+\endhead
+16/11 lun & Prompts de generación con contexto GraphRAG. & Plantilla Copier: módulo, entidades Prisma y DTO.\\
+17/11 mar & Puntos de extensión y lógica de negocio con el LLM. & Plantilla: servicio, controlador y decoradores Swagger.\\
+18/11 mié & Lista de dependencias permitidas y verificación. & Plantilla: guard Keycloak, ValidationPipe, Helmet y filtro de errores.\\
+19/11 jue & Generación de pruebas Jest con el LLM. & Plantilla: Dockerfile, Jest base y configuración por entorno.\\
+23/11 lun & Generador: recorrer \texttt{arquitectura.json} e invocar Copier y el LLM. & Parámetros de la plantilla por servicio y validación de la estructura.\\
+24/11 mar & Verificación con \texttt{tsc -{}-noEmit} y reintento con el LLM. & Gate 1 sobre los servicios generados.\\
+25/11 mié & Trazabilidad requisito → componente → archivo en Neo4j. & Ajustes de la plantilla según los hallazgos del Gate 1.\\
+26/11 jue & Fases 1--4 con los documentos 1 y 2; compilación al primer intento. & Documento 3 y revisión de los hallazgos del Gate 1.\\
+\rowcolor{azulclaro} 27/11 vie & Informe del sprint 4 y métricas iniciales. & Demostración y planificación del sprint 5.\\
+\bottomrule
+\end{longtable}}
+
+\appendix
+% ======================================================================
+\chapter{Evidencias}
+% ======================================================================
+
+\begin{table}[H]
+\centering
+\caption{Dónde comprobar cada resultado del sprint.}
+\begin{tabularx}{\textwidth}{@{}P{4.0cm}>{\raggedright\arraybackslash\small}X@{}}
+\toprule
+\textbf{Evidencia} & \textbf{Ubicación}\\
+\midrule
+Ejecución de CI al cierre & \url{https://github.com/PracticasESPE/Framework_Desarrollo_Seguro/actions/runs/43660815603}\\
+Dataset de evaluación & \texttt{evaluation/datasets/} (tres documentos, cuatro formatos y su referencia)\\
+Fase 1 & \texttt{orchestrator/ingest/}; evaluación en \texttt{evaluation/fase1/}\\
+Fase 2 y ciclo LLM ↔ OPA & \texttt{orchestrator/architecture/}, \texttt{policies/arquitectura/}; evaluación en \texttt{evaluation/fase2/}\\
+ADR del documento 1 & \texttt{docs/adr/} (con sus entradas en \texttt{docs/adr/entrada/})\\
+Diagrama C4 del documento 1 & \texttt{docs/arquitectura.md}\\
+Dashboard y API & \texttt{dashboard/} y \texttt{orchestrator/api.py}; documentación en \texttt{/docs} de la API\\
+Gestión de los LLM & \texttt{orchestrator/llm/README.md} (cuota, caché, respaldo y comparación)\\
+Esquemas JSON & \texttt{docs/esquemas/modelo\_requisitos.schema.json} y \texttt{arquitectura.schema.json}\\
+Guía de la demostración & \texttt{docs/sprints/sprint3-demostracion.md}\\
+Planificación del sprint 3 & \texttt{docs/sprints/sprint3-planificacion.md}\\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section*{Cómo reproducir las fases 1 y 2 en local}
+Con Neo4j en marcha, OPA instalado y la clave del LLM en \texttt{.env}, desde la raíz del
+repositorio (en Windows con tildes en la ruta, \texttt{python -m orchestrator.cli} en lugar de
+\texttt{framework}):
+
+\begin{tcolorbox}[colback=white,colframe=grisfw,boxrule=0.4pt,arc=1mm,left=2mm]
+\small\ttfamily
+uv run framework requisitos clasificar evaluation/datasets/01\_tienda\_en\_linea/requisitos.docx\\
+uv run python -m evaluation.fase1.evaluar salida/requisitos/requisitos-docx.modelo\_requisitos.json evaluation/datasets/01\_tienda\_en\_linea\\
+uv run framework arquitectura proponer salida/requisitos/requisitos-docx.modelo\_requisitos.json\\
+uv run framework arquitectura adr salida/arquitectura/requisitos-docx.arquitectura.json -{}-requisitos salida/requisitos/requisitos-docx.modelo\_requisitos.json -{}-destino salida/adr\\
+uv run framework arquitectura diagrama salida/arquitectura/requisitos-docx.arquitectura.json -{}-requisitos salida/requisitos/requisitos-docx.modelo\_requisitos.json -{}-salida salida/arquitectura.md -{}-adr salida/adr
+\end{tcolorbox}
+
+\end{document}

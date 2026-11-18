@@ -1,0 +1,14 @@
+{
+  "fuente": "requisitos.md",
+  "fuente_sha256": "18239d628a10568388c3a0da613743ea2c3084b1f5606789dfc75421bce7ffa8",
+  "formatos": {
+    "requisitos.txt": "2fbe26f3f2968bb271dc4fbc1ad9e2b29a4abb25ce78a1d0f87528687e2a404c",
+    "requisitos.docx": "16229f92f9915de13e2034d8a2d537bc321a91a39e7637bca70b9157d89be410",
+    "requisitos.pdf": "87b3ae2b736782075024b028f679446f6378f49d903cd2296a0d1fba441110a1"
+  },
+  "herramientas": {
+    "python-docx": "1.2.0",
+    "fpdf2": "2.9.0",
+    "pypdf": "6.21.4"
+  }
+}

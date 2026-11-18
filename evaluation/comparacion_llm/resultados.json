@@ -1,0 +1,158 @@
+[
+  {
+    "proveedor": "gemini",
+    "modelos": {
+      "rapido": "gemini-3.5-flash-lite",
+      "razonamiento": "gemini-3.8-flash"
+    },
+    "requisitos": [
+      {
+        "id": "RF-01",
+        "json_valido": true,
+        "tipo_correcto": true,
+        "cobertura_etiquetas": 0.67,
+        "etiquetas_fuera_de_lista": 0,
+        "segundos_extraccion": 1.39,
+        "codigo_generado": false,
+        "compila": null,
+        "segundos_generacion": 0.0,
+        "reintentos_servicio": 2,
+        "errores": [
+          "generación: gemini: error 503 de la API: This model is currently experiencing high demand. Spikes in demand are usually temporary. Please try again later."
+        ]
+      },
+      {
+        "id": "RF-02",
+        "json_valido": true,
+        "tipo_correcto": true,
+        "cobertura_etiquetas": 1.0,
+        "etiquetas_fuera_de_lista": 0,
+        "segundos_extraccion": 29.6,
+        "codigo_generado": false,
+        "compila": null,
+        "segundos_generacion": 0.0,
+        "reintentos_servicio": 3,
+        "errores": [
+          "generación: gemini: error 503 de la API: This model is currently experiencing high demand. Spikes in demand are usually temporary. Please try again later."
+        ]
+      },
+      {
+        "id": "RF-03",
+        "json_valido": true,
+        "tipo_correcto": true,
+        "cobertura_etiquetas": 0.33,
+        "etiquetas_fuera_de_lista": 0,
+        "segundos_extraccion": 17.23,
+        "codigo_generado": false,
+        "compila": null,
+        "segundos_generacion": 0.0,
+        "reintentos_servicio": 2,
+        "errores": [
+          "generación: gemini: error 503 de la API: This model is currently experiencing high demand. Spikes in demand are usually temporary. Please try again later."
+        ]
+      },
+      {
+        "id": "RNF-01",
+        "json_valido": true,
+        "tipo_correcto": true,
+        "cobertura_etiquetas": 1.0,
+        "etiquetas_fuera_de_lista": 0,
+        "segundos_extraccion": 1.0,
+        "codigo_generado": true,
+        "compila": true,
+        "segundos_generacion": 110.26,
+        "reintentos_servicio": 1,
+        "errores": []
+      },
+      {
+        "id": "RNF-02",
+        "json_valido": true,
+        "tipo_correcto": true,
+        "cobertura_etiquetas": 1.0,
+        "etiquetas_fuera_de_lista": 0,
+        "segundos_extraccion": 2.41,
+        "codigo_generado": false,
+        "compila": null,
+        "segundos_generacion": 0.0,
+        "reintentos_servicio": 2,
+        "errores": [
+          "generación: gemini: error 429 de la API: You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. \n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 20, model: gemini-3.8-flash\nPlease retry in 6h36m13.660171768s."
+        ]
+      }
+    ]
+  },
+  {
+    "proveedor": "groq",
+    "modelos": {
+      "rapido": "openai/gpt-oss-20b",
+      "razonamiento": "openai/gpt-oss-120b"
+    },
+    "requisitos": [
+      {
+        "id": "RF-01",
+        "json_valido": true,
+        "tipo_correcto": true,
+        "cobertura_etiquetas": 1.0,
+        "etiquetas_fuera_de_lista": 0,
+        "segundos_extraccion": 1.42,
+        "codigo_generado": true,
+        "compila": true,
+        "segundos_generacion": 1.34,
+        "reintentos_servicio": 0,
+        "errores": []
+      },
+      {
+        "id": "RF-02",
+        "json_valido": true,
+        "tipo_correcto": true,
+        "cobertura_etiquetas": 0.5,
+        "etiquetas_fuera_de_lista": 0,
+        "segundos_extraccion": 0.68,
+        "codigo_generado": true,
+        "compila": true,
+        "segundos_generacion": 2.06,
+        "reintentos_servicio": 0,
+        "errores": []
+      },
+      {
+        "id": "RF-03",
+        "json_valido": true,
+        "tipo_correcto": true,
+        "cobertura_etiquetas": 0.33,
+        "etiquetas_fuera_de_lista": 0,
+        "segundos_extraccion": 0.85,
+        "codigo_generado": true,
+        "compila": true,
+        "segundos_generacion": 1.9,
+        "reintentos_servicio": 0,
+        "errores": []
+      },
+      {
+        "id": "RNF-01",
+        "json_valido": true,
+        "tipo_correcto": true,
+        "cobertura_etiquetas": 1.0,
+        "etiquetas_fuera_de_lista": 0,
+        "segundos_extraccion": 0.77,
+        "codigo_generado": true,
+        "compila": true,
+        "segundos_generacion": 1.82,
+        "reintentos_servicio": 0,
+        "errores": []
+      },
+      {
+        "id": "RNF-02",
+        "json_valido": true,
+        "tipo_correcto": true,
+        "cobertura_etiquetas": 1.0,
+        "etiquetas_fuera_de_lista": 0,
+        "segundos_extraccion": 0.92,
+        "codigo_generado": true,
+        "compila": true,
+        "segundos_generacion": 2.89,
+        "reintentos_servicio": 0,
+        "errores": []
+      }
+    ]
+  }
+]

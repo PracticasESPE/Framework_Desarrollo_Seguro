@@ -1,0 +1,9 @@
+# Los scripts de shell se ejecutan en Linux (runner de GitHub): siempre con LF
+*.sh text eol=lf
+
+# Documentos del dataset de evaluación: sus huellas se comprueban byte a byte
+*.pdf binary
+*.docx binary
+
+# La plantilla de la fase 3 genera lo mismo en Windows y en Linux: siempre con LF
+templates/microservicio_nestjs/** text eol=lf

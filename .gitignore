@@ -2,6 +2,8 @@
 .env
 .env.*
 !.env.example
+# Plantilla del .env.example que Copier genera en cada servicio (sin secretos)
+!.env.example.jinja
 *.pem
 *.key
 
@@ -29,11 +31,17 @@ npm-debug.log*
 salida/
 salida_proyecto/
 *.sarif
+!tests/datos/sarif/*.sarif
+!tests/datos/gates/security/sarif/*.sarif
 sbom.json
+!tests/datos/gates/sbom/sbom.json
 
 # Datos locales de contenedores
 neo4j_data/
 *.dump
+
+# Modelos descargados (embeddings locales)
+.cache/
 
 # Editor y sistema operativo
 .vscode/
@@ -43,3 +51,9 @@ Thumbs.db
 
 # Configuración local de Claude Code
 .claude/settings.local.json
+
+# Caché local de Trivy (Gate 1)
+.trivy-cache/
+
+# Plantillas de Nuclei descargadas por el Gate 3
+.nuclei-templates/

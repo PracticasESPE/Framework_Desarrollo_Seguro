@@ -1,0 +1,52 @@
+{%- from '_macros/tipos.jinja' import prisma_tipo -%}
+// Generado por la plantilla microservicio_nestjs del framework. Entidades de {{ servicio }}:
+// cada una es una tabla de la base {{ base_datos }}, que solo usa este servicio.
+
+generator client {
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "cjs"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+{% for e in modelo %}
+{% if e.descripcion %}/// {{ e.descripcion }}
+{% endif %}model {{ e.clase }} {
+  id String @id @default(uuid()) @db.Uuid
+{%- for c in e.campos %}
+{%- if c.descripcion %}
+  /// {{ c.descripcion }}
+{%- endif %}
+  {{ c.propiedad }} {{ prisma_tipo(c).split(' ', 1)[0] }}{{ '' if c.requerido else '?' }}
+  {{- ' ' ~ prisma_tipo(c).split(' ', 1)[1] if ' ' in prisma_tipo(c) }}
+  {{- ' @unique' if c.unico }}
+  {{- ' @map("' ~ c.nombre ~ '")' if c.propiedad != c.nombre }}
+{%- if c.tipo == 'referencia' %}
+  {{ c.relacion }} {{ c.entidad_clase }}{{ '' if c.requerido else '?' }} @relation("{{ c.nombre_relacion }}", fields: [{{ c.propiedad }}], references: [id], onDelete: Restrict)
+{%- endif %}
+{%- endfor %}
+{%- for i in e.inversas %}
+  {{ i.propiedad }} {{ i.clase }}[] @relation("{{ i.nombre_relacion }}")
+{%- endfor %}
+  creadoEn DateTime @default(now()) @map("creado_en") @db.Timestamptz(3)
+  actualizadoEn DateTime @updatedAt @map("actualizado_en") @db.Timestamptz(3)
+{%- for c in e.campos if c.tipo in ['uuid', 'referencia'] and not c.unico %}
+{%- if loop.first %}
+{% endif %}
+  @@index([{{ c.propiedad }}])
+{%- endfor %}
+
+  @@map("{{ e.nombre }}")
+}
+{% endfor %}
+{%- for e in modelo %}
+{%- for c in e.campos if c.tipo == 'enumeracion' %}
+enum {{ c.enum }} {
+{%- for v in c.valores %}
+  {{ v }}
+{%- endfor %}
+}
+{% endfor %}
+{%- endfor %}

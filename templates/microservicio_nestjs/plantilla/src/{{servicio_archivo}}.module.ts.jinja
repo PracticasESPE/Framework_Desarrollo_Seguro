@@ -1,0 +1,30 @@
+import { Module } from '@nestjs/common';
+import { APP_FILTER, APP_GUARD, APP_PIPE } from '@nestjs/core';
+import { PrismaService } from './prisma.service';
+import { FiltroErrores } from './seguridad/filtro-errores';
+import { JwtAuthGuard } from './seguridad/jwt-auth.guard';
+import { crearValidacionGlobal } from './seguridad/validacion-global';
+{%- for e in modelo %}
+import { {{ e.clase }}Controller } from './{{ e.archivo }}.controller';
+import { {{ e.clase }}Service } from './{{ e.archivo }}.service';
+{%- endfor %}
+
+/**
+ * Módulo del servicio {{ servicio }}: un controlador y un servicio por entidad. Los controles
+ * transversales se registran aquí, no en main.ts, para que viajen con el módulo (también en las
+ * pruebas): token de Keycloak en todas las rutas, validación en lista blanca y errores sin
+ * detalles internos.
+ */
+@Module({
+  controllers: [{% for e in modelo %}{{ e.clase }}Controller{{ ', ' if not loop.last }}{% endfor %}],
+  providers: [
+    PrismaService,
+{%- for e in modelo %}
+    {{ e.clase }}Service,
+{%- endfor %}
+    { provide: APP_GUARD, useClass: JwtAuthGuard },
+    { provide: APP_PIPE, useFactory: crearValidacionGlobal },
+    { provide: APP_FILTER, useClass: FiltroErrores },
+  ],
+})
+export class {{ servicio_clase }}Module {}

@@ -1,0 +1,56 @@
+# OWASP API Security Top 10, edición 2023. Nombres oficiales; descripciones resumidas en español.
+# "cwe": referencias que publica OWASP para cada riesgo (solo debilidades, no categorías CWE).
+# "controles": propuesta del proyecto de requisitos ASVS que lo mitigan.
+fuente: OWASP API Security Top 10 2023
+url: https://owasp.org/API-Security/editions/2023/en/0x11-t10/
+riesgos:
+  - id: API1:2023
+    nombre: Broken Object Level Authorization
+    descripcion: El API no comprueba que el usuario sea dueño del objeto que pide; cambiando un identificador accede a datos ajenos
+    cwe: [CWE-285, CWE-639]
+    controles: [ASVS-V4.2.1, ASVS-V4.1.1]
+  - id: API2:2023
+    nombre: Broken Authentication
+    descripcion: Mecanismos de autenticación mal implementados permiten suplantar usuarios o robar tokens
+    cwe: [CWE-204, CWE-307]
+    controles: [ASVS-V3.5.3, ASVS-V2.10.4]
+  - id: API3:2023
+    nombre: Broken Object Property Level Authorization
+    descripcion: El API expone o deja modificar propiedades de un objeto que el usuario no debería ver o cambiar (asignación masiva)
+    cwe: [CWE-213, CWE-915]
+    controles: [ASVS-V5.1.4, ASVS-V4.1.3]
+  - id: API4:2023
+    nombre: Unrestricted Resource Consumption
+    descripcion: Sin límites de peticiones, tamaño o coste, un atacante agota recursos o dispara gastos
+    cwe: [CWE-400, CWE-770, CWE-799]
+    controles: [ASVS-V11.1.4]
+  - id: API5:2023
+    nombre: Broken Function Level Authorization
+    descripcion: Funciones administrativas o de otros roles quedan accesibles para usuarios sin permiso
+    cwe: [CWE-285]
+    controles: [ASVS-V4.1.3, ASVS-V13.1.4, ASVS-V13.2.1]
+  - id: API6:2023
+    nombre: Unrestricted Access to Sensitive Business Flows
+    descripcion: Un flujo de negocio sensible (compras, reservas, comentarios) puede automatizarse en exceso y dañar el negocio
+    cwe: []
+    controles: [ASVS-V11.1.1, ASVS-V11.1.4]
+  - id: API7:2023
+    nombre: Server Side Request Forgery
+    descripcion: El API descarga una URL indicada por el usuario sin validarla y puede usarse para alcanzar recursos internos
+    cwe: [CWE-918]
+    controles: [ASVS-V5.1.3]
+  - id: API8:2023
+    nombre: Security Misconfiguration
+    descripcion: Configuraciones inseguras, incompletas o por defecto en el API o en su infraestructura
+    cwe: [CWE-209, CWE-319, CWE-444, CWE-942]
+    controles: [ASVS-V14.3.2, ASVS-V14.4.4, ASVS-V9.1.1]
+  - id: API9:2023
+    nombre: Improper Inventory Management
+    descripcion: No se lleva un inventario de versiones, entornos y endpoints; quedan API viejas o de prueba expuestas
+    cwe: [CWE-1059]
+    controles: []
+  - id: API10:2023
+    nombre: Unsafe Consumption of APIs
+    descripcion: Se confía en los datos de API de terceros sin validarlos con el mismo rigor que la entrada de usuarios
+    cwe: [CWE-20, CWE-200, CWE-319]
+    controles: [ASVS-V5.1.3, ASVS-V9.1.1]

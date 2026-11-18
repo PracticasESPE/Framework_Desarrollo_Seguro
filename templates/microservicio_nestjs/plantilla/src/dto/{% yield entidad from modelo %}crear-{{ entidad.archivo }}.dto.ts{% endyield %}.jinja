@@ -1,0 +1,29 @@
+{%- from '_macros/tipos.jinja' import swagger, ts_tipo, validadores, importaciones_validacion, importaciones_comunes -%}
+{%- set con_transformacion = entidad.campos | selectattr('tipo', 'in', ['texto', 'correo']) | list -%}
+{%- set opcionales = entidad.campos | rejectattr('requerido') | list -%}
+{%- set requeridos = entidad.campos | selectattr('requerido') | list -%}
+{%- set comunes = importaciones_comunes(entidad.campos) -%}
+import { {{ 'ApiProperty' if requeridos }}{{ ', ' if requeridos and opcionales }}{{ 'ApiPropertyOptional' if opcionales }} } from '@nestjs/swagger';
+{%- if con_transformacion %}
+import { Transform } from 'class-transformer';
+{%- endif %}
+import { {{ importaciones_validacion(entidad.campos) }} } from 'class-validator';
+{%- if comunes %}
+import { {{ comunes }} } from '../comun/validacion';
+{%- endif %}
+
+/**
+ * Datos para crear {{ entidad.clase }}. Generado por la plantilla: cada campo tiene su tipo y sus
+ * límites, los mismos que prisma/schema.prisma y que el contrato OpenAPI.
+ */
+export class Crear{{ entidad.clase }}Dto {
+{%- for c in entidad.campos %}
+  @{{ 'ApiProperty' if c.requerido else 'ApiPropertyOptional' }}({ {{ swagger(c) }} })
+  {%- for linea in validadores(c).splitlines() if linea.strip() %}
+{{ linea }}
+  {%- endfor %}
+  {{ c.propiedad }}{{ '!' if c.requerido else '?' }}: {{ ts_tipo(c) }};
+{%- if not loop.last %}
+{% endif %}
+{%- endfor %}
+}
