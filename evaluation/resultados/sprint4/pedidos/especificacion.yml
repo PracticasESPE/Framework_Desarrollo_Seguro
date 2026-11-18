@@ -1,0 +1,152 @@
+servicio: pedidos
+descripcion: Manejo del carrito, creación y validación de pedidos, cálculo de precios,
+  control de stock, flujo de estados del pedido, cancelación, generación de eventos
+  de pago y auditoría.
+base_datos: pedidos_db
+puerto: 3003
+entidades:
+- nombre: carrito
+  descripcion: Carrito de compra del cliente, contiene los productos que el cliente
+    desea adquirir.
+  campos:
+  - nombre: cliente_id
+    tipo: uuid
+    descripcion: Identificador del cliente en el sistema de identidad (Keycloak).
+    requerido: true
+- nombre: carrito_item
+  descripcion: Item dentro de un carrito, asocia producto y cantidad.
+  campos:
+  - nombre: carrito_id
+    tipo: referencia
+    requerido: true
+    entidad: carrito
+  - nombre: producto_id
+    tipo: referencia
+    requerido: true
+    entidad: producto
+  - nombre: cantidad
+    tipo: entero
+    descripcion: Cantidad solicitada del producto (1‑10 unidades).
+    requerido: true
+    min: 1
+    max: 10
+- nombre: producto
+  descripcion: Catálogo de productos disponibles para la venta.
+  campos:
+  - nombre: sku
+    tipo: texto
+    descripcion: Código único del producto.
+    requerido: true
+    unico: true
+    max: 30
+  - nombre: nombre
+    tipo: texto
+    descripcion: Nombre del producto.
+    requerido: true
+    max: 100
+  - nombre: descripcion
+    tipo: texto
+    descripcion: Descripción breve del producto.
+    requerido: false
+    max: 500
+  - nombre: precio
+    tipo: decimal
+    descripcion: Precio unitario del producto, usado para cálculo de totales.
+    requerido: true
+    min: 0.0
+- nombre: stock
+  descripcion: Cantidad disponible de cada producto.
+  campos:
+  - nombre: producto_id
+    tipo: referencia
+    descripcion: Producto al que corresponde este registro de stock.
+    requerido: true
+    unico: true
+    entidad: producto
+  - nombre: cantidad
+    tipo: entero
+    descripcion: Unidades disponibles en inventario.
+    requerido: true
+    min: 0
+- nombre: direccion
+  descripcion: Dirección de envío del cliente.
+  campos:
+  - nombre: cliente_id
+    tipo: uuid
+    descripcion: Identificador del cliente (Keycloak).
+    requerido: true
+  - nombre: nombre_recibe
+    tipo: texto
+    descripcion: Nombre de la persona que recibirá el pedido.
+    requerido: true
+    max: 100
+  - nombre: calle
+    tipo: texto
+    descripcion: Calle y número.
+    requerido: true
+    max: 150
+  - nombre: ciudad
+    tipo: texto
+    descripcion: Ciudad.
+    requerido: true
+    max: 100
+  - nombre: codigo_postal
+    tipo: texto
+    descripcion: Código postal.
+    requerido: true
+    max: 20
+  - nombre: pais
+    tipo: texto
+    descripcion: País.
+    requerido: true
+    max: 60
+- nombre: estado_pedido
+  descripcion: Estados posibles de un pedido.
+  campos:
+  - nombre: nombre
+    tipo: enumeracion
+    descripcion: Valor del estado del pedido.
+    requerido: true
+    valores:
+    - pendiente
+    - confirmado
+    - pagado
+    - en_preparacion
+    - enviado
+    - entregado
+    - cancelado
+- nombre: pedido
+  descripcion: Pedido realizado por un cliente.
+  campos:
+  - nombre: cliente_id
+    tipo: uuid
+    descripcion: Identificador del cliente (Keycloak).
+    requerido: true
+  - nombre: direccion_id
+    tipo: referencia
+    descripcion: Dirección de envío del pedido.
+    requerido: true
+    entidad: direccion
+  - nombre: total
+    tipo: decimal
+    descripcion: Importe total calculado a partir de los precios del catálogo.
+    requerido: true
+    min: 0.0
+  - nombre: estado_id
+    tipo: referencia
+    descripcion: Estado actual del pedido.
+    requerido: true
+    entidad: estado_pedido
+  - nombre: fecha_expiracion
+    tipo: fecha_hora
+    descripcion: Marca de tiempo a los 30 min de creación; si no se paga antes, el
+      pedido se cancela.
+    requerido: false
+  - nombre: token_pago_id
+    tipo: uuid
+    descripcion: Identificador del pago en la pasarela externa.
+    requerido: false
+  - nombre: cancelado
+    tipo: booleano
+    descripcion: Indica si el cliente ha cancelado el pedido antes de su envío.
+    requerido: true

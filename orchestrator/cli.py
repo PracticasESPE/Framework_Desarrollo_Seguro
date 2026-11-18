@@ -1584,6 +1584,156 @@ def servicio_generar(
     )
 
 
+@servicio_app.command("logica")
+def servicio_logica(
+    carpeta: Annotated[Path, typer.Argument(help="Carpeta del servicio generado.")],
+    arquitectura: Annotated[
+        Path, typer.Option("--arquitectura", help="arquitectura.json aprobada.")
+    ],
+    requisitos: Annotated[
+        Path, typer.Option("--requisitos", help="modelo_requisitos.json del que salió.")
+    ],
+    entidad: Annotated[
+        list[str] | None,
+        typer.Option("--entidad", help="Entidad a completar; por defecto todas."),
+    ] = None,
+    intentos: Annotated[
+        int, typer.Option("--intentos", min=1, max=5, help="Intentos por entidad.")
+    ] = 3,
+    graphrag: Annotated[
+        bool, typer.Option("--graphrag/--sin-graphrag", help="Recuperar el contexto de Neo4j.")
+    ] = True,
+    compilar: Annotated[
+        bool, typer.Option("--compilar/--sin-compilar", help="Verificar con tsc --noEmit.")
+    ] = True,
+    proveedor: Annotated[
+        str | None,
+        typer.Option("--proveedor", help="Proveedor de LLM; por defecto LLM_PROVIDER."),
+    ] = None,
+) -> None:
+    """Rellena con el LLM la lógica de negocio de las entidades y la verifica con tsc."""
+    from pydantic import ValidationError
+
+    from orchestrator.architecture import Arquitectura
+    from orchestrator.generation import ErrorLogica, IntentoLogica, generar_logica, preparar
+    from orchestrator.generation.logica import compilar as compilar_con_tsc
+    from orchestrator.ingest import ModeloRequisitos
+    from orchestrator.knowledge import ErrorGrafo
+    from orchestrator.knowledge.embeddings import ErrorEmbeddings
+    from orchestrator.llm import ErrorLLM, crear_proveedor
+    from orchestrator.llm.prompts import (
+        EspecificacionServicio,
+        contexto_de_seguridad,
+        contexto_vacio,
+    )
+
+    try:
+        respuestas = yaml_seguro(carpeta / ".copier-answers.yml")
+        spec = EspecificacionServicio.model_validate(
+            {
+                k: respuestas[k]
+                for k in ("servicio", "descripcion", "base_datos", "puerto", "entidades")
+            }
+        )
+        arq = Arquitectura.model_validate_json(arquitectura.read_bytes())
+        modelo = ModeloRequisitos.model_validate_json(requisitos.read_bytes())
+    except (OSError, KeyError, ValidationError, ValueError) as error:
+        typer.echo(
+            f"Error: no se pudo leer el servicio, la arquitectura o los requisitos: {error}",
+            err=True,
+        )
+        raise typer.Exit(1) from error
+    datos = next((s for s in arq.servicios if s.nombre == spec.servicio), None)
+    if datos is None:
+        typer.echo(f"Error: {spec.servicio} no está en {arquitectura.name}", err=True)
+        raise typer.Exit(1)
+    del_servicio = [r for r in modelo.requisitos if r.id in set(datos.requisitos)]
+    entidades = entidad or [e.nombre for e in spec.entidades]
+
+    contexto = contexto_vacio()
+    if graphrag:
+        try:
+            consultor, cerrar = _consultor_graphrag(obtener_configuracion(), 3)
+            try:
+                contexto = contexto_de_seguridad(datos.etiquetas, consultor)
+            finally:
+                cerrar()
+        except (ErrorGrafo, ErrorEmbeddings) as error:
+            typer.echo(f"Sin contexto GraphRAG: {error}", err=True)
+
+    typer.echo(
+        f"Servicio {spec.servicio}: {len(entidades)} entidades, {len(del_servicio)} requisitos, "
+        f"contexto con {len(contexto.controles)} controles ASVS"
+    )
+    try:
+        if compilar:
+            typer.echo(
+                "Preparando la compilación (npm install --ignore-scripts y prisma generate)…"
+            )
+            preparar(carpeta)
+        llm = crear_proveedor(proveedor)
+    except (ErrorLogica, ErrorLLM) as error:
+        typer.echo(f"Error: {error}", err=True)
+        raise typer.Exit(1) from error
+
+    def mostrar(intento: IntentoLogica) -> None:
+        if not intento.problemas and not intento.errores_tsc:
+            typer.echo(f"    Intento {intento.numero}: aceptado")
+            return
+        typer.echo(f"    Intento {intento.numero}: rechazado")
+        for motivo in intento.problemas + [f"tsc {e}" for e in intento.errores_tsc][:8]:
+            typer.echo(f"      - {motivo}")
+
+    registro = carpeta / "logica"
+    registro.mkdir(exist_ok=True)
+    rechazadas = []
+    for nombre in entidades:
+        typer.echo(f"  {nombre}:")
+        try:
+            resultado = generar_logica(
+                carpeta,
+                spec,
+                nombre,
+                del_servicio,
+                contexto,
+                llm,
+                intentos=intentos,
+                compilador=compilar_con_tsc if compilar else None,
+                al_intento=mostrar,
+            )
+        except (ErrorLogica, ErrorLLM) as error:
+            typer.echo(f"    Error: {error}", err=True)
+            rechazadas.append(nombre)
+            continue
+        (registro / f"{nombre}.json").write_text(
+            resultado.model_dump_json(indent=2), encoding="utf-8"
+        )
+        if resultado.aprobada and resultado.logica:
+            implementados = ", ".join(resultado.logica.requisitos) or "-"
+            typer.echo(
+                f"    {resultado.archivo}: requisitos {implementados}; "
+                f"pendientes {len(resultado.logica.pendientes)}"
+            )
+        else:
+            rechazadas.append(nombre)
+            typer.echo(f"    Sin lógica: {resultado.archivo} queda como lo generó la plantilla")
+
+    typer.echo(f"Registro de cada entidad en {registro.as_posix()}/")
+    if rechazadas:
+        typer.echo(f"Entidades sin lógica aceptada: {', '.join(rechazadas)}", err=True)
+        raise typer.Exit(1)
+
+
+def yaml_seguro(ruta: Path) -> dict:
+    """Lee un YAML con safe_load y exige que sea un objeto."""
+    import yaml
+
+    datos = yaml.safe_load(ruta.read_text(encoding="utf-8"))
+    if not isinstance(datos, dict):
+        raise ValueError(f"{ruta.name} no es un objeto")
+    return datos
+
+
 def _consultor_graphrag(config, k: int):
     """Función pregunta -> ContextoGraphRAG sobre Neo4j y los embeddings locales, y su cierre."""
     from orchestrator.knowledge import conectar

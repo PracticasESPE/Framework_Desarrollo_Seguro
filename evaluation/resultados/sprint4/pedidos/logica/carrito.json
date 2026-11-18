@@ -1,0 +1,48 @@
+{
+  "servicio": "pedidos",
+  "entidad": "carrito",
+  "archivo": "src/carrito.service.ts",
+  "aprobada": true,
+  "huella_prompt": "18b50ce825345d0854f0c4caea68da0e3d7144870e346b5016a061a2cc35dc88",
+  "intentos": [
+    {
+      "numero": 1,
+      "fecha": "2026-11-18T03:56:29.911014Z",
+      "problemas": [],
+      "errores_tsc": []
+    }
+  ],
+  "logica": {
+    "reglas_al_crear": "",
+    "reglas_al_actualizar": "if (cambios.clienteId && cambios.clienteId !== actual.clienteId) {\n  throw new BadRequestException('No se puede cambiar el cliente del carrito.');\n}",
+    "reglas_al_eliminar": "const items = await this.prisma.carritoItem.findMany({\n  where: { carritoId: actual.id },\n  select: { id: true },\n});\nif (items.length > 0) {\n  throw new ConflictException('No se puede eliminar el carrito porque contiene productos.');\n}",
+    "requisitos": [
+      "RF-01",
+      "RF-10",
+      "RF-11",
+      "RF-12",
+      "RF-13",
+      "RF-14",
+      "RF-16",
+      "RF-17",
+      "RF-18",
+      "RF-20"
+    ],
+    "controles": [
+      "ASVS-V4.1.3",
+      "ASVS-V4.2.1",
+      "ASVS-V4.1.5"
+    ],
+    "pendientes": [
+      "Validar que la cantidad de cada producto en el carrito esté entre 1 y 10 (RF-10).",
+      "Calcular precios y total del pedido usando el catálogo, sin confiar en datos del cliente (RF-11).",
+      "Gestionar concurrencia de stock al confirmar el pedido, rechazando productos sin disponibilidad (RF-12).",
+      "Descontar unidades del stock al aceptar el pedido (RF-13).",
+      "Aplicar control de acceso para que los clientes solo vean sus propios pedidos (RF-14).",
+      "Cancelar automáticamente pedidos no pagados en 30 minutos y devolver stock (RF-16).",
+      "Enviar correos al cliente en cambios de estado del pedido (RF-17).",
+      "Permitir al administrador cambiar el estado del pedido siguiendo el orden definido (RF-18).",
+      "Permitir al cliente cancelar un pedido antes de que sea enviado (RF-20)."
+    ]
+  }
+}

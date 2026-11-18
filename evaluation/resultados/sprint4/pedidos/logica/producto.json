@@ -1,0 +1,34 @@
+{
+  "servicio": "pedidos",
+  "entidad": "producto",
+  "archivo": "src/producto.service.ts",
+  "aprobada": true,
+  "huella_prompt": "6a2a43785ed5b1800bd1a2a9659c17cacaa33f5fa6501803a74d914bc7c064a1",
+  "intentos": [
+    {
+      "numero": 1,
+      "fecha": "2026-11-18T03:57:04.444407Z",
+      "problemas": [],
+      "errores_tsc": []
+    }
+  ],
+  "logica": {
+    "reglas_al_crear": "const existente = await this.prisma.producto.findUnique({ where: { sku: datos.sku } });\nif (existente) {\n  throw new ConflictException('El SKU ya está en uso.');\n}",
+    "reglas_al_actualizar": "if (cambios.sku && cambios.sku !== actual.sku) {\n  const existente = await this.prisma.producto.findUnique({ where: { sku: cambios.sku } });\n  if (existente) {\n    throw new ConflictException('El SKU ya está en uso.');\n  }\n}",
+    "reglas_al_eliminar": "const itemsEnCarrito = await this.prisma.carritoItem.count({ where: { productoId: actual.id } });\nif (itemsEnCarrito > 0) {\n  throw new BadRequestException('No se puede eliminar el producto porque está en carritos de compra.');\n}\nconst stock = await this.prisma.stock.findUnique({ where: { productoId: actual.id } });\nif (stock && stock.cantidad > 0) {\n  throw new BadRequestException('No se puede eliminar el producto porque aún tiene stock disponible.');\n}",
+    "requisitos": [
+      "RF-01",
+      "RF-13"
+    ],
+    "controles": [
+      "ASVS-V5.1.4",
+      "ASVS-V4.1.3",
+      "ASVS-V7.4.1",
+      "ASVS-V5.3.4"
+    ],
+    "pendientes": [
+      "Verificar que el producto no esté asociado a pedidos ya creados antes de eliminarlo.",
+      "Gestionar la actualización del precio para que no afecte a pedidos ya confirmados."
+    ]
+  }
+}

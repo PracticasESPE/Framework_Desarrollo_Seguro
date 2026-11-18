@@ -1,0 +1,33 @@
+{
+  "servicio": "pedidos",
+  "entidad": "direccion",
+  "archivo": "src/direccion.service.ts",
+  "aprobada": true,
+  "huella_prompt": "42c76c9abfe57260145119cb8ad6af9bd19c22aecf4d110550f894ae856d50d4",
+  "intentos": [
+    {
+      "numero": 1,
+      "fecha": "2026-11-18T03:58:29.065215Z",
+      "problemas": [],
+      "errores_tsc": []
+    }
+  ],
+  "logica": {
+    "reglas_al_crear": "",
+    "reglas_al_actualizar": "if (cambios.clienteId && cambios.clienteId !== actual.clienteId) {\n  throw new BadRequestException('No es posible cambiar el cliente de la dirección');\n}",
+    "reglas_al_eliminar": "const pedidos = await this.prisma.pedido.findMany({\n  where: {\n    direccionId: actual.id,\n    cancelado: false,\n  },\n  select: { id: true },\n});\n\nif (pedidos.length > 0) {\n  throw new ConflictException('No se puede eliminar la dirección porque existen pedidos asociados');\n}",
+    "requisitos": [
+      "RF-14"
+    ],
+    "controles": [
+      "ASVS-V4.1.3",
+      "ASVS-V4.1.5",
+      "ASVS-V4.2.1",
+      "ASVS-V7.4.1",
+      "ASVS-V5.1.4"
+    ],
+    "pendientes": [
+      "Validar que el clienteId del DTO coincida con el usuario autenticado (se necesita el id del usuario en el contexto)"
+    ]
+  }
+}

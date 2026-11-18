@@ -1,0 +1,37 @@
+{
+  "servicio": "pedidos",
+  "entidad": "stock",
+  "archivo": "src/stock.service.ts",
+  "aprobada": true,
+  "huella_prompt": "e95959a2c2355ad58e07105cceb8b47fe974987a172e9666f9d3f3026cb7266f",
+  "intentos": [
+    {
+      "numero": 1,
+      "fecha": "2026-11-18T03:57:53.784039Z",
+      "problemas": [],
+      "errores_tsc": []
+    }
+  ],
+  "logica": {
+    "reglas_al_crear": "const producto = await this.prisma.producto.findUnique({\n  where: { id: datos.productoId },\n  select: { id: true },\n});\nif (!producto) {\n  throw new BadRequestException('El producto indicado no existe');\n}\nconst stockExistente = await this.prisma.stock.findUnique({\n  where: { productoId: datos.productoId },\n  select: { id: true },\n});\nif (stockExistente) {\n  throw new ConflictException('Ya existe un registro de stock para el producto');\n}",
+    "reglas_al_actualizar": "if (cambios.productoId && cambios.productoId !== actual.productoId) {\n  // No se permite cambiar el producto asociado al registro de stock\n  throw new BadRequestException('No se puede cambiar el producto del registro de stock');\n}\nif (cambios.cantidad !== undefined) {\n  if (cambios.cantidad < 0) {\n    throw new BadRequestException('La cantidad de stock no puede ser negativa');\n  }\n}",
+    "reglas_al_eliminar": "const itemEnCarrito = await this.prisma.carritoItem.findFirst({\n  where: { productoId: actual.productoId },\n  select: { id: true },\n});\nif (itemEnCarrito) {\n  throw new ConflictException('No se puede eliminar el stock porque existen items en carritos');\n}",
+    "requisitos": [
+      "RF-01",
+      "RF-13",
+      "RF-16"
+    ],
+    "controles": [
+      "ASVS-V4.1.3",
+      "ASVS-V4.1.5",
+      "ASVS-V5.1.4",
+      "ASVS-V5.1.3",
+      "ASVS-V5.3.4"
+    ],
+    "pendientes": [
+      "Validar que al disminuir el stock no se quede por debajo de la cantidad reservada en carritos o pedidos pendientes (requiere consultar otras tablas no disponibles)",
+      "Control de autorización para quién puede crear/actualizar/eliminar stock (requiere información del usuario autenticado)",
+      "Emitir eventos de dominio al crear/actualizar/eliminar stock"
+    ]
+  }
+}

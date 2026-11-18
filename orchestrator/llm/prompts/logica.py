@@ -166,8 +166,13 @@ def prompt_logica(
     requisitos: list[Any],
     contexto: ContextoGraphRAG,
     codigo: str | None = None,
+    retroalimentacion: list[str] | None = None,
 ) -> Prompt[LogicaEntidad]:
-    """Prompt para las reglas de negocio de `entidad` de una EspecificacionServicio."""
+    """Prompt para las reglas de negocio de `entidad` de una EspecificacionServicio.
+
+    `retroalimentacion` son los motivos por los que se rechazó la respuesta anterior (errores de
+    tsc o del análisis del código), que el LLM debe corregir.
+    """
     datos = next((e for e in especificacion.entidades if e.nombre == entidad), None)
     if datos is None:
         raise ValueError(
@@ -201,6 +206,13 @@ def prompt_logica(
         "Conocimiento de seguridad del framework (GraphRAG):",
         bloque("contexto", codigo, contexto.a_texto()),
     ]
+    if retroalimentacion:
+        # Los errores de tsc citan nombres y textos del código del LLM: también son datos.
+        partes.append(
+            "Tu respuesta anterior se rechazó por estos motivos. Corrígelos y devuelve los tres "
+            "métodos completos:\n"
+            + bloque("rechazo", codigo, "\n".join(f"- {m}" for m in retroalimentacion))
+        )
     return Prompt(
         nombre="logica",
         version=VERSION,

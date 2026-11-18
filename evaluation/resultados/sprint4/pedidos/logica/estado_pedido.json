@@ -1,0 +1,26 @@
+{
+  "servicio": "pedidos",
+  "entidad": "estado_pedido",
+  "archivo": "src/estado-pedido.service.ts",
+  "aprobada": true,
+  "huella_prompt": "d4af2dcab37476e6ca152fd95908958231a29a29b9aca4307ed9f4b0bf866148",
+  "intentos": [
+    {
+      "numero": 1,
+      "fecha": "2026-11-18T03:58:58.208233Z",
+      "problemas": [],
+      "errores_tsc": []
+    }
+  ],
+  "logica": {
+    "reglas_al_crear": "const existente = await this.prisma.estadoPedido.findFirst({\n  where: { nombre: datos.nombre },\n  select: { id: true }\n});\nif (existente) {\n  throw new ConflictException('Ya existe un estado con ese nombre.');\n}",
+    "reglas_al_actualizar": "if (cambios.nombre && cambios.nombre !== actual.nombre) {\n  const duplicado = await this.prisma.estadoPedido.findFirst({\n    where: { nombre: cambios.nombre },\n    select: { id: true }\n  });\n  if (duplicado) {\n    throw new ConflictException('Ya existe otro estado con ese nombre.');\n  }\n  const usado = await this.prisma.pedido.findFirst({\n    where: { estadoId: actual.id },\n    select: { id: true }\n  });\n  if (usado) {\n    throw new BadRequestException('No se puede modificar el nombre de un estado que está asociado a pedidos.');\n  }\n}",
+    "reglas_al_eliminar": "const usado = await this.prisma.pedido.findFirst({\n  where: { estadoId: actual.id },\n  select: { id: true }\n});\nif (usado) {\n  throw new ConflictException('No se puede eliminar un estado que está asociado a pedidos.');\n}",
+    "requisitos": [],
+    "controles": [
+      "ASVS-V5.3.4",
+      "ASVS-V5.1.4"
+    ],
+    "pendientes": []
+  }
+}
