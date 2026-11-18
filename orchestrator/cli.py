@@ -1584,5 +1584,150 @@ def servicio_generar(
     )
 
 
+def _consultor_graphrag(config, k: int):
+    """Función pregunta -> ContextoGraphRAG sobre Neo4j y los embeddings locales, y su cierre."""
+    from orchestrator.knowledge import conectar
+    from orchestrator.knowledge.embeddings import EmbeddingsLocales
+    from orchestrator.knowledge.graphrag import consultar
+
+    proveedor = EmbeddingsLocales(config.embeddings_modelo, config.embeddings_cache)
+    driver = conectar(config)
+
+    def consultor(pregunta: str):
+        return consultar(driver, proveedor, pregunta, k=k, base_datos=config.neo4j_database)
+
+    return consultor, driver.close
+
+
+@servicio_app.command("prompt")
+def servicio_prompt(
+    arquitectura: Annotated[
+        Path, typer.Argument(help="arquitectura.json aprobada por «arquitectura proponer».")
+    ],
+    requisitos: Annotated[
+        Path, typer.Option("--requisitos", help="modelo_requisitos.json del que salió.")
+    ],
+    servicio: Annotated[str, typer.Option("--servicio", help="Servicio de la arquitectura.")],
+    tarea: Annotated[
+        str,
+        typer.Option("--tarea", help="especificacion (entidades) o logica (reglas de negocio)."),
+    ] = "especificacion",
+    especificacion: Annotated[
+        Path | None,
+        typer.Option("--especificacion", help="Tarea logica: especificación YAML del servicio."),
+    ] = None,
+    entidad: Annotated[
+        str | None, typer.Option("--entidad", help="Tarea logica: entidad de la especificación.")
+    ] = None,
+    graphrag: Annotated[
+        bool,
+        typer.Option("--graphrag/--sin-graphrag", help="Recuperar el contexto de Neo4j."),
+    ] = True,
+    k: Annotated[int, typer.Option("--k", min=1, max=10, help="Fragmentos por pregunta.")] = 3,
+    enviar: Annotated[
+        bool, typer.Option("--enviar", help="Enviar el prompt al LLM y validar la respuesta.")
+    ] = False,
+    proveedor: Annotated[
+        str | None,
+        typer.Option("--proveedor", help="Proveedor de LLM; por defecto LLM_PROVIDER."),
+    ] = None,
+    salida: Annotated[
+        Path | None,
+        typer.Option("--salida", help="Guardar aquí la respuesta (con --enviar) o el prompt."),
+    ] = None,
+) -> None:
+    """Muestra el prompt de generación de un servicio con su contexto GraphRAG (y lo prueba)."""
+    import yaml
+    from pydantic import ValidationError
+
+    from orchestrator.architecture import Arquitectura
+    from orchestrator.ingest import ModeloRequisitos
+    from orchestrator.knowledge import ErrorGrafo
+    from orchestrator.knowledge.embeddings import ErrorEmbeddings
+    from orchestrator.llm import ErrorLLM, crear_proveedor
+    from orchestrator.llm.prompts import (
+        EspecificacionServicio,
+        construir_especificacion,
+        contexto_de_seguridad,
+        contexto_vacio,
+        prompt_especificacion,
+        prompt_logica,
+    )
+
+    if tarea not in ("especificacion", "logica"):
+        raise typer.BadParameter("usa «especificacion» o «logica»", param_hint="--tarea")
+    try:
+        arq = Arquitectura.model_validate_json(arquitectura.read_bytes())
+        modelo = ModeloRequisitos.model_validate_json(requisitos.read_bytes())
+    except (OSError, ValidationError) as error:
+        typer.echo(
+            f"Error: no se pudieron leer la arquitectura o los requisitos: {error}", err=True
+        )
+        raise typer.Exit(1) from error
+    datos = next((s for s in arq.servicios if s.nombre == servicio), None)
+    if datos is None:
+        nombres = ", ".join(s.nombre for s in arq.servicios)
+        raise typer.BadParameter(
+            f"no está en la arquitectura; usa: {nombres}", param_hint="--servicio"
+        )
+    del_servicio = [r for r in modelo.requisitos if r.id in set(datos.requisitos)]
+
+    contexto = contexto_vacio()
+    if graphrag:
+        try:
+            consultor, cerrar = _consultor_graphrag(obtener_configuracion(), k)
+            try:
+                contexto = contexto_de_seguridad(datos.etiquetas, consultor)
+            finally:
+                cerrar()
+        except (ErrorGrafo, ErrorEmbeddings) as error:
+            typer.echo(f"Sin contexto GraphRAG: {error}", err=True)
+
+    if tarea == "especificacion":
+        prompt = prompt_especificacion(datos, del_servicio, contexto)
+    else:
+        if especificacion is None or entidad is None:
+            raise typer.BadParameter("la tarea logica necesita --especificacion y --entidad")
+        try:
+            spec = EspecificacionServicio.model_validate(
+                yaml.safe_load(especificacion.read_text(encoding="utf-8"))
+            )
+            prompt = prompt_logica(spec, entidad, del_servicio, contexto)
+        except (OSError, yaml.YAMLError, ValidationError, ValueError) as error:
+            typer.echo(f"Error: {error}", err=True)
+            raise typer.Exit(1) from error
+
+    if not enviar:
+        texto = prompt.a_texto()
+        if salida:
+            salida.write_text(texto, encoding="utf-8")
+            typer.echo(f"Prompt guardado en {salida.as_posix()} (huella {prompt.huella[:12]})")
+        else:
+            typer.echo(texto)
+        return
+
+    typer.echo(f"Prompt «{prompt.nombre}» v{prompt.version}, huella {prompt.huella[:12]}")
+    typer.echo(
+        f"Contexto GraphRAG: {len(contexto.coincidencias)} fragmentos, "
+        f"{len(contexto.controles)} controles ASVS, {len(contexto.cwe)} CWE"
+    )
+    try:
+        respuesta = prompt.enviar(crear_proveedor(proveedor))
+    except ErrorLLM as error:
+        typer.echo(f"Error: {error}", err=True)
+        raise typer.Exit(1) from error
+    if tarea == "especificacion":
+        puerto = 3001 + [s.nombre for s in arq.servicios].index(servicio)
+        resultado = construir_especificacion(datos, respuesta, puerto).para_plantilla()
+        texto = yaml.safe_dump(resultado, allow_unicode=True, sort_keys=False)
+    else:
+        texto = respuesta.model_dump_json(indent=2)
+    if salida:
+        salida.write_text(texto, encoding="utf-8")
+        typer.echo(f"Respuesta validada guardada en {salida.as_posix()}")
+    else:
+        typer.echo(texto)
+
+
 if __name__ == "__main__":
     app()
