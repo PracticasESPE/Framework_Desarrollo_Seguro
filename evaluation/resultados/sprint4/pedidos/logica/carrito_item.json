@@ -1,0 +1,36 @@
+{
+  "servicio": "pedidos",
+  "entidad": "carrito_item",
+  "archivo": "src/carrito-item.service.ts",
+  "aprobada": true,
+  "huella_prompt": "2e11fec94b9a6e12d37829f3372989275aee6fed0088571157f15cb83e2754af",
+  "intentos": [
+    {
+      "numero": 1,
+      "fecha": "2026-11-18T03:56:39.960347Z",
+      "problemas": [],
+      "errores_tsc": []
+    }
+  ],
+  "logica": {
+    "reglas_al_crear": "const carrito = await this.prisma.carrito.findUnique({\n  where: { id: datos.carritoId },\n  select: { id: true },\n});\nif (!carrito) {\n  throw new BadRequestException('El carrito especificado no existe.');\n}\n\nconst producto = await this.prisma.producto.findUnique({\n  where: { id: datos.productoId },\n  select: { id: true },\n});\nif (!producto) {\n  throw new BadRequestException('El producto especificado no existe.');\n}\n\nconst stock = await this.prisma.stock.findUnique({\n  where: { productoId: datos.productoId },\n  select: { cantidad: true },\n});\nif (!stock || stock.cantidad < datos.cantidad) {\n  throw new ConflictException('No hay suficiente stock del producto para la cantidad solicitada.');\n}",
+    "reglas_al_actualizar": "const nuevoCarritoId = cambios.carritoId ?? actual.carritoId;\nif (cambios.carritoId) {\n  const carrito = await this.prisma.carrito.findUnique({\n    where: { id: nuevoCarritoId },\n    select: { id: true },\n  });\n  if (!carrito) {\n    throw new BadRequestException('El carrito especificado no existe.');\n  }\n}\n\nconst nuevoProductoId = cambios.productoId ?? actual.productoId;\nif (cambios.productoId) {\n  const producto = await this.prisma.producto.findUnique({\n    where: { id: nuevoProductoId },\n    select: { id: true },\n  });\n  if (!producto) {\n    throw new BadRequestException('El producto especificado no existe.');\n  }\n}\n\nif (cambios.cantidad !== undefined) {\n  const stock = await this.prisma.stock.findUnique({\n    where: { productoId: nuevoProductoId },\n    select: { cantidad: true },\n  });\n  if (!stock || stock.cantidad < cambios.cantidad) {\n    throw new ConflictException('No hay suficiente stock del producto para la cantidad solicitada.');\n  }\n}",
+    "reglas_al_eliminar": "",
+    "requisitos": [
+      "RF-10",
+      "RF-12",
+      "RF-13"
+    ],
+    "controles": [
+      "ASVS-V4.1.3",
+      "ASVS-V4.2.1",
+      "ASVS-V5.1.4",
+      "ASVS-V5.3.4",
+      "ASVS-V4.1.5"
+    ],
+    "pendientes": [
+      "Verificar que el carrito pertenece al cliente autenticado antes de crear, actualizar o eliminar ítems",
+      "Impedir la eliminación de un ítem si el carrito ya está asociado a un pedido confirmado"
+    ]
+  }
+}

@@ -1,0 +1,47 @@
+{
+  "servicio": "pedidos",
+  "entidad": "pedido",
+  "archivo": "src/pedido.service.ts",
+  "aprobada": true,
+  "huella_prompt": "9606765603fe1ee448cecfbe90ad835a9c3096916abbbce864ba06622e942aab",
+  "intentos": [
+    {
+      "numero": 1,
+      "fecha": "2026-11-18T03:54:47.139644Z",
+      "problemas": [],
+      "errores_tsc": [
+        "línea 152, columna 59: TS2322: Type '{ clienteId: string; }' is not assignable to type 'CarritoWhereUniqueInput'."
+      ]
+    },
+    {
+      "numero": 2,
+      "fecha": "2026-11-18T03:55:24.893383Z",
+      "problemas": [],
+      "errores_tsc": []
+    }
+  ],
+  "logica": {
+    "reglas_al_crear": "const carrito = await this.prisma.carrito.findFirst({\n  where: { clienteId: datos.clienteId },\n});\nif (!carrito) {\n  throw new BadRequestException('El carrito está vacío');\n}\nconst items = await this.prisma.carritoItem.findMany({\n  where: { carritoId: carrito.id },\n  include: { producto: true },\n});\nif (items.length === 0) {\n  throw new BadRequestException('El carrito está vacío');\n}\nlet totalCalculado = 0;\nfor (const item of items) {\n  const precio = item.producto.precio.toNumber();\n  totalCalculado += precio * item.cantidad;\n  const stock = await this.prisma.stock.findUnique({\n    where: { productoId: item.productoId },\n  });\n  if (!stock || stock.cantidad < item.cantidad) {\n    throw new ConflictException(\n      `El producto ${item.producto.nombre} no tiene stock suficiente`,\n    );\n  }\n  await this.prisma.stock.update({\n    where: { productoId: item.productoId },\n    data: { cantidad: stock.cantidad - item.cantidad },\n  });\n}\nif (Math.abs(totalCalculado - datos.total) > 0.01) {\n  throw new BadRequestException('El total del pedido no coincide con el cálculo del servidor');\n}\nif (!datos.fechaExpiracion) {\n  const fecha = new Date(Date.now() + 30 * 60 * 1000);\n  datos.fechaExpiracion = fecha.toISOString();\n}",
+    "reglas_al_actualizar": "if (cambios.cancelado === true && actual.cancelado === false) {\n  const estado = await this.prisma.estadoPedido.findUnique({\n    where: { id: actual.estadoId },\n  });\n  if (!estado) {\n    throw new NotFoundException('Estado del pedido no encontrado');\n  }\n  const estadosNoCancelables = ['enviado', 'entregado'];\n  if (estadosNoCancelables.includes(estado.nombre.toLowerCase())) {\n    throw new BadRequestException('No se puede cancelar un pedido que ya ha sido enviado');\n  }\n  // Pendiente: devolver stock de los productos del pedido cancelado\n}",
+    "reglas_al_eliminar": "",
+    "requisitos": [
+      "RF-11",
+      "RF-12",
+      "RF-13",
+      "RF-16",
+      "RF-20"
+    ],
+    "controles": [
+      "ASVS-V5.1.4",
+      "ASVS-V5.1.3",
+      "ASVS-V4.1.3",
+      "ASVS-V4.1.5",
+      "ASVS-V7.4.1",
+      "ASVS-V4.2.1"
+    ],
+    "pendientes": [
+      "Devolver el stock de los productos cuando se cancela un pedido (se necesita acceder a los ítems del pedido, que no están disponibles en este método)",
+      "Implementar la cancelación automática al expirar los 30 minutos (requiere proceso programado fuera de estos métodos)"
+    ]
+  }
+}
