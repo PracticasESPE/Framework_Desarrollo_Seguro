@@ -387,8 +387,9 @@ def test_comando_logica_necesita_la_especificacion_y_un_servicio_existente(archi
     assert resultado.exit_code != 0
     resultado = _prompt(archivos, "--servicio", "inventario", "--sin-graphrag")
     assert resultado.exit_code != 0
-    # El mensaje sale en un recuadro que puede partir las líneas.
-    assert "usuarios, pedidos, notificaciones" in re.sub(r"[\s│]+", " ", resultado.output)
+    # El mensaje sale en un recuadro que puede partir las líneas y, en CI, con códigos de color.
+    sin_color = re.sub(r"\x1b\[[0-9;]*m", "", resultado.output)
+    assert "usuarios, pedidos, notificaciones" in re.sub(r"[\s│]+", " ", sin_color)
 
 
 def test_comando_logica_con_la_especificacion(archivos):
