@@ -5,6 +5,33 @@
 | Especificación del servicio (entidades y campos) con el LLM | `orchestrator/llm/prompts` | `framework servicio prompt … --enviar --salida <servicio>.yml` |
 | Esqueleto determinista con la plantilla Copier | `plantilla.py` | `framework servicio generar <servicio>.yml` |
 | Lógica de negocio en los puntos de extensión con el LLM | `logica.py` | `framework servicio logica <carpeta>` |
+| Dependencias npm contra la lista permitida | `dependencias.py` | `framework servicio dependencias <carpeta>` |
+
+## Dependencias permitidas (`dependencias.py`)
+
+Defensa contra los paquetes npm alucinados («slopsquatting», plan técnico 6.5): un LLM puede
+inventar el nombre de un paquete, o cambiarle una letra, y un atacante puede haberlo publicado con
+código malicioso. Ninguna dependencia entra en un servicio si no está en
+`knowledge_base/dependencias_permitidas.yaml`, en su sección y con su rango de versiones; cada
+paquete de la lista lleva el motivo por el que se aprobó, y la lista solo cambia por pull request
+revisado.
+
+- **package.json**: cada paquete de `dependencies`, `devDependencies` y `overrides` está en la
+  lista, con el mismo rango o una versión exacta dentro de él; nada de URLs de git o http,
+  archivos locales, alias `npm:`, `latest` ni `*`; sin `optionalDependencies`, `peerDependencies`
+  ni `bundleDependencies`, y sin scripts que se ejecuten al instalar.
+- **package-lock.json**: todo se descarga del registro de la lista con huella sha512, nada se
+  enlaza desde el disco y las versiones resueltas de las dependencias directas están en el rango.
+  Las indirectas las revisa Trivy en el Gate 1.
+
+`preparar()` (antes de compilar la lógica de negocio) comprueba package.json **antes** de
+`npm install`, así que un paquete no permitido nunca se descarga, y el package-lock.json después.
+El job de la plantilla en CI hace lo mismo; como el módulo solo usa Pydantic y PyYAML, se ejecuta
+como script sin instalar el motor:
+
+```bash
+python orchestrator/generation/dependencias.py salida/servicios/pedidos
+```
 
 ## Lógica de negocio (`logica.py`)
 

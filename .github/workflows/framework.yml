@@ -399,6 +399,15 @@ jobs:
           --data-file templates/microservicio_nestjs/ejemplos/pedidos.yml
           templates/microservicio_nestjs salida/servicios/pedidos
 
+      # Paquetes npm alucinados (slopsquatting): nada se instala si no está en
+      # knowledge_base/dependencias_permitidas.yaml. Revisa el package.json y el package-lock.json
+      # que genera la plantilla (origen, integridad sha512 y versiones). Se ejecuta como script,
+      # sin el motor completo.
+      - name: Dependencias permitidas (antes de instalar)
+        run: >-
+          uv run --no-project --with pydantic==2.* --with pyyaml==6.*
+          python orchestrator/generation/dependencias.py salida/servicios/pedidos
+
       # npm ci: exactamente el package-lock.json que genera la plantilla, con su integridad.
       - name: Instalar dependencias (sin scripts de instalación)
         working-directory: salida/servicios/pedidos

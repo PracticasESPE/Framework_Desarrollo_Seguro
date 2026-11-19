@@ -228,14 +228,35 @@ def _ejecutar(argumentos: list[str], carpeta: Path, tiempo_s: int) -> subprocess
         raise ErrorLogica(f"No se pudo ejecutar {' '.join(argumentos)}: {error}") from error
 
 
+def _comprobar_dependencias(carpeta: Path, momento: str) -> None:
+    """Para con error si alguna dependencia no está en la lista permitida (#66)."""
+    from orchestrator.generation.dependencias import ErrorDependencias, verificar_servicio
+
+    try:
+        problemas = verificar_servicio(carpeta)
+    except ErrorDependencias as error:
+        raise ErrorLogica(str(error)) from error
+    if problemas:
+        detalle = "; ".join(str(p) for p in problemas[:10])
+        raise ErrorLogica(f"Dependencias no permitidas {momento}: {detalle}")
+
+
 def preparar(carpeta: Path) -> None:
-    """Instala las dependencias (sin scripts) y genera el cliente de Prisma, si hace falta."""
+    """Instala las dependencias (sin scripts) y genera el cliente de Prisma, si hace falta.
+
+    Antes de instalar comprueba package.json contra la lista permitida, para no descargar nunca
+    un paquete que no esté aprobado; después comprueba el package-lock.json resultante.
+    """
     if not (carpeta / "node_modules").is_dir():
+        _comprobar_dependencias(carpeta, "antes de instalar")
+        # Con package-lock.json, npm ci instala exactamente las versiones recién verificadas.
+        orden = "ci" if (carpeta / "package-lock.json").is_file() else "install"
         proceso = _ejecutar(
-            ["npm", "install", "--ignore-scripts", "--no-audit", "--no-fund"], carpeta, 900
+            ["npm", orden, "--ignore-scripts", "--no-audit", "--no-fund"], carpeta, 900
         )
         if proceso.returncode != 0:
-            raise ErrorLogica(f"npm install falló: {proceso.stderr.strip()[-500:]}")
+            raise ErrorLogica(f"npm {orden} falló: {proceso.stderr.strip()[-500:]}")
+        _comprobar_dependencias(carpeta, "en el package-lock.json")
     if not (carpeta / "src" / "generated" / "prisma").is_dir():
         proceso = _ejecutar(["npx", "prisma", "generate"], carpeta, 300)
         if proceso.returncode != 0:

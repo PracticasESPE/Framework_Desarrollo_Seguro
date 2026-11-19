@@ -1,0 +1,124 @@
+# Paquetes npm aprobados para los microservicios generados (plan técnico 6.5, 7.5 y 10).
+#
+# Riesgo que cubre: paquetes npm alucinados («slopsquatting»). Un LLM puede inventar el nombre de
+# un paquete, o equivocarse en una letra, y un atacante puede haberlo publicado con código
+# malicioso. Ninguna dependencia entra en un servicio si no está aquí, con su rango de versiones:
+# el motor lo comprueba antes de instalar (`framework servicio dependencias`), junto con el
+# package-lock.json (origen e integridad), y después instala con `npm ci --ignore-scripts`, sin
+# ejecutar scripts de instalación. Trivy (SCA) revisa luego las dependencias indirectas.
+#
+# Cambios en esta lista: solo por pull request revisado por el otro integrante (plan técnico 10),
+# indicando el motivo. Las versiones son rangos de npm (^, ~, exactas, >=, <); el package.json del
+# servicio debe usar el mismo rango o una versión exacta dentro de él.
+
+version: "1.0"
+ecosistema: npm
+registro: https://registry.npmjs.org/
+
+# «dependencies»: lo que el servicio necesita en ejecución.
+dependencias:
+  - paquete: "@nestjs/common"
+    version: "^11.0.1"
+    motivo: Framework de los microservicios (plan técnico 4.2.1)
+  - paquete: "@nestjs/core"
+    version: "^11.0.1"
+    motivo: Núcleo de NestJS
+  - paquete: "@nestjs/platform-express"
+    version: "^11.0.1"
+    motivo: Servidor HTTP de NestJS
+  - paquete: "@nestjs/swagger"
+    version: "^11.4.7"
+    motivo: Contrato OpenAPI que revisa Spectral en el Gate 2
+  - paquete: "@prisma/adapter-pg"
+    version: "^7.10.0"
+    motivo: Conexión de Prisma con PostgreSQL (plan técnico 4.2.2)
+  - paquete: "@prisma/client"
+    version: "^7.10.0"
+    motivo: Acceso tipado y parametrizado a la base de datos (CWE-89)
+  - paquete: class-transformer
+    version: "^0.5.1"
+    motivo: Conversión de los DTO para la validación
+  - paquete: class-validator
+    version: "^0.15.1"
+    motivo: Validación de la entrada en los DTO (ASVS V5.1.3)
+  - paquete: dotenv
+    version: "^18.0.6"
+    motivo: Configuración por variables de entorno, sin secretos en el código
+  - paquete: helmet
+    version: "^8.3.0"
+    motivo: Cabeceras de seguridad HTTP (ASVS V14.4)
+  - paquete: jose
+    version: "5.10.0"
+    motivo: Validación de los JWT de Keycloak; versión exacta por ser criptografía
+  - paquete: reflect-metadata
+    version: "^0.2.2"
+    motivo: Metadatos de los decoradores de NestJS
+  - paquete: rxjs
+    version: "^7.8.1"
+    motivo: Dependencia obligatoria de NestJS
+
+# «devDependencies»: solo para compilar, generar y probar; no van en la imagen final.
+desarrollo:
+  - paquete: "@nestjs/cli"
+    version: "^11.0.0"
+    motivo: Compilación del servicio (nest build)
+  - paquete: "@nestjs/schematics"
+    version: "^11.0.0"
+    motivo: Dependencia de @nestjs/cli
+  - paquete: "@nestjs/testing"
+    version: "^11.0.1"
+    motivo: Pruebas unitarias del servicio (fase 9)
+  - paquete: "@types/jest"
+    version: "^30.0.0"
+    motivo: Tipos de TypeScript de Jest
+  - paquete: "@types/supertest"
+    version: "^7.0.0"
+    motivo: Tipos de TypeScript de Supertest
+  - paquete: jest
+    version: "^30.0.0"
+    motivo: Ejecutor de las pruebas unitarias y de integración del servicio (fase 9)
+  - paquete: supertest
+    version: "^7.0.0"
+    motivo: Pruebas de los endpoints HTTP del servicio (fase 9)
+  - paquete: ts-jest
+    version: "^29.2.5"
+    motivo: Pruebas de Jest escritas en TypeScript
+  - paquete: "@types/express"
+    version: "^5.0.0"
+    motivo: Tipos de TypeScript de Express
+  - paquete: "@types/node"
+    version: "^24.0.0"
+    motivo: Tipos de TypeScript de Node.js
+  - paquete: prettier
+    version: "^3.4.2"
+    motivo: Formato del código generado
+  - paquete: prisma
+    version: "^7.10.0"
+    motivo: Generación del cliente y migraciones de Prisma
+  - paquete: source-map-support
+    version: "^0.5.21"
+    motivo: Trazas legibles en desarrollo
+  - paquete: ts-loader
+    version: "^9.5.2"
+    motivo: Compilación de TypeScript con @nestjs/cli
+  - paquete: ts-node
+    version: "^10.9.2"
+    motivo: Ejecución de TypeScript en desarrollo
+  - paquete: tsconfig-paths
+    version: "^4.2.0"
+    motivo: Rutas de tsconfig en desarrollo
+  - paquete: typescript
+    version: "^5.7.3"
+    motivo: Compilador; tsc --noEmit es el primer bloqueante del Gate 1
+
+# «overrides»: versiones mínimas de dependencias indirectas, para corregir vulnerabilidades.
+overrides:
+  - paquete: deepmerge-ts
+    version: "^8.0.2"
+    motivo: Versión corregida de una dependencia indirecta de Prisma
+  - paquete: mysql2
+    version: "^3.22.0"
+    motivo: Versión corregida de una dependencia indirecta de Prisma
+  - paquete: multer
+    version: "^2.5.0"
+    motivo: Versión corregida de la dependencia indirecta de @nestjs/platform-express

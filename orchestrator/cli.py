@@ -1584,6 +1584,40 @@ def servicio_generar(
     )
 
 
+@servicio_app.command("dependencias")
+def servicio_dependencias(
+    carpeta: Annotated[Path, typer.Argument(help="Carpeta del servicio (con su package.json).")],
+    lista: Annotated[
+        Path | None,
+        typer.Option("--lista", help="Lista permitida; por defecto la de knowledge_base/."),
+    ] = None,
+) -> None:
+    """Comprueba las dependencias npm del servicio contra la lista permitida (slopsquatting)."""
+    from orchestrator.generation.dependencias import (
+        RUTA_LISTA,
+        ErrorDependencias,
+        cargar_lista,
+        verificar_servicio,
+    )
+
+    try:
+        problemas = verificar_servicio(carpeta, cargar_lista(lista or RUTA_LISTA))
+    except ErrorDependencias as error:
+        typer.echo(f"Error: {error}", err=True)
+        raise typer.Exit(2) from error
+    revisados = (
+        "package.json y package-lock.json"
+        if (carpeta / "package-lock.json").is_file()
+        else ("package.json")
+    )
+    if problemas:
+        typer.echo(f"{len(problemas)} problemas con la lista de dependencias permitidas:")
+        for problema in problemas:
+            typer.echo(f"  - {problema}")
+        raise typer.Exit(1)
+    typer.echo(f"{revisados}: todas las dependencias están en la lista permitida")
+
+
 @servicio_app.command("logica")
 def servicio_logica(
     carpeta: Annotated[Path, typer.Argument(help="Carpeta del servicio generado.")],
