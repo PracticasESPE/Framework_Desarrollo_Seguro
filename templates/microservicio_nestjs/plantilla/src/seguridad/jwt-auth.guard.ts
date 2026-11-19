@@ -55,13 +55,6 @@ export function opcionesDesdeEntorno(
   };
 }
 
-/** Se llama al arrancar (main.ts) para que el servicio no inicie sin configuración de seguridad. */
-export function validarConfiguracionJwt(
-  env: NodeJS.ProcessEnv = process.env,
-): void {
-  opcionesDesdeEntorno(env);
-}
-
 function extraerToken(cabecera: string | string[] | undefined): string | undefined {
   if (typeof cabecera !== 'string') return undefined;
   const partes = cabecera.split(' ');

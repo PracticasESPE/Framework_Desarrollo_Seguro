@@ -9,7 +9,7 @@ de negocio en los puntos que marque la plantilla.
 | 1 | #61 | Módulo, entidades Prisma y DTO con class-validator | Lista |
 | 2 | #63 | Servicio, controlador y decoradores de Swagger | Lista |
 | 3 | #65 | Guard de Keycloak, ValidationPipe, Helmet y filtro de errores | Lista |
-| 4 | #67 | Dockerfile, Jest base y configuración por entorno | Pendiente (19/11) |
+| 4 | #67 | Dockerfile, Jest base y configuración por entorno | Lista |
 
 ## Uso
 
@@ -18,19 +18,22 @@ python -m uv run python -m orchestrator.cli servicio generar templates/microserv
 ```
 
 Crea `salida/servicios/pedidos` (o la carpeta de `--destino`). Nunca escribe sobre un servicio que
-ya existe. Para compilarlo, desde esa carpeta:
+ya existe. Para compilarlo y probarlo, desde esa carpeta:
 
 ```powershell
-npm install
+npm ci                           # las versiones exactas de package-lock.json
 $env:DATABASE_URL = "postgresql://pedidos:CAMBIAR@localhost:5432/pedidos_db"
 npm run prisma:generate
 npm run typecheck
 npm run build
+npm test                         # pruebas generadas: sin base de datos ni Keycloak
+docker build -t fw-pedidos:local .
 ```
 
 El job `plantilla` del workflow hace lo mismo con el ejemplo en cada PR. Además genera su
-contrato OpenAPI sin base de datos (`npm run openapi`), lo que comprueba que el módulo arranca, y
-ejecuta la prueba de los controles transversales con un PostgreSQL de servicio (ver más abajo).
+contrato OpenAPI sin base de datos (`npm run openapi`), lo que comprueba que el módulo arranca;
+ejecuta la prueba de los controles transversales con un PostgreSQL de servicio; pasa Hadolint por
+el Dockerfile generado, y construye la imagen y la prueba como en producción (ver más abajo).
 
 ### Probarlo con una base de datos y ver Swagger
 
@@ -181,9 +184,89 @@ Antes de la parte 3, el servicio generado respondía sin cabeceras de seguridad,
 `X-Powered-By: Express`, procesaba formularios y repetía el texto recibido en el 400 de un JSON mal
 formado (`<script>` incluido) y en el 404 de una ruta inexistente.
 
-Fuera de esta parte: la documentación en `/docs` solo en desarrollo y la configuración por entorno
-(parte 4, #67), la autorización por roles (cuando la arquitectura los defina) y el límite de
-peticiones por cliente (Traefik, sprint 5).
+Fuera de esta parte: la autorización por roles (cuando la arquitectura los defina) y el límite de
+peticiones por cliente (Traefik, sprint 5). La documentación en `/docs` solo fuera de producción y
+la configuración por entorno llegan en la parte 4.
+
+## Dockerfile, pruebas y configuración por entorno (parte 4)
+
+Con esta parte, el servicio generado se compila, se prueba y se empaqueta sin tocar nada a mano.
+
+**Configuración por entorno** (`src/configuracion/entorno.ts`). `main.ts` valida todas las
+variables antes de crear nada y, si alguna falta o no es válida, el servicio no arranca. El error
+las reúne todas y nombra cada variable, nunca su valor (`DATABASE_URL` lleva la contraseña).
+
+| | `development` | `test` | `production` (o sin `NODE_ENV`) |
+|---|---|---|---|
+| Swagger en `/docs` y `/docs-json` | Sí | Sí | No: 404 |
+| Registro de Nest | Todo, con depuración | Advertencias y errores | Sin depuración |
+| Contraseña `CAMBIAR` de `.env.example` o sin contraseña | Se admite | Se admite | Rechazada |
+
+Sin `NODE_ENV` se asume producción, el entorno más restrictivo (seguro por defecto). También se
+validan el puerto (1024 a 65535), que `DATABASE_URL` sea `postgresql://` y que las URL de Keycloak
+sean `http(s)`. `main.ts` activa además `enableShutdownHooks`, para cerrar las conexiones con la
+base al recibir SIGTERM.
+
+**Pruebas generadas** (Jest: 70 en el ejemplo, unas 30 por entidad). No necesitan base de datos ni
+Keycloak, así que la fase 9 del pipeline las puede ejecutar en cualquier servicio generado
+(`npm run test:cov`).
+
+| Archivo | Qué prueba |
+|---|---|
+| `src/<entidad>.service.spec.ts` | El servicio con Prisma simulado: las reglas de negocio se aplican antes de escribir y una regla incumplida evita la escritura; paginación con orden estable; P2002, P2003 y P2025 se traducen a 409, 400 y 404; un error desconocido no se oculta |
+| `test/<servicio>.e2e-spec.ts` | La API completa con su módulo real y la capa HTTP de `main.ts`: tokens sin firma (`alg=none`), de otra audiencia, vencidos o de otra clave dan 401; cabeceras de seguridad; 404 sin eco y 415. Por entidad: crear (201), propiedad no declarada (400), listar, tope de página, id que no es UUID, 404, actualizar y eliminar |
+| `src/configuracion/entorno.spec.ts` | La validación de la configuración de cada entorno |
+
+Los datos de prueba salen de `_macros/pruebas.jinja`: un valor válido por tipo de campo, dentro de
+sus límites. Las pruebas sustituyen las reglas de negocio que escribe el LLM, para comprobar lo que
+genera la plantilla aunque cambien las reglas.
+
+**Imagen** (`Dockerfile`), con el mismo diseño que el servicio de referencia:
+
+- Tres etapas: compilación, dependencias de producción e imagen final distroless (sin shell ni
+  npm), con el usuario 65532, `NODE_ENV=production` y un `HEALTHCHECK` que hace el propio node.
+- `npm ci` con el `package-lock.json` que genera la plantilla, sin scripts de instalación.
+- `--omit=optional` además de `--omit=dev`. El CLI de `prisma` y `typescript` son *peers*
+  opcionales de `@prisma/client`, y npm los deja en producción aunque sean de desarrollo: sin esta
+  opción la imagen llevaba 131 paquetes de más (el CLI, Prisma Studio con React, d3...) y ocupaba
+  726 MB en lugar de 405 MB. La imagen de `services/usuarios` tiene el mismo problema.
+- El generador del contrato OpenAPI, las pruebas, las fuentes y `.env` no entran en la imagen.
+
+**El `package-lock.json`** (`plantilla/package-lock.json.jinja`) fija la versión exacta y la
+integridad SHA-512 de los 777 paquetes. Del servicio solo depende su nombre, que es la única
+variable del archivo. Cuando cambian las dependencias de `package.json.jinja`, se regenera desde
+un servicio recién generado:
+
+```powershell
+npm install --package-lock-only --ignore-scripts
+node <repo>\templates\microservicio_nestjs\herramientas\actualizar-lock.mjs
+```
+
+`npm audit` da 0 vulnerabilidades en las dependencias de producción y 19 moderadas en las de
+desarrollo (`glob` y `minimatch`, a través de Jest y `@nestjs/cli`), que no llegan a la imagen.
+
+### Probar la imagen
+
+Desde la carpeta del servicio, con Docker:
+
+```powershell
+docker build -t fw-pedidos:local .
+node <repo>\templates\microservicio_nestjs\verificacion\probar-imagen.mjs fw-pedidos:local
+```
+
+El script levanta un PostgreSQL desechable con una contraseña aleatoria en una red interna y hace
+17 comprobaciones:
+
+- **Cómo está construida:** usuario 65532, `NODE_ENV=production`, `HEALTHCHECK`, un solo puerto,
+  sin shell y sin fuentes, pruebas, `.env` ni dependencias de desarrollo.
+- **Falla cerrado:** sin configuración, o con la contraseña de ejemplo, no arranca.
+- **Con la base:** Prisma consulta la base con las dependencias de la imagen.
+- **En marcha:** arranca en solo lectura y sin capacidades de Linux, y responde 401 con las
+  cabeceras de seguridad. `/docs` y `/docs-json` dan 404.
+- **Registro y parada:** el registro no contiene la contraseña y el contenedor se detiene con
+  SIGTERM, sin esperar al SIGKILL.
+
+Al terminar borra los contenedores y la red. Es el mismo paso que ejecuta el CI.
 
 ## Gate 2 sobre el servicio generado
 
@@ -223,6 +306,11 @@ La especificación vendrá del LLM, así que la plantilla la trata como entrada 
   los textos no admiten caracteres de control.
 - **Dependencias fijadas.** La plantilla solo añade dos dependencias de seguridad, `helmet` y
   `jose`; `jose` va en la versión exacta del servicio de referencia (la 6 solo se publica como ESM).
+  El `package-lock.json` generado fija todo el árbol con su integridad, y tanto el Dockerfile como
+  el CI instalan con `npm ci`.
+- **Seguro por defecto también al desplegar.** Sin `NODE_ENV` el servicio se comporta como en
+  producción, la imagen no tiene shell ni corre como root, y con la contraseña de ejemplo no
+  arranca.
 
 ## Estructura de la plantilla
 
@@ -232,7 +320,10 @@ La especificación vendrá del LLM, así que la plantilla la trata como entrada 
 | `_macros/tipos.jinja` | Traducción de cada tipo a Prisma, TypeScript, Swagger y class-validator |
 | `plantilla/` | Lo que se copia al servicio. Los archivos `.jinja` se renderizan |
 | `ejemplos/pedidos.yml` | Especificación de ejemplo: el servicio de pedidos de la tienda en línea |
+| `_macros/pruebas.jinja` | Datos válidos de cada tipo de campo para las pruebas generadas |
 | `verificacion/probar-controles.mjs` | Prueba en ejecución de los controles de un servicio generado (no se copia al servicio) |
+| `verificacion/probar-imagen.mjs` | Prueba de la imagen de Docker de un servicio generado (no se copia al servicio) |
+| `herramientas/actualizar-lock.mjs` | Regenera `plantilla/package-lock.json.jinja` al cambiar las dependencias |
 
 Los archivos de cada entidad (DTO, controlador y servicio) se generan uno por entidad con la
 etiqueta `{% yield %}` de Copier en el nombre del archivo.
@@ -240,7 +331,6 @@ Los nombres de archivo no usan filtros de Jinja, porque Windows no admite el car
 `copier.yml` calcula antes los nombres derivados.
 
 Lo que aún no cubre: relaciones entre servicios (se guardan como `uuid`, cada servicio es dueño de
-sus datos), relaciones de muchos a muchos, filtros y búsquedas en los listados, y
-`package-lock.json` (llega con el Dockerfile, en la parte 4). Las entidades no pueden llamarse
+sus datos), relaciones de muchos a muchos, y filtros y búsquedas en los listados. Las entidades no pueden llamarse
 `prisma`, `paginacion`, `error_respuesta`, `error_validacion`, `app` ni `main`, porque sus clases
 chocarían con las de la plantilla.

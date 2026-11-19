@@ -1579,8 +1579,8 @@ def servicio_generar(
     for archivo in archivos:
         typer.echo(f"  {archivo.relative_to(generado).as_posix()}")
     typer.echo(
-        "Para compilarlo: npm install, npm run prisma:generate y npm run typecheck "
-        "(ver el README.md del servicio)."
+        "Para compilarlo y probarlo: npm ci, npm run prisma:generate, npm run typecheck y "
+        "npm test (ver el README.md del servicio)."
     )
 
 

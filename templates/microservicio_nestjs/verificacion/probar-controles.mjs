@@ -60,6 +60,9 @@ const proceso = spawn(process.execPath, ['dist/main.js'], {
   cwd: process.cwd(),
   env: {
     ...process.env,
+    // Desarrollo, para comprobar también las cabeceras de /docs: en producción no se publica
+    // (eso lo comprueba probar-imagen.mjs sobre la imagen).
+    NODE_ENV: 'development',
     PORT: String(PUERTO),
     KEYCLOAK_ISSUER: EMISOR,
     KEYCLOAK_AUDIENCE: AUDIENCIA,

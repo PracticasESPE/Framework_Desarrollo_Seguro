@@ -17,7 +17,7 @@ Todas llevan además `id` (UUID), `creadoEn` y `actualizadoEn`.
 
 ## Rutas
 
-Documentadas en Swagger, en `/docs`.
+Documentadas en Swagger, en `/docs`, solo fuera de producción (`NODE_ENV=development` o `test`).
 
 | Entidad | Ruta | Operaciones |
 |---|---|---|
@@ -43,12 +43,15 @@ audiencia `{{ servicio }}-api`. Los errores siempre tienen la forma `{statusCode
 | `src/openapi/` | Configuración de Swagger y generador del contrato (`npm run openapi`) |
 | `src/comun/` | Utilidades que comparten los DTO, los servicios y los controladores |
 | `src/seguridad/` | Guard de Keycloak, `ValidationPipe`, filtro de errores y cabeceras de seguridad (Helmet) |
+| `src/configuracion/entorno.ts` | Lectura y validación de las variables de entorno |
+| `src/**/*.spec.ts`, `test/` | Pruebas generadas (Jest) |
+| `Dockerfile`, `.dockerignore` | Imagen de producción |
 
 ## Compilar
 
 ```bash
 cp .env.example .env            # y cambiar la contraseña
-npm install
+npm ci                          # exactamente las versiones de package-lock.json
 npm run prisma:generate
 npm run format                  # formato de Prettier
 npm run typecheck
@@ -70,3 +73,51 @@ npm run start:prod              # http://localhost:{{ puerto }}/docs
 
 Para el Gate 2, `npm run openapi -- openapi/{{ servicio }}.json` escribe el contrato sin necesitar
 la base de datos.
+
+## Configuración por entorno
+
+`src/configuracion/entorno.ts` valida todas las variables al arrancar. Si falta alguna o no es
+válida, el servicio no arranca y el error dice cuál, nunca su valor.
+
+| Variable | Obligatoria | Qué es |
+|---|---|---|
+| `NODE_ENV` | No | `development`, `test` o `production`. Sin ella se asume `production` |
+| `PORT` | No | Puerto HTTP, de 1024 a 65535 (por defecto, {{ puerto }}) |
+| `DATABASE_URL` | Sí | `postgresql://usuario:contraseña@servidor:5432/{{ base_datos }}` |
+| `KEYCLOAK_ISSUER` | Sí | URL del realm que emite los tokens |
+| `KEYCLOAK_AUDIENCE` | Sí | Audiencia que deben llevar los tokens (`{{ servicio }}-api`) |
+| `KEYCLOAK_JWKS_URI` | No | Claves públicas, si no están en la dirección estándar del emisor |
+
+| | `development` | `test` | `production` |
+|---|---|---|---|
+| Swagger en `/docs` | Sí | Sí | No (404) |
+| Registro | Todo, con depuración | Advertencias y errores | Sin depuración |
+| Contraseña `CAMBIAR` de `.env.example` | Se admite | Se admite | Rechazada: no arranca |
+
+## Pruebas
+
+```bash
+npm test                        # unitarias y de la API, sin base de datos ni Keycloak
+npm run test:cov                # con cobertura (coverage/)
+```
+
+- `src/<entidad>.service.spec.ts`: el servicio de cada entidad con Prisma simulado (orden de las
+  reglas de negocio, paginación y traducción de los errores de Prisma).
+- `test/{{ servicio_archivo }}.e2e-spec.ts`: la API completa con sus controles (token, validación,
+  cabeceras y errores) y las cinco operaciones de cada entidad.
+- `src/configuracion/entorno.spec.ts`: la validación de la configuración.
+
+Las pruebas sustituyen las reglas de negocio del bloque `@framework:logica-negocio`: comprueban lo
+que genera la plantilla, que no cambia aunque cambien las reglas.
+
+## Imagen
+
+```bash
+docker build -t {{ servicio }}:local .
+docker run --rm -p {{ puerto }}:{{ puerto }} --read-only --cap-drop ALL \
+  -e DATABASE_URL=... -e KEYCLOAK_ISSUER=... -e KEYCLOAK_AUDIENCE={{ servicio }}-api {{ servicio }}:local
+```
+
+Tres etapas: compilación, dependencias de producción y una imagen final distroless (sin shell
+ni npm) que corre con el usuario 65532 y `NODE_ENV=production`. Solo lleva el JavaScript compilado
+y las dependencias de producción, y su `HEALTHCHECK` comprueba que el puerto responde.
