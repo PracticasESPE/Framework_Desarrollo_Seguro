@@ -1,8 +1,9 @@
 # Plantilla Copier del microservicio NestJS (fase 3, plan técnico 7.3).
 #
-# Genera el esqueleto determinista de un servicio de arquitectura.json: módulo, entidades Prisma y
-# DTO con class-validator (parte 1, #61). El servicio, el controlador, los controles transversales,
-# el Dockerfile y las pruebas llegan en las partes 2 a 4 (#63, #65 y #67).
+# Genera el código determinista de cada servicio de arquitectura.json: módulo,
+# entidades Prisma y DTO (parte 1, #61); servicio, controlador y Swagger (parte 2, #63); controles
+# transversales (parte 3, #65); y Dockerfile, pruebas de Jest y configuración por entorno (parte 4,
+# #67). El LLM solo completa las reglas de negocio entre las marcas de cada servicio.
 #
 # Los datos vendrán del LLM (a través del generador), así que se tratan como no confiables: cada
 # nombre que acaba en el código como identificador se valida aquí con una expresión regular, y los

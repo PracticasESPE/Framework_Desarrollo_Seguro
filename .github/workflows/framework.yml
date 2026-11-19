@@ -362,7 +362,7 @@ jobs:
   plantilla:
     name: Plantilla NestJS (servicio de ejemplo)
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 20
     permissions:
       contents: read
     # Base de datos del servicio de ejemplo para probar sus controles en ejecución.
@@ -399,9 +399,10 @@ jobs:
           --data-file templates/microservicio_nestjs/ejemplos/pedidos.yml
           templates/microservicio_nestjs salida/servicios/pedidos
 
+      # npm ci: exactamente el package-lock.json que genera la plantilla, con su integridad.
       - name: Instalar dependencias (sin scripts de instalación)
         working-directory: salida/servicios/pedidos
-        run: npm install --ignore-scripts --no-audit --no-fund
+        run: npm ci --ignore-scripts --no-audit --no-fund
 
       - name: Esquema Prisma y cliente
         working-directory: salida/servicios/pedidos
@@ -439,6 +440,55 @@ jobs:
             echo "### Controles transversales del servicio generado"
             echo '```'
             cat controles.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      # Las pruebas que genera la plantilla (unitarias de cada servicio y de la API completa), sin
+      # base de datos ni Keycloak. Son las mismas que ejecutará la fase 9 del servicio.
+      - name: Pruebas generadas (Jest)
+        working-directory: salida/servicios/pedidos
+        run: |
+          set -o pipefail
+          npm run test:cov -- --ci --coverageReporters=text-summary 2>&1 | tee jest.txt
+          {
+            echo "### Pruebas generadas del servicio (Jest)"
+            echo '```'
+            grep -E "^(Tests|Test Suites):|%" jest.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      # Segundo ejemplo con todos los tipos de campo, fechas obligatorias y límites poco habituales:
+      # lo que pedidos.yml no cubre también tiene que compilar y pasar sus pruebas.
+      - name: Servicio con todos los tipos de campo (compilación y pruebas)
+        run: |
+          uvx copier@9.19.1 copy --defaults \
+            --data-file templates/microservicio_nestjs/ejemplos/todos-los-tipos.yml \
+            templates/microservicio_nestjs salida/servicios/historia_clinica
+          cd salida/servicios/historia_clinica
+          npm ci --ignore-scripts --no-audit --no-fund
+          DATABASE_URL=postgresql://ci:ci@localhost:5432/historia_clinica_db npm run prisma:generate
+          npm run typecheck
+          npm run build
+          npm test -- --ci
+
+      # La misma versión de Hadolint que el Gate 1.
+      - name: Hadolint del Dockerfile generado
+        working-directory: salida/servicios/pedidos
+        run: docker run --rm -i hadolint/hadolint:v2.15.1 hadolint --failure-threshold warning - < Dockerfile
+
+      # La evidencia de la parte 4: la imagen se construye desde el servicio generado y se prueba
+      # como en producción (PostgreSQL desechable, solo lectura y sin capacidades de Linux).
+      - name: Imagen del servicio generado
+        working-directory: salida/servicios/pedidos
+        run: |
+          set -o pipefail
+          docker build -t fw-pedidos:ci .
+          node ../../../templates/microservicio_nestjs/verificacion/probar-imagen.mjs fw-pedidos:ci | tee imagen.txt
+          {
+            echo "### Imagen construida desde el servicio generado"
+            echo '```'
+            docker image ls fw-pedidos:ci --format '{{.Repository}}:{{.Tag}}  {{.Size}}  {{.ID}}'
+            cat imagen.txt
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
 

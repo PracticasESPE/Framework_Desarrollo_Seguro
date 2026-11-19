@@ -1,0 +1,44 @@
+{#-
+  Datos de las pruebas generadas: un valor válido para cada tipo de campo, en sus tres formas.
+    entrada(c)   como llega en el cuerpo JSON de la petición (lo que valida el DTO)
+    fila(c)      como lo devuelve Prisma (fechas como Date, decimales con toNumber)
+    respuesta(c) como sale en la respuesta de la API
+  Cada valor respeta los límites del campo (min, max, valores), así que el DTO lo acepta.
+-#}
+{%- from '_macros/tipos.jinja' import cadena -%}
+
+{#- Texto de la longitud justa: «Texto de prueba» (15 caracteres) si cabe; si no, el mínimo o el
+    máximo sin espacios, porque el DTO recorta los extremos antes de medir la longitud. -#}
+{%- macro texto(c) -%}
+{%- set n = [c.min, [15, c.max] | min] | max -%}
+{{ cadena('Texto de prueba' if n == 15 else ('Prueba' * 2000)[:n]) }}
+{%- endmacro -%}
+
+{#- Un id fijo en formato UUID v4, para los campos uuid y referencia. -#}
+{%- macro uuid() -%}'0b7e4c1a-5d2f-4a8b-9c3d-1e2f3a4b5c6d'{%- endmacro -%}
+
+{%- macro entrada(c) -%}
+{%- if c.tipo == 'texto' -%}{{ texto(c) }}
+{%- elif c.tipo == 'correo' -%}'ana@ejemplo.com'
+{%- elif c.tipo in ['entero', 'decimal'] -%}{{ c.min }}
+{%- elif c.tipo == 'booleano' -%}true
+{%- elif c.tipo == 'fecha' -%}'2026-01-15'
+{%- elif c.tipo == 'fecha_hora' -%}'2026-01-15T10:30:00.000Z'
+{%- elif c.tipo in ['uuid', 'referencia'] -%}{{ uuid() }}
+{%- elif c.tipo == 'enumeracion' -%}{{ cadena(c.valores[0]) }}
+{%- endif -%}
+{%- endmacro -%}
+
+{%- macro fila(c) -%}
+{%- if c.tipo == 'decimal' -%}decimal({{ c.min }})
+{%- elif c.tipo == 'fecha' -%}new Date('2026-01-15T00:00:00.000Z')
+{%- elif c.tipo == 'fecha_hora' -%}new Date('2026-01-15T10:30:00.000Z')
+{%- else -%}{{ entrada(c) }}
+{%- endif -%}
+{%- endmacro -%}
+
+{#- En JSON, cada valor de prueba sale igual que entró: la fecha sin hora, la fecha y hora en ISO
+    con milisegundos, el decimal como número y el correo ya en minúsculas. -#}
+{%- macro respuesta(c) -%}
+{{ entrada(c) }}
+{%- endmacro -%}

@@ -1,0 +1,50 @@
+# Especificación de prueba: todos los tipos de campo, con límites poco habituales (un texto de
+# 2 a 5 caracteres, un entero negativo), fechas obligatorias y opcionales y un nombre con guion
+# bajo. El job `plantilla` del CI la genera, la compila y ejecuta sus pruebas: pedidos.yml no
+# tiene fechas obligatorias, y con ellas el servicio no compilaba (corregido en la parte 4).
+servicio: historia_clinica
+descripcion: Pacientes y consultas, con todos los tipos de campo de la plantilla
+puerto: 3005
+entidades:
+  - nombre: paciente
+    campos:
+      - nombre: nombre
+        tipo: texto
+        min: 2
+        max: 5
+      - nombre: correo
+        tipo: correo
+        unico: true
+      - nombre: nacimiento
+        tipo: fecha
+      - nombre: peso
+        tipo: decimal
+        min: 0.5
+        max: 300
+        escala: 1
+      - nombre: activo
+        tipo: booleano
+      - nombre: grupo_sanguineo
+        tipo: enumeracion
+        valores: [a_positivo, o_negativo]
+      - nombre: registrado_en
+        tipo: fecha_hora
+        requerido: false
+      - nombre: aseguradora_id
+        tipo: uuid
+        requerido: false
+  - nombre: consulta_medica
+    campos:
+      - nombre: paciente_id
+        tipo: referencia
+        entidad: paciente
+      - nombre: motivo
+        tipo: texto
+        min: 20
+        max: 40
+      - nombre: duracion
+        tipo: entero
+        min: -5
+        max: 10
+      - nombre: inicio
+        tipo: fecha_hora

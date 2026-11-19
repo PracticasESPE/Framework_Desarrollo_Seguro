@@ -1,17 +1,21 @@
 """Pruebas de la plantilla Copier del microservicio NestJS.
 
 Parte 1 (#61): módulo, entidades Prisma y DTO. Parte 2 (#63): servicio, controlador y Swagger.
-Parte 3 (#65): guard de Keycloak, ValidationPipe, Helmet y filtro de errores.
+Parte 3 (#65): guard de Keycloak, ValidationPipe, Helmet y filtro de errores. Parte 4 (#67):
+Dockerfile, pruebas de Jest y configuración por entorno.
 
 Generan servicios en carpetas temporales y comprueban el resultado como texto. Que el servicio
-generado compile (npm install, prisma generate y tsc) y que sus controles funcionen en ejecución
-(verificacion/probar-controles.mjs) se comprueba en el job `plantilla` del CI, porque necesita
-Node, PostgreSQL y descargar las dependencias: ver templates/microservicio_nestjs/README.md.
+generado compile (npm ci, prisma generate y tsc), que pasen sus pruebas de Jest, que sus controles
+funcionen en ejecución (verificacion/probar-controles.mjs) y que su imagen se construya y arranque
+como en producción (verificacion/probar-imagen.mjs) se comprueba en el job `plantilla` del CI,
+porque necesita Node, PostgreSQL, Docker y descargar las dependencias: ver
+templates/microservicio_nestjs/README.md.
 """
 
 from __future__ import annotations
 
 import copy
+import json
 import re
 import shutil
 import subprocess
@@ -60,13 +64,16 @@ def test_genera_el_esqueleto_del_ejemplo(tmp_path: Path, ejemplo: dict):
     archivos = {p.relative_to(carpeta).as_posix() for p in carpeta.rglob("*") if p.is_file()}
     assert archivos == {
         ".copier-answers.yml",
+        ".dockerignore",
         ".env.example",
         ".gitignore",
         ".npmrc",
         ".prettierignore",
         ".prettierrc",
+        "Dockerfile",
         "README.md",
         "nest-cli.json",
+        "package-lock.json",
         "package.json",
         "prisma.config.ts",
         "prisma/schema.prisma",
@@ -75,6 +82,8 @@ def test_genera_el_esqueleto_del_ejemplo(tmp_path: Path, ejemplo: dict):
         "src/comun/errores-prisma.ts",
         "src/comun/paginacion.dto.ts",
         "src/comun/validacion.ts",
+        "src/configuracion/entorno.spec.ts",
+        "src/configuracion/entorno.ts",
         "src/dto/actualizar-linea-pedido.dto.ts",
         "src/dto/actualizar-pedido.dto.ts",
         "src/dto/crear-linea-pedido.dto.ts",
@@ -84,11 +93,13 @@ def test_genera_el_esqueleto_del_ejemplo(tmp_path: Path, ejemplo: dict):
         "src/dto/pedido-pagina.dto.ts",
         "src/dto/pedido-respuesta.dto.ts",
         "src/linea-pedido.controller.ts",
+        "src/linea-pedido.service.spec.ts",
         "src/linea-pedido.service.ts",
         "src/main.ts",
         "src/openapi/configuracion.ts",
         "src/openapi/generar-openapi.ts",
         "src/pedido.controller.ts",
+        "src/pedido.service.spec.ts",
         "src/pedido.service.ts",
         "src/pedidos.module.ts",
         "src/prisma.service.ts",
@@ -96,6 +107,7 @@ def test_genera_el_esqueleto_del_ejemplo(tmp_path: Path, ejemplo: dict):
         "src/seguridad/http.ts",
         "src/seguridad/jwt-auth.guard.ts",
         "src/seguridad/validacion-global.ts",
+        "test/pedidos.e2e-spec.ts",
         "tsconfig.build.json",
         "tsconfig.json",
     }
@@ -193,6 +205,9 @@ def _importados(texto: str) -> list[str]:
         "src/seguridad/filtro-errores.ts",
         "src/seguridad/http.ts",
         "src/seguridad/jwt-auth.guard.ts",
+        "src/pedido.service.spec.ts",
+        "src/linea-pedido.service.spec.ts",
+        "test/pedidos.e2e-spec.ts",
     ],
 )
 def test_cada_archivo_importa_solo_lo_que_usa(tmp_path: Path, ejemplo: dict, archivo: str):
@@ -254,7 +269,7 @@ def test_modulo_main_y_paquete_llevan_el_nombre_del_servicio(tmp_path: Path, eje
     main = _leer(carpeta, "src/main.ts")
     assert "import { PedidosModule } from './pedidos.module';" in main
     assert "configurarSwagger(app);" in main
-    assert "process.env.PORT ?? 3002" in main
+    assert "leerEntorno(process.env, 3002)" in main
     paquete = _leer(carpeta, "package.json")
     assert '"name": "pedidos"' in paquete
     assert '"openapi": "node dist/openapi/generar-openapi.js"' in paquete
@@ -641,8 +656,8 @@ def test_los_controles_se_registran_en_el_modulo(tmp_path: Path, ejemplo: dict):
 def test_main_falla_cerrado_y_aplica_los_controles_http(tmp_path: Path, ejemplo: dict):
     main = _leer(_generar(tmp_path, ejemplo), "src/main.ts")
 
-    # Sin KEYCLOAK_ISSUER y KEYCLOAK_AUDIENCE no arranca, antes de crear la aplicación.
-    assert main.index("validarConfiguracionJwt();") < main.index("NestFactory.create")
+    # Sin configuración válida (Keycloak, base de datos) no arranca: antes de crear la aplicación.
+    assert main.index("leerEntorno(") < main.index("NestFactory.create")
     # Sin el lector por defecto (formularios): solo el JSON con límite de configurarHttp.
     assert "bodyParser: false" in main
     # Helmet antes de las rutas y de Swagger.
@@ -726,3 +741,176 @@ def test_ningun_archivo_de_la_plantilla_lo_ignora_git():
     )
     ignorados = resultado.stdout.decode("utf-8").split()
     assert ignorados == [], f"Archivos ignorados: {ignorados}"
+
+
+# --- Parte 4: Dockerfile, pruebas y configuración por entorno ------------------------------------
+
+
+def test_swagger_solo_fuera_de_produccion(tmp_path: Path, ejemplo: dict):
+    carpeta = _generar(tmp_path, ejemplo)
+    main = _leer(carpeta, "src/main.ts")
+    assert "if (entorno.documentacion) {\n    configurarSwagger(app);" in main
+    assert "logger: entorno.registro" in main
+    assert "app.enableShutdownHooks();" in main
+    assert "app.listen(entorno.puerto)" in main
+
+    entorno = _leer(carpeta, "src/configuracion/entorno.ts")
+    # Sin NODE_ENV, producción: el entorno más restrictivo.
+    assert "env.NODE_ENV?.trim() || 'production'" in entorno
+    assert "documentacion: nombre !== 'production'" in entorno
+    assert "const CLAVE_DE_EJEMPLO = 'cambiar';" in entorno
+    # Los mensajes de error nombran la variable: ninguno interpola un valor del entorno.
+    for linea in entorno.splitlines():
+        if "problemas.push(" in linea:
+            assert "${env" not in linea and "${base" not in linea, linea
+    assert "NODE_ENV=development" in _leer(carpeta, ".env.example")
+
+
+def test_el_dockerfile_es_multietapa_distroless_y_sin_root(tmp_path: Path, ejemplo: dict):
+    carpeta = _generar(tmp_path, ejemplo)
+    dockerfile = _leer(carpeta, "Dockerfile")
+
+    assert dockerfile.count("\nFROM ") == 3
+    assert "FROM gcr.io/distroless/nodejs22-debian13:nonroot AS runtime" in dockerfile
+    assert "USER 65532:65532" in dockerfile
+    assert "ENV NODE_ENV=production \\\n    PORT=3002" in dockerfile
+    assert "EXPOSE 3002" in dockerfile
+    assert "HEALTHCHECK " in dockerfile and "process.env.PORT||3002" in dockerfile
+    # npm ci con el lock, sin scripts; y sin las dependencias de desarrollo (devOptional incluidas).
+    assert "COPY package.json package-lock.json .npmrc ./" in dockerfile
+    assert "RUN npm ci --ignore-scripts" in dockerfile
+    assert "npm ci --omit=dev --omit=optional --ignore-scripts" in dockerfile
+    assert "rm -f dist/openapi/generar-openapi.*" in dockerfile
+    # La imagen final solo copia lo compilado y las dependencias de producción.
+    final = dockerfile.split("AS runtime", 1)[1]
+    copias = re.findall(r"^COPY .*$", final, flags=re.M)
+    assert copias == [
+        "COPY --from=prod-deps --chown=65532:65532 /app/node_modules ./node_modules",
+        "COPY --from=build --chown=65532:65532 /app/dist ./dist",
+        "COPY --chown=65532:65532 package.json ./",
+    ]
+    ignorados = _leer(carpeta, ".dockerignore").splitlines()
+    for patron in (".env", ".env.*", "node_modules", "test", "**/*.spec.ts", ".git"):
+        assert patron in ignorados
+
+
+def test_el_lock_corresponde_al_paquete_y_lleva_integridad(tmp_path: Path, ejemplo: dict):
+    """npm ci falla si el lock no coincide con package.json: se comprueba antes de llegar al CI."""
+    carpeta = _generar(tmp_path, ejemplo)
+    paquete = json.loads(_leer(carpeta, "package.json"))
+    lock = json.loads(_leer(carpeta, "package-lock.json"))
+
+    assert lock["name"] == lock["packages"][""]["name"] == "pedidos"
+    assert lock["lockfileVersion"] == 3
+    raiz = lock["packages"][""]
+    for clave in ("dependencies", "devDependencies"):
+        assert raiz.get(clave) == paquete[clave], f"{clave} distinto en el lock"
+    paquetes = {k: v for k, v in lock["packages"].items() if k}
+    assert len(paquetes) > 500
+    for nombre, datos in paquetes.items():
+        assert datos.get("integrity", "").startswith("sha512-"), f"{nombre} sin integridad"
+        assert datos["resolved"].startswith("https://registry.npmjs.org/"), nombre
+
+
+def test_el_lock_de_la_plantilla_solo_varia_en_el_nombre():
+    plantilla = (RUTA_PLANTILLA / "plantilla" / "package-lock.json.jinja").read_text("utf-8")
+    assert plantilla.count("{{") == 2
+    assert plantilla.count("{{ servicio | tojson }}") == 2
+    assert "{%" not in plantilla and "{#" not in plantilla
+
+
+def test_genera_las_pruebas_de_jest(tmp_path: Path, ejemplo: dict):
+    carpeta = _generar(tmp_path, ejemplo)
+    paquete = json.loads(_leer(carpeta, "package.json"))
+    assert paquete["scripts"]["test"] == "jest"
+    assert paquete["scripts"]["test:cov"] == "jest --coverage"  # lo usa la fase 9
+    for dependencia in ("jest", "ts-jest", "@types/jest", "supertest", "@types/supertest"):
+        assert dependencia in paquete["devDependencies"]
+    jest = paquete["jest"]
+    assert jest["roots"] == ["<rootDir>/src", "<rootDir>/test"]
+    assert re.search(jest["testRegex"], "test/pedidos.e2e-spec.ts")
+    assert re.search(jest["testRegex"], "src/pedido.service.spec.ts")
+    # El cliente de Prisma importa sus archivos con .js.
+    assert jest["moduleNameMapper"] == {"^(\\.{1,2}/.*)\\.js$": "$1"}
+    assert "!src/generated/**" in jest["collectCoverageFrom"]
+    # Ni las pruebas ni el directorio test/ entran en la compilación de producción.
+    compilacion = json.loads(_leer(carpeta, "tsconfig.build.json"))
+    assert "test" in compilacion["exclude"] and "**/*spec.ts" in compilacion["exclude"]
+
+
+def test_las_pruebas_unitarias_cubren_cada_entidad(tmp_path: Path, ejemplo: dict):
+    carpeta = _generar(tmp_path, ejemplo)
+    pedido = _leer(carpeta, "src/pedido.service.spec.ts")
+
+    assert "describe('PedidoService', () => {" in pedido
+    assert "const tabla = prisma.pedido;" in pedido
+    # Un valor válido de cada tipo, en la entrada, en la fila de Prisma y en la respuesta.
+    assert "estado: 'pendiente'," in pedido
+    assert "total: decimal(0)," in pedido
+    assert "direccionEnvio: 'Texto de prueba'," in pedido  # min 10, max 300
+    assert "fechaEntrega: new Date('2026-01-15T00:00:00.000Z')," in pedido
+    assert "fechaEntrega: '2026-01-15'," in pedido
+    # Las reglas del LLM se sustituyen y se comprueba que van antes de escribir.
+    assert "jest.spyOn(reglas, 'reglasAlCrear').mockResolvedValue(undefined);" in pedido
+    assert "mock.invocationCallOrder[0]).toBeLessThan(" in pedido
+    for codigo in ("P2002", "P2003", "P2025"):
+        assert f"code: '{codigo}'" in pedido
+
+    linea = _leer(carpeta, "src/linea-pedido.service.spec.ts")
+    assert "const tabla = prisma.lineaPedido;" in linea
+    assert "cantidad: 1," in linea and "precioUnitario: decimal(0.01)," in linea
+
+
+def test_la_prueba_de_la_api_recorre_cada_entidad(tmp_path: Path, ejemplo: dict):
+    e2e = _leer(_generar(tmp_path, ejemplo), "test/pedidos.e2e-spec.ts")
+
+    assert "imports: [PedidosModule]" in e2e
+    assert "configurarHttp(app);" in e2e and "app.setGlobalPrefix('api');" in e2e
+    assert "const AUDIENCIA = 'pedidos-api';" in e2e
+    assert "'sin firma (alg=none)'" in e2e
+    for ruta in ("/api/pedidos/pedido", "/api/pedidos/linea-pedido"):
+        assert f"const RUTA = '{ruta}';" in e2e
+    assert e2e.count("it('crea un registro con un cuerpo válido (201)'") == 2
+    assert e2e.count("'property esAdmin should not exist'") == 2
+
+
+def test_el_ejemplo_de_todos_los_tipos_los_cubre(tmp_path: Path):
+    """El CI compila este ejemplo: debe tener cada tipo, obligatorio y opcional donde importa."""
+    datos = leer_especificacion(RUTA_PLANTILLA / "ejemplos" / "todos-los-tipos.yml")
+    campos = [c for e in datos["entidades"] for c in e["campos"]]
+    tipos = {c["tipo"] for c in campos}
+    assert tipos == {
+        "texto",
+        "correo",
+        "entero",
+        "decimal",
+        "booleano",
+        "fecha",
+        "fecha_hora",
+        "uuid",
+        "enumeracion",
+        "referencia",
+    }
+    fechas = [c for c in campos if c["tipo"] in ("fecha", "fecha_hora")]
+    assert {c.get("requerido", True) for c in fechas} == {True, False}
+    carpeta = _generar(tmp_path, datos)
+    assert (carpeta / "test" / "historia-clinica.e2e-spec.ts").is_file()
+    assert (carpeta / "src" / "consulta-medica.service.spec.ts").is_file()
+
+
+def test_una_fecha_obligatoria_se_actualiza_sin_null(tmp_path: Path):
+    """Prisma no admite null en un campo obligatorio: aFecha no añade null a su tipo."""
+    conversion = _leer(_generar(tmp_path, leer_especificacion(EJEMPLO)), "src/comun/conversion.ts")
+    assert "export function aFecha(valor: string | undefined): Date | undefined;" in conversion
+
+
+def test_sin_campos_obligatorios_no_genera_la_prueba_del_cuerpo_vacio(tmp_path: Path):
+    datos = {
+        "servicio": "notas",
+        "entidades": [
+            {"nombre": "nota", "campos": [{"nombre": "texto", "tipo": "texto", "requerido": False}]}
+        ],
+    }
+    e2e = _leer(_generar(tmp_path, datos), "test/notas.e2e-spec.ts")
+    assert "sin los campos obligatorios" not in e2e
+    assert "decimal" not in e2e  # sin decimales no declara su ayuda

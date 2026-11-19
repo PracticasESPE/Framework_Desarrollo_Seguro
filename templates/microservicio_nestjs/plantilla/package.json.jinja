@@ -10,7 +10,9 @@
     "start:dev": "nest start --watch",
     "start:prod": "node dist/main",
     "typecheck": "tsc --noEmit",
-    "format": "prettier --write \"src/**/*.ts\"",
+    "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
+    "test": "jest",
+    "test:cov": "jest --coverage",
     "openapi": "node dist/openapi/generar-openapi.js",
     "prisma:generate": "prisma generate",
     "prisma:validate": "prisma validate",
@@ -38,10 +40,15 @@
     "@nestjs/schematics": "^11.0.0",
     "@nestjs/testing": "^11.0.1",
     "@types/express": "^5.0.0",
+    "@types/jest": "^30.0.0",
     "@types/node": "^24.0.0",
+    "@types/supertest": "^7.0.0",
+    "jest": "^30.0.0",
     "prettier": "^3.4.2",
     "prisma": "^7.10.0",
     "source-map-support": "^0.5.21",
+    "supertest": "^7.0.0",
+    "ts-jest": "^29.2.5",
     "ts-loader": "^9.5.2",
     "ts-node": "^10.9.2",
     "tsconfig-paths": "^4.2.0",
@@ -51,5 +58,24 @@
     "deepmerge-ts": "^8.0.2",
     "mysql2": "^3.22.0",
     "multer": "^2.5.0"
+  },
+  "jest": {
+    "moduleFileExtensions": ["js", "json", "ts"],
+    "roots": ["<rootDir>/src", "<rootDir>/test"],
+    "testRegex": "\\.(spec|e2e-spec)\\.ts$",
+    "moduleNameMapper": {
+      "^(\\.{1,2}/.*)\\.js$": "$1"
+    },
+    "transform": {
+      "^.+\\.(t|j)s$": "ts-jest"
+    },
+    "collectCoverageFrom": [
+      "src/**/*.ts",
+      "!src/generated/**",
+      "!src/main.ts",
+      "!src/openapi/generar-openapi.ts"
+    ],
+    "coverageDirectory": "coverage",
+    "testEnvironment": "node"
   }
 }
