@@ -15,6 +15,9 @@ from orchestrator.llm.prompts.especificacion import (
     EntidadesPropuestas,
     EspecificacionServicio,
     construir_especificacion,
+    descripcion_de,
+    esquema_de_entidades,
+    identificador_de_entidad,
     prompt_especificacion,
 )
 from orchestrator.llm.prompts.logica import LogicaEntidad, clase_de, prompt_logica
@@ -34,6 +37,9 @@ __all__ = [
     "construir_especificacion",
     "contexto_de_seguridad",
     "contexto_vacio",
+    "descripcion_de",
+    "esquema_de_entidades",
+    "identificador_de_entidad",
     "neutralizar",
     "nuevo_codigo",
     "preguntas_de_seguridad",

@@ -122,3 +122,9 @@ overrides:
   - paquete: multer
     version: "^2.5.0"
     motivo: Versión corregida de la dependencia indirecta de @nestjs/platform-express
+  - paquete: effect
+    version: "^3.22.1"
+    motivo: >-
+      CVE-2026-121707 (ReDoS en Schema.TemplateLiteral, alta). Llega por @prisma/config, que fija
+      3.20.0; aunque es del CLI de Prisma (desarrollo), npm la marca devOptional y Trivy la cuenta
+      como de producción

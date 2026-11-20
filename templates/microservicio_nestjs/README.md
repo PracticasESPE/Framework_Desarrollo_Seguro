@@ -18,7 +18,9 @@ python -m uv run python -m orchestrator.cli servicio generar templates/microserv
 ```
 
 Crea `salida/servicios/pedidos` (o la carpeta de `--destino`). Nunca escribe sobre un servicio que
-ya existe. Para compilarlo y probarlo, desde esa carpeta:
+ya existe, y valida lo generado contra la especificación (árbol de archivos, rutas, módulo, esquema
+Prisma y marcas del LLM): si no coincide, lo borra. Los parámetros de cada servicio salen de
+`arquitectura.json` (`framework servicio parametros`); ver `orchestrator/generation/README.md`. Para compilarlo y probarlo, desde esa carpeta:
 
 ```powershell
 npm ci                           # las versiones exactas de package-lock.json

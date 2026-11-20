@@ -2,10 +2,80 @@
 
 | Paso | Módulo | Comando |
 |---|---|---|
+| Parámetros de la plantilla de cada servicio (nombre, entidades y rutas) | `parametros.py` | `framework servicio parametros <arquitectura.json>` |
 | Especificación del servicio (entidades y campos) con el LLM | `orchestrator/llm/prompts` | `framework servicio prompt … --enviar --salida <servicio>.yml` |
-| Esqueleto determinista con la plantilla Copier | `plantilla.py` | `framework servicio generar <servicio>.yml` |
+| Esqueleto determinista con la plantilla Copier, con su estructura validada | `plantilla.py`, `estructura.py` | `framework servicio generar <servicio>.yml` |
+| Validar la estructura de un servicio ya generado | `estructura.py` | `framework servicio validar <carpeta>` |
 | Lógica de negocio en los puntos de extensión con el LLM | `logica.py` | `framework servicio logica <carpeta>` |
 | Dependencias npm contra la lista permitida | `dependencias.py` | `framework servicio dependencias <carpeta>` |
+
+## Parámetros por servicio (`parametros.py`)
+
+`arquitectura.json` ya fija de cada servicio lo que el LLM no debe decidir al generarlo.
+`parametros_de_arquitectura()` lo calcula para los N servicios de una vez y valida el conjunto
+antes de generar nada:
+
+| Parámetro | De dónde sale | Ejemplo (`pedidos`) |
+|---|---|---|
+| `servicio`, `base_datos` | La arquitectura | `pedidos`, `pedidos_db` |
+| `descripcion` | La responsabilidad, en una línea de 300 caracteres como mucho | |
+| `puerto` | 3001 + su posición en la arquitectura (3000 es `services/usuarios`): estable entre ejecuciones | `3002` |
+| `entidades` | Cada entidad de la arquitectura en snake_case sin tildes: «LineaPedido» → `linea_pedido`, «Línea de pedido» → `linea_de_pedido` | `pedido`, `linea_pedido` |
+| `prefijo` y `rutas` | `/api/<servicio>` y `/api/<servicio>/<entidad>`, con guiones | `/api/pedidos/linea-pedido` |
+| `audiencia` | La audiencia que deben llevar sus tokens | `pedidos-api` |
+
+**Errores** (no se genera nada y se informan todos a la vez): una entidad que no da un
+identificador válido (p. ej. «2FA»), que choca con un nombre reservado de la plantilla (`prisma`,
+`app`...) o que se repite en el mismo servicio («Pedido» y «pedido»), y dos servicios con la misma
+base de datos o el mismo prefijo de rutas.
+
+**Advertencias** (no impiden generar):
+
+- *Una entidad en varios servicios.* Pasa en 3 de las 4 arquitecturas de `salida/` (`Mascota` en
+  usuarios e historias, `Reserva` en reservas y pagos...). Cada servicio tiene su propia base, así
+  que son tablas independientes, normalmente una proyección de lectura. Si además no hay una
+  dependencia declarada entre esos servicios, la copia no tiene de dónde actualizarse, y la
+  advertencia lo dice.
+- *Un servicio sin entidades en la arquitectura.* Las propone el LLM, sin poder contrastarlas.
+
+**Las entidades del LLM deben ser exactamente las de la arquitectura**: ni más ni menos. Una tabla
+que no está en la arquitectura aprobada no tendría trazabilidad hasta sus requisitos ni sus ADR.
+El prompt `especificacion` (v1.1) da los identificadores y el esquema de la respuesta
+(`esquema_de_la_respuesta()`) lo comprueba, así que el proveedor reintenta si el LLM se inventa o se
+salta una. `especificacion(parametros, propuesta)` junta las dos partes en la entrada de la
+plantilla y vuelve a comprobarlo, por si la especificación se editó a mano.
+
+```bash
+uv run framework servicio parametros salida/arquitectura/<documento>.arquitectura.json \
+  --salida salida/servicios/parametros.json
+```
+
+## Estructura generada (`estructura.py`)
+
+`generar_servicio()` valida lo que acaba de generar Copier y, si no coincide con la
+especificación, borra el servicio y lanza `ErrorPlantilla` con todos los problemas: un servicio a
+medias nunca queda en el destino.
+
+- **El árbol de archivos** es exactamente el de la plantilla para esas entidades. La lista sale de
+  la propia plantilla (cada archivo de `plantilla/`, y los de `{% yield %}` una vez por entidad),
+  y los archivos de los controles de seguridad (guard, filtro de errores, Helmet, ValidationPipe,
+  configuración por entorno, Dockerfile, `.npmrc`, `package-lock.json`...) son obligatorios aunque
+  alguien los quite de la plantilla.
+- **Nada sin renderizar** (`{{`, `{%`) y ningún enlace simbólico.
+- **El contenido coincide con los parámetros**: el nombre del paquete; la ruta de cada controlador;
+  los controladores y servicios del módulo con sus tres controles globales; un modelo Prisma por
+  entidad con su tabla; las marcas del punto de extensión del LLM; y el puerto, la audiencia, la
+  base de datos y el usuario sin privilegios del Dockerfile, de `main.ts` y de `.env.example`.
+
+Lo que crean después la instalación, la compilación, las pruebas y `logica.py` (`node_modules`,
+`dist`, `coverage`, `src/generated`, `openapi/`, `logica/`, `.env`) no cuenta como sobrante, así que
+`servicio validar` sirve en cualquier momento de la vida del servicio. Sin especificación, usa las
+respuestas que guardó Copier en `.copier-answers.yml`.
+
+```bash
+uv run framework servicio validar salida/servicios/pedidos     # árbol, rutas y problemas
+python orchestrator/generation/estructura.py salida/servicios/pedidos   # sin el motor (CI)
+```
 
 ## Dependencias permitidas (`dependencias.py`)
 

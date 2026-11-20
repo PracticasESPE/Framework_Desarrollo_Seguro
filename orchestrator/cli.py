@@ -1559,8 +1559,14 @@ def servicio_generar(
         ),
     ] = None,
 ) -> None:
-    """Genera módulo, entidades Prisma y DTO de un servicio con templates/microservicio_nestjs."""
-    from orchestrator.generation import ErrorPlantilla, generar_servicio, leer_especificacion
+    """Genera un servicio con templates/microservicio_nestjs y valida su estructura."""
+    from orchestrator.generation import (
+        ErrorPlantilla,
+        arbol,
+        generar_servicio,
+        leer_especificacion,
+        validar_estructura,
+    )
 
     if not especificacion.is_file():
         raise typer.BadParameter(
@@ -1574,14 +1580,93 @@ def servicio_generar(
         typer.echo(f"Error: {error}", err=True)
         raise typer.Exit(1) from error
 
-    archivos = sorted(p for p in generado.rglob("*") if p.is_file())
+    resultado = validar_estructura(generado, datos)
     typer.echo(f"Servicio {datos['servicio']} generado en {generado.as_posix()}")
-    for archivo in archivos:
-        typer.echo(f"  {archivo.relative_to(generado).as_posix()}")
+    typer.echo(arbol(resultado.archivos, generado.name))
+    typer.echo(f"Estructura validada; rutas: {', '.join(resultado.rutas)}")
     typer.echo(
         "Para compilarlo y probarlo: npm ci, npm run prisma:generate, npm run typecheck y "
         "npm test (ver el README.md del servicio)."
     )
+
+
+@servicio_app.command("parametros")
+def servicio_parametros(
+    arquitectura: Annotated[
+        Path, typer.Argument(help="arquitectura.json aprobada por «arquitectura proponer».")
+    ],
+    salida: Annotated[
+        Path | None,
+        typer.Option("--salida", help="Guardar los parámetros de todos los servicios en JSON."),
+    ] = None,
+) -> None:
+    """Parámetros de la plantilla de cada servicio de la arquitectura: nombre, entidades y rutas."""
+    import json
+
+    from pydantic import ValidationError
+
+    from orchestrator.architecture import Arquitectura
+    from orchestrator.generation import ErrorParametros, parametros_de_arquitectura
+
+    try:
+        arq = Arquitectura.model_validate_json(arquitectura.read_bytes())
+    except (OSError, ValidationError) as error:
+        typer.echo(f"Error: no se pudo leer la arquitectura: {error}", err=True)
+        raise typer.Exit(1) from error
+    try:
+        parametros = parametros_de_arquitectura(arq)
+    except ErrorParametros as error:
+        typer.echo("Error: la arquitectura no se puede parametrizar:", err=True)
+        for problema in error.problemas:
+            typer.echo(f"  - {problema}", err=True)
+        raise typer.Exit(1) from error
+
+    typer.echo(f"{len(parametros.servicios)} servicios en {arquitectura.name}")
+    for servicio in parametros.servicios:
+        typer.echo(
+            f"\n{servicio.servicio}  (puerto {servicio.puerto}, base {servicio.base_datos}, "
+            f"audiencia {servicio.audiencia})"
+        )
+        typer.echo(f"  {servicio.descripcion}")
+        typer.echo(f"  Requisitos: {', '.join(servicio.requisitos)}")
+        if not servicio.entidades:
+            typer.echo("  Sin entidades en la arquitectura: las propondrá el LLM")
+        for entidad in servicio.entidades:
+            typer.echo(f"  {entidad.original:<28} {entidad.nombre:<28} {entidad.ruta}")
+    for advertencia in parametros.advertencias:
+        typer.echo(f"\nAdvertencia: {advertencia}")
+    if salida:
+        salida.parent.mkdir(parents=True, exist_ok=True)
+        salida.write_text(
+            json.dumps(parametros.model_dump(), ensure_ascii=False, indent=2) + "\n",
+            encoding="utf-8",
+        )
+        typer.echo(f"\nParámetros guardados en {salida.as_posix()}")
+
+
+@servicio_app.command("validar")
+def servicio_validar(
+    carpeta: Annotated[Path, typer.Argument(help="Carpeta de un servicio generado.")],
+    mostrar_arbol: Annotated[
+        bool, typer.Option("--arbol/--sin-arbol", help="Mostrar el árbol de archivos.")
+    ] = True,
+) -> None:
+    """Valida la estructura de un servicio generado contra su .copier-answers.yml."""
+    from orchestrator.generation import arbol, validar_estructura
+
+    if not carpeta.is_dir():
+        raise typer.BadParameter(f"no existe la carpeta '{carpeta}'", param_hint="CARPETA")
+    resultado = validar_estructura(carpeta)
+    if mostrar_arbol and resultado.archivos:
+        typer.echo(arbol(resultado.archivos, carpeta.resolve().name))
+    if resultado.rutas:
+        typer.echo(f"Rutas: {', '.join(resultado.rutas)}")
+    if not resultado.valida:
+        typer.echo(f"Estructura inválida ({len(resultado.problemas)} problemas):", err=True)
+        for problema in resultado.problemas:
+            typer.echo(f"  - {problema}", err=True)
+        raise typer.Exit(1)
+    typer.echo("Estructura válida: coincide con la especificación del servicio.")
 
 
 @servicio_app.command("dependencias")
@@ -1825,13 +1910,14 @@ def servicio_prompt(
     from pydantic import ValidationError
 
     from orchestrator.architecture import Arquitectura
+    from orchestrator.generation import ErrorParametros, parametros_de_arquitectura
+    from orchestrator.generation import especificacion as especificacion_de_servicio
     from orchestrator.ingest import ModeloRequisitos
     from orchestrator.knowledge import ErrorGrafo
     from orchestrator.knowledge.embeddings import ErrorEmbeddings
     from orchestrator.llm import ErrorLLM, crear_proveedor
     from orchestrator.llm.prompts import (
         EspecificacionServicio,
-        construir_especificacion,
         contexto_de_seguridad,
         contexto_vacio,
         prompt_especificacion,
@@ -1901,8 +1987,13 @@ def servicio_prompt(
         typer.echo(f"Error: {error}", err=True)
         raise typer.Exit(1) from error
     if tarea == "especificacion":
-        puerto = 3001 + [s.nombre for s in arq.servicios].index(servicio)
-        resultado = construir_especificacion(datos, respuesta, puerto).para_plantilla()
+        # Lo que fijó la arquitectura (nombre, base, puerto y entidades) y los campos del LLM.
+        try:
+            parametros = parametros_de_arquitectura(arq).de(servicio)
+            resultado = especificacion_de_servicio(parametros, respuesta).para_plantilla()
+        except (ErrorParametros, ValidationError) as error:
+            typer.echo(f"Error: {error}", err=True)
+            raise typer.Exit(1) from error
         texto = yaml.safe_dump(resultado, allow_unicode=True, sort_keys=False)
     else:
         texto = respuesta.model_dump_json(indent=2)

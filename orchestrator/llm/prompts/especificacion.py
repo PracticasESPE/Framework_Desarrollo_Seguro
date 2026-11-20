@@ -12,6 +12,9 @@ generar nada.
 
 from __future__ import annotations
 
+import re
+import unicodedata
+from collections.abc import Sequence
 from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints, model_validator
@@ -19,7 +22,7 @@ from pydantic import BaseModel, ConfigDict, Field, StringConstraints, model_vali
 from orchestrator.knowledge.graphrag import ContextoGraphRAG
 from orchestrator.llm.prompts.comun import AVISO_DATOS, Prompt, bloque, nuevo_codigo
 
-VERSION = "1.0"
+VERSION = "1.1"
 
 Identificador = Annotated[str, StringConstraints(pattern=r"^[a-z][a-z0-9_]{1,39}$")]
 ValorEnumeracion = Annotated[str, StringConstraints(pattern=r"^[a-z][a-z0-9_]{0,39}$")]
@@ -156,6 +159,57 @@ class EntidadesPropuestas(BaseModel):
         return self
 
 
+def identificador_de_entidad(nombre: str) -> str:
+    """El identificador de la plantilla para una entidad de arquitectura.json.
+
+    La arquitectura nombra las entidades como clases o como texto («LineaPedido», «Línea de
+    pedido»); la plantilla necesita snake_case sin tildes («linea_pedido», «linea_de_pedido»). El
+    resultado puede no ser un identificador válido (p. ej. si empieza por un número): lo comprueba
+    quien lo usa.
+    """
+    sin_tildes = unicodedata.normalize("NFKD", nombre).encode("ascii", "ignore").decode("ascii")
+    # Separa las palabras de PascalCase y camelCase: «HistoriaClinica», «ImagenURLProducto».
+    separado = re.sub(r"(?<=[a-z0-9])(?=[A-Z])|(?<=[A-Z])(?=[A-Z][a-z])", "_", sin_tildes)
+    return re.sub(r"[^a-z0-9]+", "_", separado.lower()).strip("_")
+
+
+def descripcion_de(servicio: Any) -> str:
+    """La responsabilidad como descripción de la plantilla: una línea, de 300 como mucho."""
+    return " ".join(servicio.responsabilidad.split())[:300].strip()
+
+
+def esquema_de_entidades(esperadas: Sequence[str]) -> type[EntidadesPropuestas]:
+    """El esquema de la respuesta del LLM cuando la arquitectura ya fijó las entidades.
+
+    Exige exactamente esas entidades, ni más ni menos: cada tabla del servicio debe estar en la
+    arquitectura aprobada (trazabilidad hasta sus requisitos y sus ADR). Como el proveedor valida
+    la respuesta con el esquema, una entidad que falta o que sobra se vuelve a pedir.
+    """
+    esperadas = list(dict.fromkeys(esperadas))
+    if not esperadas:
+        return EntidadesPropuestas
+
+    class EntidadesDeLaArquitectura(EntidadesPropuestas):
+        @model_validator(mode="after")
+        def _las_de_la_arquitectura(self) -> EntidadesDeLaArquitectura:
+            nombres = [e.nombre for e in self.entidades]
+            faltan = [n for n in esperadas if n not in nombres]
+            sobran = [n for n in nombres if n not in esperadas]
+            if faltan or sobran:
+                partes = []
+                if faltan:
+                    partes.append(f"faltan {', '.join(faltan)}")
+                if sobran:
+                    partes.append(f"sobran {', '.join(sobran)}")
+                raise ValueError(
+                    "las entidades deben ser exactamente las de la arquitectura "
+                    f"({', '.join(esperadas)}): {'; '.join(partes)}"
+                )
+            return self
+
+    return EntidadesDeLaArquitectura
+
+
 class EspecificacionServicio(BaseModel):
     """La especificación completa que recibe la plantilla Copier."""
 
@@ -184,6 +238,8 @@ NestJS con Prisma y PostgreSQL. Recibes el servicio tal como lo definió la arqu
 requisitos y el conocimiento de seguridad del framework. {AVISO_DATOS}
 
 Devuelve las entidades de las que es dueño el servicio, con sus campos:
+- si la arquitectura le asignó entidades, devuelve exactamente esas, con el identificador que va
+  entre paréntesis: ni más ni menos, porque cada tabla debe estar en la arquitectura aprobada;
 - nombres en snake_case (a-z, 0-9, _), de 2 a 40 caracteres; no declares id, creado_en ni
   actualizado_en: los añade la plantilla en todas las entidades;
 - tipo de cada campo: texto, correo, entero, decimal, booleano, fecha, fecha_hora, uuid,
@@ -216,7 +272,11 @@ def prompt_especificacion(
     `requisitos` son los Requisito del modelo de la fase 1 que cubre el servicio.
     """
     codigo = codigo or nuevo_codigo()
-    entidades = ", ".join(servicio.entidades) or "ninguna"
+    esperadas = [identificador_de_entidad(n) for n in servicio.entidades]
+    entidades = (
+        ", ".join(f"{n} ({i})" for n, i in zip(servicio.entidades, esperadas, strict=True))
+        or "ninguna"
+    )
     etiquetas = ", ".join(servicio.etiquetas) or "ninguna"
     partes = [
         bloque(
@@ -248,7 +308,7 @@ def prompt_especificacion(
         version=VERSION,
         sistema=SISTEMA,
         usuario="\n\n".join(partes),
-        esquema=EntidadesPropuestas,
+        esquema=esquema_de_entidades(esperadas),
         nivel="razonamiento",
         codigo=codigo,
     )
@@ -260,7 +320,7 @@ def construir_especificacion(
     """La especificación para la plantilla: lo que fijó la arquitectura y las entidades del LLM."""
     return EspecificacionServicio(
         servicio=servicio.nombre,
-        descripcion=servicio.responsabilidad[:300].replace("\n", " "),
+        descripcion=descripcion_de(servicio),
         base_datos=servicio.base_datos,
         puerto=puerto,
         entidades=propuesta.entidades,
