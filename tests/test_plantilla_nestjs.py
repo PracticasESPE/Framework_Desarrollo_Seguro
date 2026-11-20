@@ -621,7 +621,12 @@ def test_cli_genera_el_servicio(tmp_path: Path):
 
     assert resultado.exit_code == 0, resultado.output
     assert "Servicio pedidos generado" in resultado.output
-    assert "src/dto/crear-pedido.dto.ts" in resultado.output
+    # El árbol de archivos y el resultado de la validación de la estructura.
+    assert "|   |-- dto/\n|   |   |-- actualizar-linea-pedido.dto.ts" in resultado.output
+    assert "8 carpetas, 47 archivos" in resultado.output
+    assert "Estructura validada; rutas: /api/pedidos/pedido, /api/pedidos/linea-pedido" in (
+        resultado.output
+    )
     assert (tmp_path / "pedidos" / "prisma" / "schema.prisma").is_file()
 
 

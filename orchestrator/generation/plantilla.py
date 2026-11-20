@@ -12,17 +12,21 @@ Los datos de la especificación vendrán del LLM, así que se tratan como no con
 - La plantilla no declara tareas, migraciones ni extensiones, y se ejecuta con `unsafe=False`: si
   alguien las añadiera, Copier se negaría a ejecutarlas.
 - Nunca se escribe sobre un servicio que ya existe.
+- Lo generado se valida contra la especificación (estructura.py): el árbol de archivos, las rutas,
+  el módulo, el esquema Prisma y las marcas del LLM. Si no coincide, el servicio se borra: nunca
+  queda a medias en el destino.
 """
 
 from __future__ import annotations
 
 import os
+import shutil
 from pathlib import Path
 from typing import Any
 
 import yaml
 
-RUTA_PLANTILLA = Path(__file__).resolve().parents[2] / "templates" / "microservicio_nestjs"
+from orchestrator.generation.estructura import RUTA_PLANTILLA, validar_estructura
 
 
 class ErrorPlantilla(Exception):
@@ -57,8 +61,9 @@ def generar_servicio(
 ) -> Path:
     """Genera el servicio en `destino/<servicio>` y devuelve esa carpeta.
 
-    Lanza ErrorPlantilla si la especificación no pasa las validaciones de la plantilla o si la
-    carpeta del servicio ya existe y no está vacía.
+    Lanza ErrorPlantilla si la especificación no pasa las validaciones de la plantilla, si la
+    carpeta del servicio ya existe y no está vacía, o si lo generado no tiene la estructura que
+    corresponde a la especificación.
     """
     import copier
     from copier.errors import CopierError
@@ -87,4 +92,10 @@ def generar_servicio(
         raise ErrorPlantilla(str(error)) from error
     except CopierError as error:
         raise ErrorPlantilla(f"Copier no pudo generar el servicio: {error}") from error
+
+    resultado = validar_estructura(carpeta, especificacion, plantilla)
+    if not resultado.valida:
+        shutil.rmtree(carpeta, ignore_errors=True)
+        detalle = "\n- ".join(resultado.problemas)
+        raise ErrorPlantilla(f"El servicio generado no tiene la estructura esperada:\n- {detalle}")
     return carpeta

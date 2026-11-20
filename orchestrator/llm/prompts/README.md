@@ -35,9 +35,12 @@ de inventar contexto.
   de un LLM anterior: van entre marcas con un código aleatorio por prompt, también en los
   atributos, y el mensaje de sistema indica que son datos, nunca instrucciones.
 - **Lo decidido no lo vuelve a decidir el LLM.** En la especificación, el nombre del servicio, su
-  base de datos y su puerto los pone el motor desde `arquitectura.json`; el LLM solo propone las
-  entidades. Las referencias solo pueden apuntar a entidades del mismo servicio (cada servicio
-  tiene su base de datos).
+  base de datos, su puerto y sus entidades los pone el motor desde `arquitectura.json`
+  (`orchestrator/generation/parametros.py`); el LLM solo propone los campos. Desde la v1.1 el
+  prompt da el identificador de cada entidad («LineaPedido (linea_pedido)») y el esquema de la
+  respuesta exige exactamente esas: una entidad que falta o que sobra no pasa la validación y el
+  proveedor la vuelve a pedir. Las referencias solo pueden apuntar a entidades del mismo servicio
+  (cada servicio tiene su base de datos).
 - **Reglas del código en el mensaje de sistema** del prompt de lógica: solo el cuerpo de los
   métodos, sin `import` ni `require`, sin `eval`, `process`, `fs`, red ni consultas
   `$queryRawUnsafe`, sin datos personales en la consola ni detalles internos en los mensajes. El

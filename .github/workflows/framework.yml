@@ -399,6 +399,21 @@ jobs:
           --data-file templates/microservicio_nestjs/ejemplos/pedidos.yml
           templates/microservicio_nestjs salida/servicios/pedidos
 
+      # El árbol de archivos, las rutas, el módulo, el esquema Prisma y las marcas del LLM son los
+      # que corresponden a la especificación (orchestrator/generation/estructura.py, #69). Como el
+      # de dependencias, se ejecuta como script, sin el motor completo.
+      - name: Estructura del servicio generado
+        run: |
+          set -o pipefail
+          uv run --no-project --with pyyaml==6.* \
+            python orchestrator/generation/estructura.py salida/servicios/pedidos | tee estructura.txt
+          {
+            echo "### Árbol de archivos del servicio generado (pedidos)"
+            echo '```'
+            cat estructura.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
       # Paquetes npm alucinados (slopsquatting): nada se instala si no está en
       # knowledge_base/dependencias_permitidas.yaml. Revisa el package.json y el package-lock.json
       # que genera la plantilla (origen, integridad sha512 y versiones). Se ejecuta como script,
@@ -473,6 +488,8 @@ jobs:
           uvx copier@9.19.1 copy --defaults \
             --data-file templates/microservicio_nestjs/ejemplos/todos-los-tipos.yml \
             templates/microservicio_nestjs salida/servicios/historia_clinica
+          uv run --no-project --with pyyaml==6.* python orchestrator/generation/estructura.py \
+            salida/servicios/historia_clinica > /dev/null
           cd salida/servicios/historia_clinica
           npm ci --ignore-scripts --no-audit --no-fund
           DATABASE_URL=postgresql://ci:ci@localhost:5432/historia_clinica_db npm run prisma:generate

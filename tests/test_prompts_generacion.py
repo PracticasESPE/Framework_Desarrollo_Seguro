@@ -104,7 +104,7 @@ def test_enviar_usa_el_sistema_el_esquema_y_el_nivel_del_prompt():
                 {
                     "entidades": [
                         {
-                            "nombre": "pedido",
+                            "nombre": "pedidos",
                             "campos": [{"nombre": "total", "tipo": "decimal", "min": 0}],
                         }
                     ]
@@ -114,7 +114,9 @@ def test_enviar_usa_el_sistema_el_esquema_y_el_nivel_del_prompt():
     prompt = prompt_especificacion(_arquitectura().servicios[1], [], contexto_vacio())
     respuesta = prompt.enviar(LLM())
     assert isinstance(respuesta, EntidadesPropuestas)
-    assert llamadas == [(prompt.usuario, EntidadesPropuestas, "razonamiento", prompt.sistema)]
+    # El esquema exige las entidades de la arquitectura: es una subclase de EntidadesPropuestas.
+    assert issubclass(prompt.esquema, EntidadesPropuestas)
+    assert llamadas == [(prompt.usuario, prompt.esquema, "razonamiento", prompt.sistema)]
 
 
 # --- Contexto GraphRAG -------------------------------------------------------------------------
@@ -234,8 +236,10 @@ def test_el_prompt_de_especificacion_marca_los_requisitos_y_trae_el_contexto():
     prompt = prompt_especificacion(pedidos, [ataque], _contexto(("f1", 0.9)), codigo="a1b2c3d4")
 
     assert prompt.nombre == "especificacion" and prompt.nivel == "razonamiento"
-    assert prompt.esquema is EntidadesPropuestas
+    assert issubclass(prompt.esquema, EntidadesPropuestas)
     assert '<servicio-a1b2c3d4 nombre="pedidos" contexto="Pedidos">' in prompt.usuario
+    assert "Entidades que le asignó la arquitectura: Pedidos (pedidos)" in prompt.usuario
+    assert "devuelve exactamente esas, con el identificador" in prompt.sistema
     assert prompt.usuario.count("</requisito-a1b2c3d4>") == 1
     assert 'id="RF-02" tipo="funcional" etiquetas="validacion_entrada"' in prompt.usuario
     assert "Texto de f1" in prompt.usuario and "ASVS-V4.1.3" in prompt.usuario
@@ -349,7 +353,7 @@ def _prompt(archivos, *argumentos):
 def test_comando_muestra_el_prompt_sin_graphrag(archivos):
     resultado = _prompt(archivos, "--servicio", "pedidos", "--sin-graphrag")
     assert resultado.exit_code == 0, resultado.output
-    assert "# Prompt «especificacion» v1.0 (razonamiento)" in resultado.output
+    assert "# Prompt «especificacion» v1.1 (razonamiento)" in resultado.output
     assert 'id="RF-02"' in resultado.output
     assert 'id="RF-01"' not in resultado.output  # RF-01 es de usuarios
 
@@ -361,7 +365,7 @@ def test_comando_envia_y_guarda_la_especificacion(archivos, tmp_path, monkeypatc
                 {
                     "entidades": [
                         {
-                            "nombre": "pedido",
+                            "nombre": "pedidos",
                             "campos": [{"nombre": "total", "tipo": "decimal", "min": 0}],
                         }
                     ]
