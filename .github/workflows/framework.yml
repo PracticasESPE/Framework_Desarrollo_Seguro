@@ -423,6 +423,15 @@ jobs:
           uv run --no-project --with pydantic==2.* --with pyyaml==6.*
           python orchestrator/generation/dependencias.py salida/servicios/pedidos
 
+      # El Gate 1 no analiza el lock de la plantilla (package-lock.json.jinja no es un lock hasta
+      # renderizarse): aquí Trivy revisa el del servicio generado, con la versión del Gate 1. Lo
+      # que tenga vulnerabilidades altas o críticas aquí lo heredaría cada servicio generado.
+      - name: Trivy fs del servicio generado (dependencias)
+        run: >-
+          docker run --rm -v "$PWD/salida/servicios/pedidos:/servicio:ro"
+          aquasec/trivy:0.71.1 fs --quiet --scanners vuln --severity HIGH,CRITICAL
+          --exit-code 1 /servicio
+
       # npm ci: exactamente el package-lock.json que genera la plantilla, con su integridad.
       - name: Instalar dependencias (sin scripts de instalación)
         working-directory: salida/servicios/pedidos

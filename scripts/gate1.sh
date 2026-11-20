@@ -58,7 +58,11 @@ ejecutar() {
 }
 
 trivy() { docker run --rm -v "$PWD:/work" -v "$PWD/$CACHE:/root/.cache/trivy" -w /work "$TRIVY_IMG" "$@"; }
-TRIVY_SKIP=(--skip-dirs "**/node_modules" --skip-dirs "$CACHE" --skip-dirs salida)
+# Los archivos .jinja de la plantilla no son un Dockerfile ni un lock válidos hasta renderizarse:
+# Trivy no los puede analizar. El job `plantilla` analiza el servicio ya generado (Trivy fs y
+# Hadolint).
+TRIVY_SKIP=(--skip-dirs "**/node_modules" --skip-dirs "$CACHE" --skip-dirs salida
+  --skip-files "templates/**/*.jinja")
 
 echo "=== 0/7 Preparacion: descarga de las imagenes de las herramientas ==="
 for img in "$SEMGREP" "$GITLEAKS" "$TRIVY_IMG" "$HADOLINT"; do
