@@ -7,7 +7,37 @@
 | Esqueleto determinista con la plantilla Copier, con su estructura validada | `plantilla.py`, `estructura.py` | `framework servicio generar <servicio>.yml` |
 | Validar la estructura de un servicio ya generado | `estructura.py` | `framework servicio validar <carpeta>` |
 | Lógica de negocio en los puntos de extensión con el LLM | `logica.py` | `framework servicio logica <carpeta>` |
+| Ver todo lo anterior que no usa LLM, de una vez | `demostracion.py` | `framework servicio demo` |
 | Dependencias npm contra la lista permitida | `dependencias.py` | `framework servicio dependencias <carpeta>` |
+
+## Demostración con un solo comando (`demostracion.py`)
+
+`framework servicio demo` muestra hasta dónde llega hoy la fase 3, sin LLM, sin Docker y sin red:
+
+1. los parámetros de cada servicio de la arquitectura del documento 1;
+2. un servicio generado con la plantilla (`ejemplos/pedidos.yml`);
+3. su estructura validada;
+4. sus dependencias contra la lista permitida;
+5. un **control negativo de la estructura**: a una copia se le quita el guard JWT y el Dockerfile, y
+   la validación tiene que detectarlo;
+6. un **control negativo de las dependencias**: a otra copia se le añade un paquete inventado, y la
+   lista permitida tiene que rechazarlo.
+
+Al final dice qué comandos usan el LLM y qué falta todavía en el motor. Si un control negativo no
+detecta el problema, el comando termina con código 1: la demostración no solo enseña, también
+comprueba que las defensas funcionan.
+
+```bash
+uv run framework servicio demo                       # en salida/servicios-demo
+uv run framework servicio demo --arquitectura salida/arquitectura/<id>.arquitectura.json
+uv run framework servicio demo --arbol               # con el árbol de archivos
+uv run framework servicio demo --compilar            # además: npm ci, prisma generate y tsc
+```
+
+Escribe solo en su carpeta (`--destino`, por defecto `salida/servicios-demo`) y la marca con un
+archivo propio: si la carpeta existe, no está vacía y no la creó la demostración, se niega a
+usarla, para no borrar nunca nada ajeno. Las copias de los controles negativos se borran siempre
+al terminar.
 
 ## Parámetros por servicio (`parametros.py`)
 
