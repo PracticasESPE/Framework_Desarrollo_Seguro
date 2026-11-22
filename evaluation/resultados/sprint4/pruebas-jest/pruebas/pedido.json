@@ -1,0 +1,130 @@
+{
+  "servicio": "pedidos",
+  "entidad": "pedido",
+  "archivo": "src/pedido.reglas.spec.ts",
+  "aceptadas": 8,
+  "descartadas": [],
+  "huella_prompt": "35148ba9f6b96516ae8956e51eb96637adb88da9c3ee0ff4fc972008759aeeeb",
+  "intentos": [
+    {
+      "numero": 1,
+      "fecha": "2026-11-22T18:00:21.954265Z",
+      "problemas": [],
+      "error_de_compilacion": null,
+      "casos": [
+        {
+          "numero": 1,
+          "nombre": "Acepta un pedido cuando el carrito tiene ítems, hay stock suficiente y el total coincide",
+          "requisito": "RF-11",
+          "estado": "passed",
+          "error": null
+        },
+        {
+          "numero": 2,
+          "nombre": "Rechaza la creación si el carrito no existe",
+          "requisito": null,
+          "estado": "passed",
+          "error": null
+        },
+        {
+          "numero": 3,
+          "nombre": "Rechaza la creación si el carrito está vacío",
+          "requisito": null,
+          "estado": "passed",
+          "error": null
+        },
+        {
+          "numero": 4,
+          "nombre": "Rechaza la creación cuando no hay stock suficiente para un producto",
+          "requisito": "RF-12",
+          "estado": "passed",
+          "error": null
+        },
+        {
+          "numero": 5,
+          "nombre": "Rechaza la creación si el total enviado no coincide con el cálculo del servidor",
+          "requisito": "RF-11",
+          "estado": "passed",
+          "error": null
+        },
+        {
+          "numero": 6,
+          "nombre": "Rechaza la cancelación si el estado del pedido no se encuentra",
+          "requisito": "RF-20",
+          "estado": "passed",
+          "error": null
+        },
+        {
+          "numero": 7,
+          "nombre": "Rechaza la cancelación si el pedido ya está enviado o entregado",
+          "requisito": "RF-20",
+          "estado": "passed",
+          "error": null
+        },
+        {
+          "numero": 8,
+          "nombre": "Permite cancelar un pedido que está en estado pendiente",
+          "requisito": "RF-20",
+          "estado": "passed",
+          "error": null
+        }
+      ]
+    }
+  ],
+  "pruebas": {
+    "casos": [
+      {
+        "nombre": "Acepta un pedido cuando el carrito tiene ítems, hay stock suficiente y el total coincide",
+        "metodo": "reglasAlCrear",
+        "requisito": "RF-11",
+        "cuerpo": "prisma.carrito.findFirst.mockResolvedValue({ id: 'c1', clienteId: 'cli1' } as any);\nprisma.carritoItem.findMany.mockResolvedValue([\n  {\n    productoId: 'p1',\n    cantidad: 2,\n    producto: { precio: decimal(10), nombre: 'Prod1' },\n  },\n] as any);\nprisma.stock.findUnique.mockResolvedValue({ productoId: 'p1', cantidad: 5 } as any);\nprisma.stock.update.mockResolvedValue(undefined as any);\nawait expect(\n  reglas.reglasAlCrear({\n    clienteId: 'cli1',\n    direccionId: 'dir1',\n    total: 20,\n    estadoId: 'est1',\n    fechaExpiracion: undefined,\n    tokenPagoId: null,\n    cancelado: false,\n  } as CrearPedidoDto),\n).resolves.toBeUndefined();\nexpect(prisma.stock.update).toHaveBeenCalledWith({\n  where: { productoId: 'p1' },\n  data: { cantidad: 3 },\n});"
+      },
+      {
+        "nombre": "Rechaza la creación si el carrito no existe",
+        "metodo": "reglasAlCrear",
+        "requisito": null,
+        "cuerpo": "prisma.carrito.findFirst.mockResolvedValue(null);\nawait expect(\n  reglas.reglasAlCrear({\n    clienteId: 'cli1',\n    direccionId: 'dir1',\n    total: 0,\n    estadoId: 'est1',\n    fechaExpiracion: undefined,\n    tokenPagoId: null,\n    cancelado: false,\n  } as CrearPedidoDto),\n).rejects.toBeInstanceOf(BadRequestException);"
+      },
+      {
+        "nombre": "Rechaza la creación si el carrito está vacío",
+        "metodo": "reglasAlCrear",
+        "requisito": null,
+        "cuerpo": "prisma.carrito.findFirst.mockResolvedValue({ id: 'c1', clienteId: 'cli1' } as any);\nprisma.carritoItem.findMany.mockResolvedValue([] as any);\nawait expect(\n  reglas.reglasAlCrear({\n    clienteId: 'cli1',\n    direccionId: 'dir1',\n    total: 0,\n    estadoId: 'est1',\n    fechaExpiracion: undefined,\n    tokenPagoId: null,\n    cancelado: false,\n  } as CrearPedidoDto),\n).rejects.toBeInstanceOf(BadRequestException);"
+      },
+      {
+        "nombre": "Rechaza la creación cuando no hay stock suficiente para un producto",
+        "metodo": "reglasAlCrear",
+        "requisito": "RF-12",
+        "cuerpo": "prisma.carrito.findFirst.mockResolvedValue({ id: 'c1', clienteId: 'cli1' } as any);\nprisma.carritoItem.findMany.mockResolvedValue([\n  {\n    productoId: 'p1',\n    cantidad: 3,\n    producto: { precio: decimal(5), nombre: 'Prod1' },\n  },\n] as any);\nprisma.stock.findUnique.mockResolvedValue({ productoId: 'p1', cantidad: 2 } as any);\nawait expect(\n  reglas.reglasAlCrear({\n    clienteId: 'cli1',\n    direccionId: 'dir1',\n    total: 15,\n    estadoId: 'est1',\n    fechaExpiracion: undefined,\n    tokenPagoId: null,\n    cancelado: false,\n  } as CrearPedidoDto),\n).rejects.toBeInstanceOf(ConflictException);"
+      },
+      {
+        "nombre": "Rechaza la creación si el total enviado no coincide con el cálculo del servidor",
+        "metodo": "reglasAlCrear",
+        "requisito": "RF-11",
+        "cuerpo": "prisma.carrito.findFirst.mockResolvedValue({ id: 'c1', clienteId: 'cli1' } as any);\nprisma.carritoItem.findMany.mockResolvedValue([\n  {\n    productoId: 'p1',\n    cantidad: 1,\n    producto: { precio: decimal(10), nombre: 'Prod1' },\n  },\n] as any);\nprisma.stock.findUnique.mockResolvedValue({ productoId: 'p1', cantidad: 10 } as any);\nprisma.stock.update.mockResolvedValue(undefined as any);\nawait expect(\n  reglas.reglasAlCrear({\n    clienteId: 'cli1',\n    direccionId: 'dir1',\n    total: 5, // total incorrecto\n    estadoId: 'est1',\n    fechaExpiracion: undefined,\n    tokenPagoId: null,\n    cancelado: false,\n  } as CrearPedidoDto),\n).rejects.toBeInstanceOf(BadRequestException);"
+      },
+      {
+        "nombre": "Rechaza la cancelación si el estado del pedido no se encuentra",
+        "metodo": "reglasAlActualizar",
+        "requisito": "RF-20",
+        "cuerpo": "prisma.estadoPedido.findUnique.mockResolvedValue(null);\nawait expect(\n  reglas.reglasAlActualizar(\n    {\n      id: 'ped1',\n      clienteId: 'cli1',\n      direccionId: 'dir1',\n      total: decimal(20),\n      estadoId: 'est1',\n      fechaExpiracion: new Date(),\n      tokenPagoId: null,\n      cancelado: false,\n    } as unknown as Pedido,\n    { cancelado: true } as ActualizarPedidoDto,\n  ),\n).rejects.toBeInstanceOf(NotFoundException);"
+      },
+      {
+        "nombre": "Rechaza la cancelación si el pedido ya está enviado o entregado",
+        "metodo": "reglasAlActualizar",
+        "requisito": "RF-20",
+        "cuerpo": "prisma.estadoPedido.findUnique.mockResolvedValue({ id: 'est1', nombre: 'Enviado' } as any);\nawait expect(\n  reglas.reglasAlActualizar(\n    {\n      id: 'ped1',\n      clienteId: 'cli1',\n      direccionId: 'dir1',\n      total: decimal(20),\n      estadoId: 'est1',\n      fechaExpiracion: new Date(),\n      tokenPagoId: null,\n      cancelado: false,\n    } as unknown as Pedido,\n    { cancelado: true } as ActualizarPedidoDto,\n  ),\n).rejects.toBeInstanceOf(BadRequestException);"
+      },
+      {
+        "nombre": "Permite cancelar un pedido que está en estado pendiente",
+        "metodo": "reglasAlActualizar",
+        "requisito": "RF-20",
+        "cuerpo": "prisma.estadoPedido.findUnique.mockResolvedValue({ id: 'est1', nombre: 'Pendiente' } as any);\nawait expect(\n  reglas.reglasAlActualizar(\n    {\n      id: 'ped1',\n      clienteId: 'cli1',\n      direccionId: 'dir1',\n      total: decimal(20),\n      estadoId: 'est1',\n      fechaExpiracion: new Date(),\n      tokenPagoId: null,\n      cancelado: false,\n    } as unknown as Pedido,\n    { cancelado: true } as ActualizarPedidoDto,\n  ),\n).resolves.toBeUndefined();"
+      }
+    ],
+    "sin_probar": [
+      "Devolver el stock de los productos cuando se cancela un pedido (pendiente en el código).",
+      "Implementar la cancelación automática al expirar los 30 minutos (RF-16)."
+    ]
+  }
+}

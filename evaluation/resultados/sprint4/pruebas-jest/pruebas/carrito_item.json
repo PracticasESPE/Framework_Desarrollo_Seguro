@@ -1,0 +1,155 @@
+{
+  "servicio": "pedidos",
+  "entidad": "carrito_item",
+  "archivo": "src/carrito-item.reglas.spec.ts",
+  "aceptadas": 10,
+  "descartadas": [],
+  "huella_prompt": "940dde15e2e7a9228e626e1e174bd92b89c94076204c75ec75e3aa2d010e6226",
+  "intentos": [
+    {
+      "numero": 1,
+      "fecha": "2026-11-22T18:00:00.573899Z",
+      "problemas": [],
+      "error_de_compilacion": null,
+      "casos": [
+        {
+          "numero": 1,
+          "nombre": "crea un ítem de carrito cuando existen carrito, producto, stock suficiente y no hay duplicado",
+          "requisito": "RF-10",
+          "estado": "passed",
+          "error": null
+        },
+        {
+          "numero": 2,
+          "nombre": "rechaza la creación cuando el carrito especificado no existe",
+          "requisito": "RF-10",
+          "estado": "passed",
+          "error": null
+        },
+        {
+          "numero": 3,
+          "nombre": "rechaza la creación cuando el producto especificado no existe",
+          "requisito": "RF-10",
+          "estado": "passed",
+          "error": null
+        },
+        {
+          "numero": 4,
+          "nombre": "rechaza la creación cuando no hay stock suficiente para la cantidad solicitada",
+          "requisito": "RF-12",
+          "estado": "passed",
+          "error": null
+        },
+        {
+          "numero": 5,
+          "nombre": "rechaza la creación cuando el producto ya está agregado al carrito (duplicado)",
+          "requisito": "RF-10",
+          "estado": "passed",
+          "error": null
+        },
+        {
+          "numero": 6,
+          "nombre": "actualiza la cantidad de un ítem cuando hay stock suficiente y no existen conflictos",
+          "requisito": "RF-10",
+          "estado": "passed",
+          "error": null
+        },
+        {
+          "numero": 7,
+          "nombre": "rechaza la actualización cuando el nuevo carritoId no existe",
+          "requisito": "RF-10",
+          "estado": "passed",
+          "error": null
+        },
+        {
+          "numero": 8,
+          "nombre": "rechaza la actualización cuando el nuevo productoId no existe",
+          "requisito": "RF-10",
+          "estado": "passed",
+          "error": null
+        },
+        {
+          "numero": 9,
+          "nombre": "rechaza la actualización cuando otro ítem con mismo carrito y producto ya existe",
+          "requisito": "RF-10",
+          "estado": "passed",
+          "error": null
+        },
+        {
+          "numero": 10,
+          "nombre": "rechaza la actualización de cantidad cuando no hay stock suficiente",
+          "requisito": "RF-12",
+          "estado": "passed",
+          "error": null
+        }
+      ]
+    }
+  ],
+  "pruebas": {
+    "casos": [
+      {
+        "nombre": "crea un ítem de carrito cuando existen carrito, producto, stock suficiente y no hay duplicado",
+        "metodo": "reglasAlCrear",
+        "requisito": "RF-10",
+        "cuerpo": "prisma.carrito.findUnique.mockResolvedValue({ id: 'c1' } as any);\nprisma.producto.findUnique.mockResolvedValue({ id: 'p1' } as any);\nprisma.stock.findUnique.mockResolvedValue({ cantidad: 10 } as any);\nprisma.carritoItem.findFirst.mockResolvedValue(null);\nawait expect(reglas.reglasAlCrear({\n  carritoId: 'c1',\n  productoId: 'p1',\n  cantidad: 3,\n} as CrearCarritoItemDto)).resolves.toBeUndefined();"
+      },
+      {
+        "nombre": "rechaza la creación cuando el carrito especificado no existe",
+        "metodo": "reglasAlCrear",
+        "requisito": "RF-10",
+        "cuerpo": "prisma.carrito.findUnique.mockResolvedValue(null);\nawait expect(reglas.reglasAlCrear({\n  carritoId: 'cX',\n  productoId: 'p1',\n  cantidad: 1,\n} as CrearCarritoItemDto)).rejects.toBeInstanceOf(BadRequestException);"
+      },
+      {
+        "nombre": "rechaza la creación cuando el producto especificado no existe",
+        "metodo": "reglasAlCrear",
+        "requisito": "RF-10",
+        "cuerpo": "prisma.carrito.findUnique.mockResolvedValue({ id: 'c1' } as any);\nprisma.producto.findUnique.mockResolvedValue(null);\nawait expect(reglas.reglasAlCrear({\n  carritoId: 'c1',\n  productoId: 'pX',\n  cantidad: 1,\n} as CrearCarritoItemDto)).rejects.toBeInstanceOf(BadRequestException);"
+      },
+      {
+        "nombre": "rechaza la creación cuando no hay stock suficiente para la cantidad solicitada",
+        "metodo": "reglasAlCrear",
+        "requisito": "RF-12",
+        "cuerpo": "prisma.carrito.findUnique.mockResolvedValue({ id: 'c1' } as any);\nprisma.producto.findUnique.mockResolvedValue({ id: 'p1' } as any);\nprisma.stock.findUnique.mockResolvedValue({ cantidad: 2 } as any);\nprisma.carritoItem.findFirst.mockResolvedValue(null);\nawait expect(reglas.reglasAlCrear({\n  carritoId: 'c1',\n  productoId: 'p1',\n  cantidad: 5,\n} as CrearCarritoItemDto)).rejects.toBeInstanceOf(ConflictException);"
+      },
+      {
+        "nombre": "rechaza la creación cuando el producto ya está agregado al carrito (duplicado)",
+        "metodo": "reglasAlCrear",
+        "requisito": "RF-10",
+        "cuerpo": "prisma.carrito.findUnique.mockResolvedValue({ id: 'c1' } as any);\nprisma.producto.findUnique.mockResolvedValue({ id: 'p1' } as any);\nprisma.stock.findUnique.mockResolvedValue({ cantidad: 10 } as any);\nprisma.carritoItem.findFirst.mockResolvedValue({ id: 'ci1' } as any);\nawait expect(reglas.reglasAlCrear({\n  carritoId: 'c1',\n  productoId: 'p1',\n  cantidad: 1,\n} as CrearCarritoItemDto)).rejects.toBeInstanceOf(ConflictException);"
+      },
+      {
+        "nombre": "actualiza la cantidad de un ítem cuando hay stock suficiente y no existen conflictos",
+        "metodo": "reglasAlActualizar",
+        "requisito": "RF-10",
+        "cuerpo": "const actual = { id: 'ci1', carritoId: 'c1', productoId: 'p1', cantidad: 2 } as CarritoItem;\nprisma.carritoItem.findFirst.mockResolvedValue(null);\nprisma.stock.findUnique.mockResolvedValue({ cantidad: 5 } as any);\nawait expect(reglas.reglasAlActualizar(actual, { cantidad: 3 } as ActualizarCarritoItemDto)).resolves.toBeUndefined();"
+      },
+      {
+        "nombre": "rechaza la actualización cuando el nuevo carritoId no existe",
+        "metodo": "reglasAlActualizar",
+        "requisito": "RF-10",
+        "cuerpo": "const actual = { id: 'ci1', carritoId: 'c1', productoId: 'p1', cantidad: 1 } as CarritoItem;\nprisma.carrito.findUnique.mockResolvedValue(null);\nawait expect(reglas.reglasAlActualizar(actual, { carritoId: 'cX' } as ActualizarCarritoItemDto)).rejects.toBeInstanceOf(BadRequestException);"
+      },
+      {
+        "nombre": "rechaza la actualización cuando el nuevo productoId no existe",
+        "metodo": "reglasAlActualizar",
+        "requisito": "RF-10",
+        "cuerpo": "const actual = { id: 'ci1', carritoId: 'c1', productoId: 'p1', cantidad: 1 } as CarritoItem;\nprisma.carrito.findUnique.mockResolvedValue({ id: 'c1' } as any);\nprisma.producto.findUnique.mockResolvedValue(null);\nawait expect(reglas.reglasAlActualizar(actual, { productoId: 'pX' } as ActualizarCarritoItemDto)).rejects.toBeInstanceOf(BadRequestException);"
+      },
+      {
+        "nombre": "rechaza la actualización cuando otro ítem con mismo carrito y producto ya existe",
+        "metodo": "reglasAlActualizar",
+        "requisito": "RF-10",
+        "cuerpo": "const actual = { id: 'ci1', carritoId: 'c1', productoId: 'p1', cantidad: 1 } as CarritoItem;\nprisma.carrito.findUnique.mockResolvedValue({ id: 'c1' } as any);\nprisma.producto.findUnique.mockResolvedValue({ id: 'p2' } as any);\nprisma.carritoItem.findFirst.mockResolvedValue({ id: 'ci2' } as any);\nawait expect(reglas.reglasAlActualizar(actual, { productoId: 'p2' } as ActualizarCarritoItemDto)).rejects.toBeInstanceOf(ConflictException);"
+      },
+      {
+        "nombre": "rechaza la actualización de cantidad cuando no hay stock suficiente",
+        "metodo": "reglasAlActualizar",
+        "requisito": "RF-12",
+        "cuerpo": "const actual = { id: 'ci1', carritoId: 'c1', productoId: 'p1', cantidad: 2 } as CarritoItem;\nprisma.carritoItem.findFirst.mockResolvedValue(null);\nprisma.stock.findUnique.mockResolvedValue({ cantidad: 0 } as any);\nawait expect(reglas.reglasAlActualizar(actual, { cantidad: 5 } as ActualizarCarritoItemDto)).rejects.toBeInstanceOf(ConflictException);"
+      }
+    ],
+    "sin_probar": [
+      "Verificar que el carrito pertenece al cliente autenticado al crear o actualizar un ítem."
+    ]
+  }
+}
