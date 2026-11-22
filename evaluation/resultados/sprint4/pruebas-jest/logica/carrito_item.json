@@ -1,0 +1,36 @@
+{
+  "servicio": "pedidos",
+  "entidad": "carrito_item",
+  "archivo": "src/carrito-item.service.ts",
+  "aprobada": true,
+  "huella_prompt": "3374ef540e0d1dd53c59148b9558d10d7fa154f27e9141c541511bc6575fdb79",
+  "intentos": [
+    {
+      "numero": 1,
+      "fecha": "2026-11-22T17:56:23.511928Z",
+      "problemas": [
+        "cita controles que no están en el contexto: ['V2.1.1', 'V4.1.2', 'V5.2.1']"
+      ],
+      "errores_tsc": []
+    },
+    {
+      "numero": 2,
+      "fecha": "2026-11-22T17:56:50.197320Z",
+      "problemas": [],
+      "errores_tsc": []
+    }
+  ],
+  "logica": {
+    "reglas_al_crear": "const carrito = await this.prisma.carrito.findUnique({\n  where: { id: datos.carritoId },\n  select: { id: true },\n});\nif (!carrito) {\n  throw new BadRequestException('El carrito especificado no existe.');\n}\n\nconst producto = await this.prisma.producto.findUnique({\n  where: { id: datos.productoId },\n  select: { id: true },\n});\nif (!producto) {\n  throw new BadRequestException('El producto especificado no existe.');\n}\n\n// Verificar stock disponible\nconst stock = await this.prisma.stock.findUnique({\n  where: { productoId: datos.productoId },\n  select: { cantidad: true },\n});\nif (!stock || stock.cantidad < datos.cantidad) {\n  throw new ConflictException('No hay suficiente stock del producto seleccionado.');\n}\n\n// Evitar duplicados en el mismo carrito\nconst existente = await this.prisma.carritoItem.findFirst({\n  where: {\n    carritoId: datos.carritoId,\n    productoId: datos.productoId,\n  },\n  select: { id: true },\n});\nif (existente) {\n  throw new ConflictException('El producto ya está agregado al carrito.');\n}",
+    "reglas_al_actualizar": "if (cambios.carritoId) {\n  const carrito = await this.prisma.carrito.findUnique({\n    where: { id: cambios.carritoId },\n    select: { id: true },\n  });\n  if (!carrito) {\n    throw new BadRequestException('El carrito especificado no existe.');\n  }\n}\n\nif (cambios.productoId) {\n  const producto = await this.prisma.producto.findUnique({\n    where: { id: cambios.productoId },\n    select: { id: true },\n  });\n  if (!producto) {\n    throw new BadRequestException('El producto especificado no existe.');\n  }\n}\n\n// Verificar que no exista otro ítem con mismo carrito y producto\nif (cambios.carritoId || cambios.productoId) {\n  const carritoId = cambios.carritoId ?? actual.carritoId;\n  const productoId = cambios.productoId ?? actual.productoId;\n  const otro = await this.prisma.carritoItem.findFirst({\n    where: {\n      carritoId,\n      productoId,\n      NOT: { id: actual.id },\n    },\n    select: { id: true },\n  });\n  if (otro) {\n    throw new ConflictException('Ya existe otro ítem con el mismo producto en el carrito.');\n  }\n}\n\n// Verificar stock si cambia cantidad o producto\nif (cambios.cantidad !== undefined) {\n  const productoId = cambios.productoId ?? actual.productoId;\n  const stock = await this.prisma.stock.findUnique({\n    where: { productoId },\n    select: { cantidad: true },\n  });\n  const disponible = (stock?.cantidad ?? 0) + actual.cantidad - cambios.cantidad;\n  if (disponible < 0) {\n    throw new ConflictException('No hay suficiente stock para la cantidad solicitada.');\n  }\n}",
+    "reglas_al_eliminar": "",
+    "requisitos": [
+      "RF-10",
+      "RF-12"
+    ],
+    "controles": [],
+    "pendientes": [
+      "Verificar que el carrito pertenece al cliente autenticado al crear o actualizar un ítem."
+    ]
+  }
+}

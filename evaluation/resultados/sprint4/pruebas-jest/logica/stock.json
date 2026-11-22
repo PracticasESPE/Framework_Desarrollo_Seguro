@@ -1,0 +1,26 @@
+{
+  "servicio": "pedidos",
+  "entidad": "stock",
+  "archivo": "src/stock.service.ts",
+  "aprobada": true,
+  "huella_prompt": "ca489b766b782374ec1d4c2659508290660affec023c693943e569616abc7831",
+  "intentos": [
+    {
+      "numero": 1,
+      "fecha": "2026-11-22T17:58:02.662246Z",
+      "problemas": [],
+      "errores_tsc": []
+    }
+  ],
+  "logica": {
+    "reglas_al_crear": "const producto = await this.prisma.producto.findUnique({ where: { id: datos.productoId } });\nif (!producto) {\n  throw new NotFoundException('Producto no encontrado.');\n}\nconst stockExistente = await this.prisma.stock.findUnique({ where: { productoId: datos.productoId } });\nif (stockExistente) {\n  throw new ConflictException('Ya existe registro de stock para este producto.');\n}",
+    "reglas_al_actualizar": "if (cambios.productoId && cambios.productoId !== actual.productoId) {\n  const producto = await this.prisma.producto.findUnique({ where: { id: cambios.productoId } });\n  if (!producto) {\n    throw new NotFoundException('Producto no encontrado.');\n  }\n  const otroStock = await this.prisma.stock.findUnique({ where: { productoId: cambios.productoId } });\n  if (otroStock) {\n    throw new ConflictException('Ya existe registro de stock para el nuevo producto.');\n  }\n}\nif (cambios.cantidad !== undefined) {\n  if (cambios.cantidad < 0) {\n    throw new BadRequestException('La cantidad de stock no puede ser negativa.');\n  }\n}",
+    "reglas_al_eliminar": "if (actual.cantidad > 0) {\n  throw new ConflictException('No se puede eliminar un registro de stock que tenga unidades disponibles. Reduzca la cantidad a cero antes de eliminar.');\n}",
+    "requisitos": [
+      "RF-13",
+      "RF-12"
+    ],
+    "controles": [],
+    "pendientes": []
+  }
+}

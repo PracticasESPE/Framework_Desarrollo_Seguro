@@ -1918,6 +1918,149 @@ def servicio_logica(
         raise typer.Exit(1)
 
 
+@servicio_app.command("pruebas")
+def servicio_pruebas(
+    carpeta: Annotated[Path, typer.Argument(help="Carpeta del servicio con la lógica generada.")],
+    requisitos: Annotated[
+        Path, typer.Option("--requisitos", help="modelo_requisitos.json del que salió.")
+    ],
+    entidad: Annotated[
+        list[str] | None,
+        typer.Option("--entidad", help="Entidad a probar; por defecto las que tienen lógica."),
+    ] = None,
+    intentos: Annotated[
+        int, typer.Option("--intentos", min=1, max=5, help="Intentos por entidad.")
+    ] = 3,
+    cobertura: Annotated[
+        bool,
+        typer.Option("--cobertura", help="Al final, ejecutar todas las pruebas con cobertura."),
+    ] = False,
+    proveedor: Annotated[
+        str | None,
+        typer.Option("--proveedor", help="Proveedor de LLM; por defecto LLM_PROVIDER."),
+    ] = None,
+) -> None:
+    """Genera con el LLM las pruebas Jest de la lógica de negocio y las ejecuta."""
+    from pydantic import ValidationError
+
+    from orchestrator.generation import (
+        ErrorLogica,
+        IntentoPruebas,
+        ResultadoLogica,
+        generar_pruebas,
+        preparar,
+    )
+    from orchestrator.ingest import ModeloRequisitos
+    from orchestrator.llm import ErrorLLM, crear_proveedor
+    from orchestrator.llm.prompts import EspecificacionServicio
+
+    try:
+        respuestas = yaml_seguro(carpeta / ".copier-answers.yml")
+        spec = EspecificacionServicio.model_validate(
+            {
+                k: respuestas[k]
+                for k in ("servicio", "descripcion", "base_datos", "puerto", "entidades")
+            }
+        )
+        modelo = ModeloRequisitos.model_validate_json(requisitos.read_bytes())
+    except (OSError, KeyError, ValidationError, ValueError) as error:
+        typer.echo(f"Error: no se pudo leer el servicio o los requisitos: {error}", err=True)
+        raise typer.Exit(1) from error
+
+    logicas: dict[str, ResultadoLogica] = {}
+    for archivo in sorted((carpeta / "logica").glob("*.json")):
+        resultado = ResultadoLogica.model_validate_json(archivo.read_bytes())
+        reglas = resultado.logica
+        if (
+            resultado.aprobada
+            and reglas
+            and any(
+                getattr(reglas, m).strip()
+                for m in ("reglas_al_crear", "reglas_al_actualizar", "reglas_al_eliminar")
+            )
+        ):
+            logicas[resultado.entidad] = resultado
+    entidades = entidad or sorted(logicas)
+    if sin_logica := [e for e in entidades if e not in logicas]:
+        typer.echo(
+            "Sin reglas de negocio aceptadas (ejecuta antes «servicio logica»): "
+            + ", ".join(sin_logica),
+            err=True,
+        )
+        raise typer.Exit(1)
+    if not entidades:
+        typer.echo("Ninguna entidad tiene reglas de negocio que probar.")
+        return
+
+    try:
+        typer.echo("Preparando el servicio (dependencias permitidas, npm y Prisma)…")
+        preparar(carpeta)
+        llm = crear_proveedor(proveedor)
+    except (ErrorLogica, ErrorLLM) as error:
+        typer.echo(f"Error: {error}", err=True)
+        raise typer.Exit(1) from error
+
+    def mostrar(intento: IntentoPruebas) -> None:
+        pasan = sum(1 for c in intento.casos if c.estado == "passed")
+        if intento.problemas:
+            typer.echo(f"    Intento {intento.numero}: rechazado por el análisis del código")
+            for problema in intento.problemas[:6]:
+                typer.echo(f"      - {problema}")
+        elif intento.error_de_compilacion:
+            primera = intento.error_de_compilacion.splitlines()[0][:160]
+            typer.echo(f"    Intento {intento.numero}: el archivo no compila ({primera})")
+        else:
+            typer.echo(f"    Intento {intento.numero}: {pasan}/{len(intento.casos)} casos pasan")
+
+    registro = carpeta / "pruebas"
+    registro.mkdir(exist_ok=True)
+    sin_pruebas = []
+    for nombre in entidades:
+        logica = logicas[nombre].logica
+        ids = set(logica.requisitos)
+        del_codigo = [r for r in modelo.requisitos if r.id in ids]
+        typer.echo(f"  {nombre} ({len(del_codigo)} requisitos):")
+        try:
+            resultado = generar_pruebas(
+                carpeta,
+                spec,
+                nombre,
+                logica,
+                del_codigo,
+                llm,
+                intentos=intentos,
+                al_intento=mostrar,
+            )
+        except (ErrorLogica, ErrorLLM) as error:
+            typer.echo(f"    Error: {error}", err=True)
+            sin_pruebas.append(nombre)
+            continue
+        (registro / f"{nombre}.json").write_text(
+            resultado.model_dump_json(indent=2), encoding="utf-8"
+        )
+        if resultado.aceptadas:
+            descartadas = (
+                f", {len(resultado.descartadas)} descartadas" if resultado.descartadas else ""
+            )
+            typer.echo(f"    {resultado.archivo}: {resultado.aceptadas} pruebas{descartadas}")
+        else:
+            sin_pruebas.append(nombre)
+            typer.echo("    Ninguna prueba pasó: no se deja archivo")
+
+    typer.echo(f"Registro de cada entidad en {registro.as_posix()}/")
+    if cobertura:
+        typer.echo("Ejecutando todas las pruebas del servicio con cobertura (npx jest --coverage)…")
+        from orchestrator.generation.logica import _ejecutar
+
+        proceso = _ejecutar(["npx", "jest", "--ci", "--coverage"], carpeta, 900)
+        salida = (proceso.stdout + proceso.stderr).strip().splitlines()
+        for linea in salida[-45:]:
+            typer.echo(f"  {linea}")
+    if sin_pruebas:
+        typer.echo(f"Entidades sin pruebas aceptadas: {', '.join(sin_pruebas)}", err=True)
+        raise typer.Exit(1)
+
+
 def yaml_seguro(ruta: Path) -> dict:
     """Lee un YAML con safe_load y exige que sea un objeto."""
     import yaml

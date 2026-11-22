@@ -1,0 +1,153 @@
+{
+  "servicio": "pedidos",
+  "entidad": "stock",
+  "archivo": "src/stock.reglas.spec.ts",
+  "aceptadas": 10,
+  "descartadas": [],
+  "huella_prompt": "a4be11d7401cdf93e91cb4fb3295e636017f6864c6150eff3973a68517f1d2f5",
+  "intentos": [
+    {
+      "numero": 1,
+      "fecha": "2026-11-22T18:01:08.473722Z",
+      "problemas": [],
+      "error_de_compilacion": null,
+      "casos": [
+        {
+          "numero": 1,
+          "nombre": "rechaza la creación si el producto no existe",
+          "requisito": null,
+          "estado": "passed",
+          "error": null
+        },
+        {
+          "numero": 2,
+          "nombre": "rechaza la creación si ya existe stock para el producto",
+          "requisito": null,
+          "estado": "passed",
+          "error": null
+        },
+        {
+          "numero": 3,
+          "nombre": "permite crear stock cuando el producto existe y no hay registro previo",
+          "requisito": null,
+          "estado": "passed",
+          "error": null
+        },
+        {
+          "numero": 4,
+          "nombre": "rechaza la actualización si se cambia a un producto inexistente",
+          "requisito": null,
+          "estado": "passed",
+          "error": null
+        },
+        {
+          "numero": 5,
+          "nombre": "rechaza la actualización si el nuevo producto ya tiene stock registrado",
+          "requisito": null,
+          "estado": "passed",
+          "error": null
+        },
+        {
+          "numero": 6,
+          "nombre": "permite actualizar a un nuevo producto cuando no existe stock previo",
+          "requisito": null,
+          "estado": "passed",
+          "error": null
+        },
+        {
+          "numero": 7,
+          "nombre": "rechaza la actualización si la nueva cantidad es negativa",
+          "requisito": null,
+          "estado": "passed",
+          "error": null
+        },
+        {
+          "numero": 8,
+          "nombre": "permite actualizar la cantidad cuando es cero o positiva",
+          "requisito": null,
+          "estado": "passed",
+          "error": null
+        },
+        {
+          "numero": 9,
+          "nombre": "rechaza la eliminación si el stock tiene unidades disponibles",
+          "requisito": null,
+          "estado": "passed",
+          "error": null
+        },
+        {
+          "numero": 10,
+          "nombre": "permite eliminar el registro de stock cuando la cantidad es cero",
+          "requisito": null,
+          "estado": "passed",
+          "error": null
+        }
+      ]
+    }
+  ],
+  "pruebas": {
+    "casos": [
+      {
+        "nombre": "rechaza la creación si el producto no existe",
+        "metodo": "reglasAlCrear",
+        "requisito": null,
+        "cuerpo": "prisma.producto.findUnique.mockResolvedValue(null);\nprisma.stock.findUnique.mockResolvedValue(null);\nconst datos = { productoId: 'prod-1', cantidad: 10 } as CrearStockDto;\nawait expect(reglas.reglasAlCrear(datos)).rejects.toBeInstanceOf(NotFoundException);\nexpect(prisma.producto.findUnique).toHaveBeenCalledWith({ where: { id: datos.productoId } });"
+      },
+      {
+        "nombre": "rechaza la creación si ya existe stock para el producto",
+        "metodo": "reglasAlCrear",
+        "requisito": null,
+        "cuerpo": "prisma.producto.findUnique.mockResolvedValue({ id: 'prod-1' } as any);\nprisma.stock.findUnique.mockResolvedValue({ productoId: 'prod-1' } as any);\nconst datos = { productoId: 'prod-1', cantidad: 5 } as CrearStockDto;\nawait expect(reglas.reglasAlCrear(datos)).rejects.toBeInstanceOf(ConflictException);\nexpect(prisma.stock.findUnique).toHaveBeenCalledWith({ where: { productoId: datos.productoId } });"
+      },
+      {
+        "nombre": "permite crear stock cuando el producto existe y no hay registro previo",
+        "metodo": "reglasAlCrear",
+        "requisito": null,
+        "cuerpo": "prisma.producto.findUnique.mockResolvedValue({ id: 'prod-1' } as any);\nprisma.stock.findUnique.mockResolvedValue(null);\nconst datos = { productoId: 'prod-1', cantidad: 7 } as CrearStockDto;\nawait expect(reglas.reglasAlCrear(datos)).resolves.toBeUndefined();"
+      },
+      {
+        "nombre": "rechaza la actualización si se cambia a un producto inexistente",
+        "metodo": "reglasAlActualizar",
+        "requisito": null,
+        "cuerpo": "prisma.producto.findUnique.mockResolvedValue(null);\nprisma.stock.findUnique.mockResolvedValue(null);\nconst actual = { productoId: 'prod-old', cantidad: 5 } as Stock;\nconst cambios = { productoId: 'prod-new' } as ActualizarStockDto;\nawait expect(reglas.reglasAlActualizar(actual, cambios)).rejects.toBeInstanceOf(NotFoundException);\nexpect(prisma.producto.findUnique).toHaveBeenCalledWith({ where: { id: 'prod-new' } });"
+      },
+      {
+        "nombre": "rechaza la actualización si el nuevo producto ya tiene stock registrado",
+        "metodo": "reglasAlActualizar",
+        "requisito": null,
+        "cuerpo": "prisma.producto.findUnique.mockResolvedValue({ id: 'prod-new' } as any);\nprisma.stock.findUnique.mockResolvedValue({ productoId: 'prod-new' } as any);\nconst actual = { productoId: 'prod-old', cantidad: 5 } as Stock;\nconst cambios = { productoId: 'prod-new' } as ActualizarStockDto;\nawait expect(reglas.reglasAlActualizar(actual, cambios)).rejects.toBeInstanceOf(ConflictException);\nexpect(prisma.stock.findUnique).toHaveBeenCalledWith({ where: { productoId: 'prod-new' } });"
+      },
+      {
+        "nombre": "permite actualizar a un nuevo producto cuando no existe stock previo",
+        "metodo": "reglasAlActualizar",
+        "requisito": null,
+        "cuerpo": "prisma.producto.findUnique.mockResolvedValue({ id: 'prod-new' } as any);\nprisma.stock.findUnique.mockResolvedValue(null);\nconst actual = { productoId: 'prod-old', cantidad: 5 } as Stock;\nconst cambios = { productoId: 'prod-new' } as ActualizarStockDto;\nawait expect(reglas.reglasAlActualizar(actual, cambios)).resolves.toBeUndefined();"
+      },
+      {
+        "nombre": "rechaza la actualización si la nueva cantidad es negativa",
+        "metodo": "reglasAlActualizar",
+        "requisito": null,
+        "cuerpo": "const actual = { productoId: 'prod-1', cantidad: 5 } as Stock;\nconst cambios = { cantidad: -3 } as ActualizarStockDto;\nawait expect(reglas.reglasAlActualizar(actual, cambios)).rejects.toBeInstanceOf(BadRequestException);"
+      },
+      {
+        "nombre": "permite actualizar la cantidad cuando es cero o positiva",
+        "metodo": "reglasAlActualizar",
+        "requisito": null,
+        "cuerpo": "const actual = { productoId: 'prod-1', cantidad: 5 } as Stock;\nconst cambios = { cantidad: 3 } as ActualizarStockDto;\nawait expect(reglas.reglasAlActualizar(actual, cambios)).resolves.toBeUndefined();"
+      },
+      {
+        "nombre": "rechaza la eliminación si el stock tiene unidades disponibles",
+        "metodo": "reglasAlEliminar",
+        "requisito": null,
+        "cuerpo": "const actual = { productoId: 'prod-1', cantidad: 2 } as Stock;\nawait expect(reglas.reglasAlEliminar(actual)).rejects.toBeInstanceOf(ConflictException);"
+      },
+      {
+        "nombre": "permite eliminar el registro de stock cuando la cantidad es cero",
+        "metodo": "reglasAlEliminar",
+        "requisito": null,
+        "cuerpo": "const actual = { productoId: 'prod-1', cantidad: 0 } as Stock;\nawait expect(reglas.reglasAlEliminar(actual)).resolves.toBeUndefined();"
+      }
+    ],
+    "sin_probar": []
+  }
+}

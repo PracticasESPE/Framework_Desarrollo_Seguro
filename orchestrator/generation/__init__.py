@@ -30,6 +30,11 @@ from orchestrator.generation.plantilla import (
     generar_servicio,
     leer_especificacion,
 )
+from orchestrator.generation.pruebas import (
+    IntentoPruebas,
+    ResultadoPruebas,
+    generar_pruebas,
+)
 
 __all__ = [
     "ARCHIVOS_DE_SEGURIDAD",
@@ -40,14 +45,17 @@ __all__ = [
     "ErrorParametros",
     "ErrorPlantilla",
     "IntentoLogica",
+    "IntentoPruebas",
     "ParametrosArquitectura",
     "ParametrosServicio",
     "ResultadoEstructura",
     "ResultadoLogica",
+    "ResultadoPruebas",
     "arbol",
     "archivos_esperados",
     "especificacion",
     "generar_logica",
+    "generar_pruebas",
     "generar_servicio",
     "leer_especificacion",
     "parametros_de_arquitectura",

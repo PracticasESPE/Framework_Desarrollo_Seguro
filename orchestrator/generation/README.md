@@ -9,6 +9,32 @@
 | Lógica de negocio en los puntos de extensión con el LLM | `logica.py` | `framework servicio logica <carpeta>` |
 | Ver todo lo anterior que no usa LLM, de una vez | `demostracion.py` | `framework servicio demo` |
 | Dependencias npm contra la lista permitida | `dependencias.py` | `framework servicio dependencias <carpeta>` |
+| Pruebas Jest de la lógica de negocio con el LLM | `pruebas.py` | `framework servicio pruebas <carpeta>` |
+
+## Pruebas de la lógica de negocio (`pruebas.py`)
+
+La plantilla ya prueba lo que genera ella y sustituye las reglas de negocio por dobles. Para cada
+entidad con reglas aceptadas (`logica/<entidad>.json`), el LLM de razonamiento escribe los casos
+que las prueban con el prompt `pruebas`: el código de las reglas, los requisitos que implementan y
+los nombres y tipos de la entidad; lo que quedó pendiente no se prueba.
+
+1. **El motor arma `src/<entidad>.reglas.spec.ts`**: imports, el doble de Prisma (cada modelo con
+   sus métodos como `jest.fn()`) y el acceso a los métodos. El LLM solo escribe el cuerpo de cada
+   caso, con el requisito que comprueba en su título.
+2. **Analiza cada caso** como la lógica (sin `import`, `require`, `process`, consola, red...) y
+   además sin `jest.mock` ni `describe`/`it`/`test` anidados.
+3. **Lo ejecuta con Jest.** Si el archivo no compila o algún caso falla, vuelve a pedirlo con los
+   errores (hasta 3 intentos).
+4. **Si siguen fallando casos, los quita**, comprueba que el resto pasa y los registra como
+   descartados: una prueba que falla puede estar mal escrita o señalar un error real de la lógica,
+   y eso lo decide una persona.
+
+```bash
+uv run framework servicio pruebas salida/servicios/pedidos \
+  --requisitos salida/requisitos/requisitos-docx.modelo_requisitos.json --cobertura
+```
+
+`--cobertura` ejecuta al final todas las pruebas del servicio con `jest --coverage`.
 
 ## Demostración con un solo comando (`demostracion.py`)
 

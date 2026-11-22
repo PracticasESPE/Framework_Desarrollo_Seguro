@@ -21,16 +21,19 @@ from orchestrator.llm.prompts.especificacion import (
     prompt_especificacion,
 )
 from orchestrator.llm.prompts.logica import LogicaEntidad, clase_de, prompt_logica
+from orchestrator.llm.prompts.pruebas import CasoPrueba, PruebasEntidad, prompt_pruebas
 
 __all__ = [
     "PREGUNTAS_POR_ETIQUETA",
     "PREGUNTA_BASE",
     "Campo",
+    "CasoPrueba",
     "Entidad",
     "EntidadesPropuestas",
     "EspecificacionServicio",
     "LogicaEntidad",
     "Prompt",
+    "PruebasEntidad",
     "bloque",
     "clase_de",
     "combinar",
@@ -45,4 +48,5 @@ __all__ = [
     "preguntas_de_seguridad",
     "prompt_especificacion",
     "prompt_logica",
+    "prompt_pruebas",
 ]
