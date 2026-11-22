@@ -1703,6 +1703,81 @@ def servicio_dependencias(
     typer.echo(f"{revisados}: todas las dependencias están en la lista permitida")
 
 
+@servicio_app.command("demo")
+def servicio_demo(
+    arquitectura: Annotated[
+        Path | None,
+        typer.Option(
+            "--arquitectura",
+            help="arquitectura.json aprobada; por defecto la del documento 1 del repositorio.",
+        ),
+    ] = None,
+    destino: Annotated[
+        Path | None,
+        typer.Option(
+            "--destino", help="Carpeta de la demostración; por defecto salida/servicios-demo."
+        ),
+    ] = None,
+    compilar: Annotated[
+        bool,
+        typer.Option(
+            "--compilar", help="Además instala las dependencias y compila con tsc (minutos)."
+        ),
+    ] = False,
+    mostrar_arbol: Annotated[
+        bool, typer.Option("--arbol", help="Mostrar el árbol de archivos del servicio generado.")
+    ] = False,
+) -> None:
+    """Muestra de una vez lo que la fase 3 ya hace, sin LLM: parámetros, plantilla y controles."""
+    from orchestrator.generation.demostracion import (
+        ARQUITECTURA_POR_DEFECTO,
+        PENDIENTE,
+        ErrorDemostracion,
+        Paso,
+        demostrar,
+    )
+
+    origen = arquitectura or ARQUITECTURA_POR_DEFECTO
+    carpeta = destino or obtener_configuracion().directorio_salida / "servicios-demo"
+    try:
+        mostrada = origen.resolve().relative_to(Path.cwd().resolve())
+    except ValueError:
+        mostrada = origen
+
+    def empezar(numero: int, total: int, titulo: str) -> None:
+        typer.echo(f"\n[{numero}/{total}] {titulo}")
+
+    def terminar(paso: Paso) -> None:
+        for linea in paso.lineas:
+            typer.echo(f"      {linea}")
+        typer.echo(f"      -> {'OK' if paso.ok else 'FALLA'}")
+
+    typer.echo("Fase 3: lo que el motor ya hace al generar un servicio (sin LLM)")
+    try:
+        pasos = demostrar(origen, carpeta, compilar, mostrar_arbol, empezar, terminar)
+    except ErrorDemostracion as error:
+        typer.echo(f"Error: {error}", err=True)
+        raise typer.Exit(1) from error
+
+    correctos = sum(1 for p in pasos if p.ok)
+    typer.echo(f"\nResultado: {correctos} de {len(pasos)} pasos correctos")
+    typer.echo("\nCon el LLM (gasta cuota; no se ejecuta aquí):")
+    typer.echo(
+        f"  framework servicio prompt {mostrada.as_posix()} --requisitos <modelo_requisitos.json> "
+        "--servicio <servicio> --enviar --salida <servicio>.yml"
+    )
+    typer.echo("  framework servicio generar <servicio>.yml")
+    typer.echo(
+        "  framework servicio logica <carpeta del servicio> "
+        f"--arquitectura {mostrada.as_posix()} --requisitos <modelo_requisitos.json>"
+    )
+    typer.echo("\nTodavía no está en el motor:")
+    for linea in PENDIENTE:
+        typer.echo(f"  - {linea}")
+    if correctos != len(pasos) or len(pasos) < (7 if compilar else 6):
+        raise typer.Exit(1)
+
+
 @servicio_app.command("logica")
 def servicio_logica(
     carpeta: Annotated[Path, typer.Argument(help="Carpeta del servicio generado.")],
