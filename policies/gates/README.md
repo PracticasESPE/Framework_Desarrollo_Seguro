@@ -99,3 +99,34 @@ RETURN p
 `tests/datos/gates/` tiene un pipeline de ejemplo completo: el Gate 1 se rechaza por un secreto
 y hallazgos altos, el Gate 2 se aprueba con una advertencia y el Gate 3 se rechaza por una
 inyección SQL que encuentra ZAP.
+
+## Gate 1 sobre los servicios generados
+
+El código que generan la plantilla y el LLM pasa por el mismo análisis estático que el servicio
+de referencia, servicio por servicio, y por la misma política (`gate1.rego`):
+
+```bash
+bash scripts/gate1-servicios.sh salida/servicios   # herramientas y SARIF de cada servicio
+uv run framework gates servicios                    # decisión de OPA de cada servicio
+```
+
+| Herramienta | Qué revisa en cada servicio | Diferencia con el servicio de referencia |
+|---|---|---|
+| `tsc --noEmit` | Compilación y tipos | Ninguna (alimenta `gate1.compilacion`) |
+| ESLint + eslint-plugin-security | Reglas de seguridad y de tipos | La configuración es del framework (`eslint/`), no del servicio: el código generado no puede relajarla. Sus resultados son hallazgos de la decisión (un error es severidad alta) |
+| Semgrep | Reglas públicas de TypeScript y Node.js y las propias | `--no-git-ignore`: el código generado no está en Git |
+| Gitleaks | Secretos en la carpeta del servicio | `dir` en lugar del historial, con `scripts/gitleaks-servicios.toml` (excluye `node_modules` y el cliente de Prisma) |
+| Trivy fs | Vulnerabilidades del `package-lock.json` | Ninguna |
+| Trivy config y Hadolint | El Dockerfile generado | Ninguna |
+
+Los SARIF de cada servicio quedan en `salida/security/sarif/servicios/<servicio>/`, con los
+nombres que lee el motor, y la decisión en `salida/gates/servicios/<servicio>/gate1.json` (la del
+servicio de referencia no se toca). Sin el resultado de tsc o sin el SARIF de una herramienta, el
+servicio se rechaza (fallo seguro).
+
+**En GitHub code scanning**, cada SARIF lleva la categoría `gate1/<servicio>/<herramienta>` en
+`runAutomationDetails.id`, y sus rutas son relativas a la raíz del repositorio
+(`orchestrator/gates/sarif_servicio.py`). Así se publican todos en una sola subida: GitHub rechaza
+desde julio de 2025 dos SARIF con la misma herramienta y la misma categoría. El job
+`gate1-servicios` del workflow lo hace en cada pull request con los ejemplos de la plantilla; en
+Security > Code scanning se filtra por herramienta o por la categoría de cada servicio.

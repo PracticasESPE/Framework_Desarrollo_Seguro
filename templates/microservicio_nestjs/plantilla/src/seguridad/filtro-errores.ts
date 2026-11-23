@@ -27,8 +27,8 @@ function mensajeDe(respuesta: string | object): string | string[] | undefined {
   if (typeof respuesta === 'string') return respuesta;
   const { message } = respuesta as { message?: unknown };
   if (typeof message === 'string') return message;
-  if (Array.isArray(message) && message.every((m) => typeof m === 'string')) {
-    return message as string[];
+  if (Array.isArray(message) && message.every((m): m is string => typeof m === 'string')) {
+    return message;
   }
   return undefined;
 }
@@ -72,7 +72,9 @@ export class FiltroErrores implements ExceptionFilter {
       this.logger.error(`Error no controlado: ${traza}`);
     }
     if (respuesta.headersSent) return;
-    if (cuerpo.statusCode === HttpStatus.UNAUTHORIZED) {
+    // statusCode es un number: se compara con 401 y no con el enum HttpStatus
+    // (@typescript-eslint/no-unsafe-enum-comparison).
+    if (cuerpo.statusCode === 401) {
       // RFC 6750: el 401 indica el esquema de autenticación que espera.
       respuesta.setHeader('WWW-Authenticate', 'Bearer');
     }

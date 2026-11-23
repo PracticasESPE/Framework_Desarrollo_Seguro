@@ -527,6 +527,71 @@ jobs:
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
 
+  # Gate 1 sobre el código generado (#71): el mismo análisis estático que el servicio de referencia,
+  # servicio por servicio, con la misma política de OPA. Los SARIF se publican en GitHub code
+  # scanning con una categoría por servicio y herramienta (gate1/<servicio>/<herramienta>).
+  # Por ahora analiza los dos ejemplos de la plantilla; el generador de N servicios (#70) los
+  # dejará en la misma carpeta.
+  gate1-servicios:
+    name: Gate 1 sobre los servicios generados
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - name: Descargar el repositorio
+        uses: actions/checkout@v6
+
+      - name: Preparar uv
+        uses: astral-sh/setup-uv@v10.3.0
+
+      - name: Preparar Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+
+      - name: Preparar OPA
+        uses: open-policy-agent/setup-opa@v2
+        with:
+          version: 1.21.x
+
+      # Con el motor: cada servicio se genera con su estructura validada (#69).
+      - name: Generar los servicios
+        run: |
+          for ejemplo in pedidos todos-los-tipos; do
+            uv run framework servicio generar \
+              "templates/microservicio_nestjs/ejemplos/$ejemplo.yml" --destino salida/servicios
+          done
+
+      # El ESLint del framework, con las versiones exactas de su lock y sin scripts.
+      - name: Preparar ESLint del framework
+        run: npm ci --ignore-scripts --no-audit --no-fund --prefix eslint
+
+      - name: "Fase 4 sobre los servicios generados: Security Gate 1"
+        run: bash scripts/gate1-servicios.sh salida/servicios
+
+      - name: "Decisión OPA: Gate 1 de cada servicio"
+        if: ${{ !cancelled() && hashFiles('salida/security/sarif/servicios/*/*.sarif') != '' }}
+        run: uv run framework gates servicios
+
+      # Una sola subida: cada SARIF lleva su categoría en runAutomationDetails.id.
+      - name: "Publicar SARIF de los servicios generados"
+        if: ${{ !cancelled() && hashFiles('salida/security/sarif/servicios-github/*.sarif') != '' }}
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: salida/security/sarif/servicios-github
+
+      - name: Guardar los SARIF y las decisiones como artefacto
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v6
+        with:
+          name: gate1-servicios
+          path: |
+            salida/security/sarif/servicios/
+            salida/gates/servicios/
+          if-no-files-found: warn
+
   # El dashboard es la interfaz del propio framework, no parte de lo que genera. Por eso no entra
   # en el Gate 1, cuyos SARIF alimentan la decisión de OPA y las métricas de cada ejecución, sino
   # que se revisa aquí con las mismas herramientas. Trivy fs y Gitleaks del Gate 1 ya cubren su

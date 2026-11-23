@@ -1,0 +1,13 @@
+{
+  "name": "eslint-gate1",
+  "private": true,
+  "description": "ESLint del Gate 1 para los servicios generados: la misma configuración para todos, fuera del código generado",
+  "devDependencies": {
+    "@eslint/js": "9.39.5",
+    "eslint": "9.39.5",
+    "eslint-plugin-security": "4.2.0",
+    "globals": "17.13.0",
+    "typescript": "5.9.3",
+    "typescript-eslint": "8.71.1"
+  }
+}
