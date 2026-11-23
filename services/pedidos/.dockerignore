@@ -1,0 +1,15 @@
+# Fuera del contexto de construcción: secretos, artefactos locales y lo que no necesita la imagen.
+.env
+.env.*
+.git
+node_modules
+dist
+coverage
+openapi
+src/generated
+test
+**/*.spec.ts
+*.md
+.copier-answers.yml
+Dockerfile
+.dockerignore

@@ -1,0 +1,77 @@
+// Generado por la plantilla microservicio_nestjs del framework. Entidades de catalogo:
+// cada una es una tabla de la base catalogo_db, que solo usa este servicio.
+
+generator client {
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "cjs"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+/// Producto del catálogo
+model Producto {
+  id String @id @default(uuid()) @db.Uuid
+  /// Nombre del producto
+  nombre String @db.VarChar(100)
+  /// Descripción detallada del producto
+  descripcion String @db.VarChar(1000)
+  /// Precio del producto
+  precio Decimal @db.Decimal(8, 2)
+  /// Cantidad de unidades disponibles en stock
+  unidadesDisponibles Int @map("unidades_disponibles")
+  /// Referencia a la categoría del producto
+  categoriaId String @db.Uuid @map("categoria_id")
+  categoria Categoria @relation("ProductoCategoria", fields: [categoriaId], references: [id], onDelete: Restrict)
+  /// Indica si el producto está retirado del catálogo
+  retirado Boolean
+  fotoPorProducto Foto[] @relation("FotoProducto")
+  creadoEn DateTime @default(now()) @map("creado_en") @db.Timestamptz(3)
+  actualizadoEn DateTime @updatedAt @map("actualizado_en") @db.Timestamptz(3)
+
+  @@index([categoriaId])
+
+  @@map("producto")
+}
+
+/// Categoría de productos
+model Categoria {
+  id String @id @default(uuid()) @db.Uuid
+  /// Nombre de la categoría
+  nombre String @db.VarChar(100) @unique
+  /// Descripción de la categoría
+  descripcion String? @db.VarChar(500)
+  productoPorCategoria Producto[] @relation("ProductoCategoria")
+  creadoEn DateTime @default(now()) @map("creado_en") @db.Timestamptz(3)
+  actualizadoEn DateTime @updatedAt @map("actualizado_en") @db.Timestamptz(3)
+
+  @@map("categoria")
+}
+
+/// Imágenes asociadas a un producto
+model Foto {
+  id String @id @default(uuid()) @db.Uuid
+  /// URL donde se almacena la foto
+  url String @db.VarChar(2048)
+  /// Referencia al producto al que pertenece la foto
+  productoId String @db.Uuid @map("producto_id")
+  producto Producto @relation("FotoProducto", fields: [productoId], references: [id], onDelete: Restrict)
+  /// Formato de la imagen
+  tipo FotoTipo
+  /// Posición de la foto dentro del conjunto (máximo 5 fotos por producto)
+  orden Int?
+  creadoEn DateTime @default(now()) @map("creado_en") @db.Timestamptz(3)
+  actualizadoEn DateTime @updatedAt @map("actualizado_en") @db.Timestamptz(3)
+
+  @@index([productoId])
+
+  @@map("foto")
+}
+
+enum FotoTipo {
+  jpg
+  png
+}
+

@@ -1,0 +1,95 @@
+// Generado por la plantilla microservicio_nestjs del framework. Entidades de pedidos:
+// cada una es una tabla de la base pedidos_db, que solo usa este servicio.
+
+generator client {
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "cjs"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+/// Representa un pedido realizado por un cliente
+model Pedido {
+  id String @id @default(uuid()) @db.Uuid
+  /// identificador del cliente en Keycloak
+  clienteId String @db.Uuid @map("cliente_id")
+  estado PedidoEstado
+  total Decimal @db.Decimal(12, 2)
+  /// identificador del pago en la pasarela de pagos
+  pagoId String? @db.Uuid @map("pago_id")
+  lineaPedidoPorPedido LineaPedido[] @relation("LineaPedidoPedido")
+  creadoEn DateTime @default(now()) @map("creado_en") @db.Timestamptz(3)
+  actualizadoEn DateTime @updatedAt @map("actualizado_en") @db.Timestamptz(3)
+
+  @@index([clienteId])
+  @@index([pagoId])
+
+  @@map("pedido")
+}
+
+/// Carrito de compras temporal del cliente
+model Carrito {
+  id String @id @default(uuid()) @db.Uuid
+  /// identificador del cliente en Keycloak
+  clienteId String @db.Uuid @map("cliente_id")
+  lineaPedidoPorCarrito LineaPedido[] @relation("LineaPedidoCarrito")
+  creadoEn DateTime @default(now()) @map("creado_en") @db.Timestamptz(3)
+  actualizadoEn DateTime @updatedAt @map("actualizado_en") @db.Timestamptz(3)
+
+  @@index([clienteId])
+
+  @@map("carrito")
+}
+
+/// Cantidad disponible de cada producto
+model Stock {
+  id String @id @default(uuid()) @db.Uuid
+  /// identificador del producto en el servicio de catálogo
+  productoId String @db.Uuid @map("producto_id")
+  cantidad Int
+  creadoEn DateTime @default(now()) @map("creado_en") @db.Timestamptz(3)
+  actualizadoEn DateTime @updatedAt @map("actualizado_en") @db.Timestamptz(3)
+
+  @@index([productoId])
+
+  @@map("stock")
+}
+
+/// Detalle de producto dentro de un carrito o pedido
+model LineaPedido {
+  id String @id @default(uuid()) @db.Uuid
+  /// referencia al pedido al que pertenece la línea
+  pedidoId String? @db.Uuid @map("pedido_id")
+  pedido Pedido? @relation("LineaPedidoPedido", fields: [pedidoId], references: [id], onDelete: Restrict)
+  /// referencia al carrito cuando la línea está en fase de carrito
+  carritoId String? @db.Uuid @map("carrito_id")
+  carrito Carrito? @relation("LineaPedidoCarrito", fields: [carritoId], references: [id], onDelete: Restrict)
+  /// identificador del producto en el servicio de catálogo
+  productoId String @db.Uuid @map("producto_id")
+  cantidad Int
+  precioUnitario Decimal @db.Decimal(12, 2) @map("precio_unitario")
+  subtotal Decimal @db.Decimal(12, 2)
+  creadoEn DateTime @default(now()) @map("creado_en") @db.Timestamptz(3)
+  actualizadoEn DateTime @updatedAt @map("actualizado_en") @db.Timestamptz(3)
+
+  @@index([pedidoId])
+  @@index([carritoId])
+  @@index([productoId])
+
+  @@map("linea_pedido")
+}
+
+enum PedidoEstado {
+  pendiente
+  confirmado
+  pagado
+  en_preparacion
+  enviado
+  entregado
+  cancelado
+  expirado
+}
+

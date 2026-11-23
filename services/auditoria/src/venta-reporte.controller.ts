@@ -1,0 +1,132 @@
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Param,
+  ParseUUIDPipe,
+  Patch,
+  Post,
+  Query,
+} from '@nestjs/common';
+import {
+  ApiBadRequestResponse,
+  ApiBearerAuth,
+  ApiCreatedResponse,
+  ApiExtraModels,
+  ApiInternalServerErrorResponse,
+  ApiNoContentResponse,
+  ApiNotFoundResponse,
+  ApiOkResponse,
+  ApiOperation,
+  ApiParam,
+  ApiParamOptions,
+  ApiPayloadTooLargeResponse,
+  ApiServiceUnavailableResponse,
+  ApiTags,
+  ApiUnauthorizedResponse,
+  ApiUnsupportedMediaTypeResponse,
+} from '@nestjs/swagger';
+import { ErrorRespuestaDto, ErrorValidacionDto } from './comun/error-respuesta.dto';
+import { MAXIMO_POR_PAGINA, PaginacionDto } from './comun/paginacion.dto';
+import { ActualizarVentaReporteDto } from './dto/actualizar-venta-reporte.dto';
+import { CrearVentaReporteDto } from './dto/crear-venta-reporte.dto';
+import { VentaReportePaginaDto } from './dto/venta-reporte-pagina.dto';
+import { VentaReporteRespuestaDto } from './dto/venta-reporte-respuesta.dto';
+import { TOKEN_INVALIDO } from './seguridad/jwt-auth.guard';
+import { LIMITE_DEL_CUERPO } from './seguridad/http';
+import { VentaReporteService } from './venta-reporte.service';
+
+const PARAMETRO_ID: ApiParamOptions = {
+  name: 'id',
+  description: 'Identificador de VentaReporte',
+  schema: { type: 'string', format: 'uuid', maxLength: 36 },
+};
+
+const ID_INVALIDO = 'El id no es un UUID válido';
+const NO_ENCONTRADO = 'No existe ningún registro de VentaReporte con ese id';
+
+const CUERPO_GRANDE = `El cuerpo supera el máximo de ${LIMITE_DEL_CUERPO}`;
+const CUERPO_NO_JSON = 'El cuerpo debe enviarse como application/json';
+
+/**
+ * Rutas de VentaReporte: /api/auditoria/venta-reporte. Todas exigen un token de Keycloak
+ * (guard global del módulo) y sus errores salen del filtro global, sin detalles internos.
+ */
+@ApiTags('VentaReporte')
+@ApiExtraModels(ErrorRespuestaDto, ErrorValidacionDto)
+@ApiBearerAuth('bearer')
+@ApiUnauthorizedResponse({ description: TOKEN_INVALIDO, type: ErrorRespuestaDto })
+@ApiInternalServerErrorResponse({ description: 'Error interno, sin detalles', type: ErrorRespuestaDto })
+@ApiServiceUnavailableResponse({ description: 'Keycloak no responde', type: ErrorRespuestaDto })
+@Controller('auditoria/venta-reporte')
+export class VentaReporteController {
+  constructor(private readonly servicio: VentaReporteService) {}
+
+  @Post()
+  @ApiOperation({
+    summary: 'Crear VentaReporte',
+    description: 'Reporte de ventas generado entre dos fechas. Valida cada campo y devuelve el registro creado.',
+  })
+  @ApiCreatedResponse({ description: 'Registro creado', type: VentaReporteRespuestaDto })
+  @ApiBadRequestResponse({ description: 'Datos inválidos: un mensaje por cada regla incumplida', type: ErrorValidacionDto })
+  @ApiPayloadTooLargeResponse({ description: CUERPO_GRANDE, type: ErrorRespuestaDto })
+  @ApiUnsupportedMediaTypeResponse({ description: CUERPO_NO_JSON, type: ErrorRespuestaDto })
+  crear(@Body() datos: CrearVentaReporteDto): Promise<VentaReporteRespuestaDto> {
+    return this.servicio.crear(datos);
+  }
+
+  @Get()
+  @ApiOperation({
+    summary: 'Listar VentaReporte',
+    description: `Una página de registros, del más antiguo al más reciente (máximo ${MAXIMO_POR_PAGINA} por página).`,
+  })
+  @ApiOkResponse({ description: 'Página de registros', type: VentaReportePaginaDto })
+  @ApiBadRequestResponse({ description: 'pagina o tamano fuera de rango', type: ErrorValidacionDto })
+  listar(@Query() paginacion: PaginacionDto): Promise<VentaReportePaginaDto> {
+    return this.servicio.listar(paginacion);
+  }
+
+  @Get(':id')
+  @ApiOperation({ summary: 'Obtener VentaReporte', description: 'El registro con ese id.' })
+  @ApiParam(PARAMETRO_ID)
+  @ApiOkResponse({ description: 'El registro', type: VentaReporteRespuestaDto })
+  @ApiBadRequestResponse({ description: ID_INVALIDO, type: ErrorRespuestaDto })
+  @ApiNotFoundResponse({ description: NO_ENCONTRADO, type: ErrorRespuestaDto })
+  obtener(
+    @Param('id', new ParseUUIDPipe()) id: string,
+  ): Promise<VentaReporteRespuestaDto> {
+    return this.servicio.obtener(id);
+  }
+
+  @Patch(':id')
+  @ApiOperation({
+    summary: 'Actualizar VentaReporte',
+    description: 'Cambia solo los campos que se envían; un campo opcional enviado como null se vacía.',
+  })
+  @ApiParam(PARAMETRO_ID)
+  @ApiOkResponse({ description: 'El registro actualizado', type: VentaReporteRespuestaDto })
+  @ApiBadRequestResponse({ description: 'Datos inválidos o id que no es un UUID', type: ErrorValidacionDto })
+  @ApiNotFoundResponse({ description: NO_ENCONTRADO, type: ErrorRespuestaDto })
+  @ApiPayloadTooLargeResponse({ description: CUERPO_GRANDE, type: ErrorRespuestaDto })
+  @ApiUnsupportedMediaTypeResponse({ description: CUERPO_NO_JSON, type: ErrorRespuestaDto })
+  actualizar(
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Body() cambios: ActualizarVentaReporteDto,
+  ): Promise<VentaReporteRespuestaDto> {
+    return this.servicio.actualizar(id, cambios);
+  }
+
+  @Delete(':id')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Eliminar VentaReporte', description: 'Borra el registro con ese id.' })
+  @ApiParam(PARAMETRO_ID)
+  @ApiNoContentResponse({ description: 'Registro eliminado' })
+  @ApiBadRequestResponse({ description: ID_INVALIDO, type: ErrorRespuestaDto })
+  @ApiNotFoundResponse({ description: NO_ENCONTRADO, type: ErrorRespuestaDto })
+  eliminar(@Param('id', new ParseUUIDPipe()) id: string): Promise<void> {
+    return this.servicio.eliminar(id);
+  }
+}

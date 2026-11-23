@@ -1,0 +1,86 @@
+# Respuestas con las que se generó el servicio. Permiten regenerarlo con `copier update` cuando
+# cambie la plantilla. No lo edites a mano.
+_src_path: templates/microservicio_nestjs
+base_datos: pedidos_db
+descripcion: Gestiona el carrito, creación y validación de pedidos, cálculo de precios
+    a partir del catálogo, control de stock con manejo de concurrencia, actualización
+    de estado, cancelación por parte del cliente, auto‑cancelación tras 30 min sin
+    pago y emisión de eventos de cambio de estado.
+entidades:
+-   campos:
+    -   descripcion: identificador del cliente en Keycloak
+        nombre: cliente_id
+        requerido: true
+        tipo: uuid
+    -   nombre: estado
+        requerido: true
+        tipo: enumeracion
+        valores:
+        - pendiente
+        - confirmado
+        - pagado
+        - en_preparacion
+        - enviado
+        - entregado
+        - cancelado
+        - expirado
+    -   min: 0.0
+        nombre: total
+        requerido: true
+        tipo: decimal
+    -   descripcion: identificador del pago en la pasarela de pagos
+        nombre: pago_id
+        requerido: false
+        tipo: uuid
+    descripcion: Representa un pedido realizado por un cliente
+    nombre: pedido
+-   campos:
+    -   descripcion: identificador del cliente en Keycloak
+        nombre: cliente_id
+        requerido: true
+        tipo: uuid
+    descripcion: Carrito de compras temporal del cliente
+    nombre: carrito
+-   campos:
+    -   descripcion: identificador del producto en el servicio de catálogo
+        nombre: producto_id
+        requerido: true
+        tipo: uuid
+    -   min: 0
+        nombre: cantidad
+        requerido: true
+        tipo: entero
+    descripcion: Cantidad disponible de cada producto
+    nombre: stock
+-   campos:
+    -   descripcion: referencia al pedido al que pertenece la línea
+        entidad: pedido
+        nombre: pedido_id
+        requerido: false
+        tipo: referencia
+    -   descripcion: referencia al carrito cuando la línea está en fase de carrito
+        entidad: carrito
+        nombre: carrito_id
+        requerido: false
+        tipo: referencia
+    -   descripcion: identificador del producto en el servicio de catálogo
+        nombre: producto_id
+        requerido: true
+        tipo: uuid
+    -   max: 10
+        min: 1
+        nombre: cantidad
+        requerido: true
+        tipo: entero
+    -   min: 0.0
+        nombre: precio_unitario
+        requerido: true
+        tipo: decimal
+    -   min: 0.0
+        nombre: subtotal
+        requerido: true
+        tipo: decimal
+    descripcion: Detalle de producto dentro de un carrito o pedido
+    nombre: linea_pedido
+puerto: 3003
+servicio: pedidos

@@ -1,0 +1,79 @@
+# Respuestas con las que se generó el servicio. Permiten regenerarlo con `copier update` cuando
+# cambie la plantilla. No lo edites a mano.
+_src_path: templates/microservicio_nestjs
+base_datos: notificaciones_db
+descripcion: Escucha eventos de pedidos y pagos y envía correos al cliente cuando
+    el pedido es aceptado, pagado o cambia de estado, garantizando mensajes claros
+    y sin información interna.
+entidades:
+-   campos:
+    -   descripcion: Identificador del pedido (servicio pedidos)
+        nombre: pedido_id
+        requerido: true
+        tipo: uuid
+        unico: false
+    -   descripcion: Identificador del cliente (servicio usuarios)
+        nombre: cliente_id
+        requerido: true
+        tipo: uuid
+        unico: false
+    -   nombre: cliente_email
+        requerido: true
+        tipo: correo
+        unico: false
+    -   nombre: tipo
+        requerido: true
+        tipo: enumeracion
+        unico: false
+        valores:
+        - pedido_aceptado
+        - pedido_pagado
+        - pedido_estado_cambiado
+    -   entidad: plantilla_correo
+        nombre: plantilla_correo_id
+        requerido: true
+        tipo: referencia
+        unico: false
+    -   nombre: enviado
+        requerido: true
+        tipo: booleano
+        unico: false
+    -   nombre: fecha_hora
+        requerido: true
+        tipo: fecha_hora
+        unico: false
+    nombre: notificacion
+-   campos:
+    -   max: 100
+        min: 1
+        nombre: nombre
+        requerido: true
+        tipo: texto
+        unico: false
+    -   max: 150
+        min: 1
+        nombre: asunto
+        requerido: true
+        tipo: texto
+        unico: false
+    -   max: 2000
+        min: 1
+        nombre: cuerpo
+        requerido: true
+        tipo: texto
+        unico: false
+    -   nombre: tipo
+        requerido: true
+        tipo: enumeracion
+        unico: false
+        valores:
+        - pedido_aceptado
+        - pedido_pagado
+        - pedido_estado_cambiado
+    -   nombre: activo
+        requerido: true
+        tipo: booleano
+        unico: false
+    nombre: plantilla_correo
+puerto: 3005
+servicio: notificaciones

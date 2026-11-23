@@ -1,0 +1,71 @@
+# Respuestas con las que se generó el servicio. Permiten regenerarlo con `copier update` cuando
+# cambie la plantilla. No lo edites a mano.
+_src_path: templates/microservicio_nestjs
+base_datos: auditoria_db
+descripcion: Registra de forma inmutable todas las acciones de administradores sobre
+    productos y pedidos, y genera reportes de ventas entre fechas, cumpliendo con
+    requisitos de trazabilidad y acceso restringido a administradores.
+entidades:
+-   campos:
+    -   descripcion: Identificador del administrador en Keycloak
+        nombre: admin_id
+        requerido: true
+        tipo: uuid
+    -   descripcion: Tipo de acción realizada
+        nombre: accion
+        requerido: true
+        tipo: enumeracion
+        valores:
+        - crear
+        - actualizar
+        - eliminar
+    -   descripcion: Tipo de entidad afectada
+        nombre: entidad
+        requerido: true
+        tipo: enumeracion
+        valores:
+        - producto
+        - pedido
+    -   descripcion: Identificador del producto o pedido en su servicio
+        nombre: entidad_id
+        requerido: true
+        tipo: uuid
+    -   descripcion: Descripción de los cambios realizados
+        max: 1000
+        nombre: detalle_cambio
+        requerido: true
+        tipo: texto
+    -   descripcion: Momento en que se realizó la acción
+        nombre: fecha_hora
+        requerido: true
+        tipo: fecha_hora
+    descripcion: Registro inmutable de acciones de administradores sobre productos
+        y pedidos
+    nombre: auditoria_log
+-   campos:
+    -   descripcion: Fecha de inicio del rango del reporte
+        nombre: fecha_inicio
+        requerido: true
+        tipo: fecha
+    -   descripcion: Fecha de fin del rango del reporte
+        nombre: fecha_fin
+        requerido: true
+        tipo: fecha
+    -   descripcion: Importe total de ventas en el rango
+        min: 0.0
+        nombre: total_ventas
+        requerido: true
+        tipo: decimal
+    -   descripcion: Cantidad total de ítems vendidos
+        min: 0
+        nombre: total_items
+        requerido: true
+        tipo: entero
+    -   descripcion: Momento en que se generó el reporte
+        nombre: generado_en
+        requerido: true
+        tipo: fecha_hora
+    descripcion: Reporte de ventas generado entre dos fechas
+    nombre: venta_reporte
+puerto: 3006
+servicio: auditoria

@@ -1,0 +1,72 @@
+// Generado por la plantilla microservicio_nestjs del framework. Entidades de pagos:
+// cada una es una tabla de la base pagos_db, que solo usa este servicio.
+
+generator client {
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "cjs"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Pago {
+  id String @id @default(uuid()) @db.Uuid
+  importe Decimal @db.Decimal(9, 2)
+  moneda String @db.VarChar(3)
+  estado PagoEstado
+  /// Identificador del pago en la pasarela externa
+  externalPaymentId String @db.Uuid @unique @map("external_payment_id")
+  /// Identificador del pedido en el servicio de pedidos
+  pedidoId String @db.Uuid @map("pedido_id")
+  transaccionId String? @db.Uuid @map("transaccion_id")
+  transaccion Transaccion? @relation("PagoTransaccion", fields: [transaccionId], references: [id], onDelete: Restrict)
+  transaccionPorPago Transaccion[] @relation("TransaccionPago")
+  creadoEn DateTime @default(now()) @map("creado_en") @db.Timestamptz(3)
+  actualizadoEn DateTime @updatedAt @map("actualizado_en") @db.Timestamptz(3)
+
+  @@index([pedidoId])
+  @@index([transaccionId])
+
+  @@map("pago")
+}
+
+model Transaccion {
+  id String @id @default(uuid()) @db.Uuid
+  pagoId String @db.Uuid @map("pago_id")
+  pago Pago @relation("TransaccionPago", fields: [pagoId], references: [id], onDelete: Restrict)
+  tipo TransaccionTipo
+  importe Decimal @db.Decimal(9, 2)
+  fechaHora DateTime @db.Timestamptz(3) @map("fecha_hora")
+  /// Identificador de la transacción en la pasarela externa
+  externalTransactionId String @db.Uuid @unique @map("external_transaction_id")
+  estado TransaccionEstado
+  pagoPorTransaccion Pago[] @relation("PagoTransaccion")
+  creadoEn DateTime @default(now()) @map("creado_en") @db.Timestamptz(3)
+  actualizadoEn DateTime @updatedAt @map("actualizado_en") @db.Timestamptz(3)
+
+  @@index([pagoId])
+
+  @@map("transaccion")
+}
+
+enum PagoEstado {
+  pendiente
+  aprobado
+  rechazado
+  error
+}
+
+enum TransaccionTipo {
+  autorizacion
+  captura
+  reembolso
+}
+
+enum TransaccionEstado {
+  pendiente
+  completado
+  fallido
+}
+

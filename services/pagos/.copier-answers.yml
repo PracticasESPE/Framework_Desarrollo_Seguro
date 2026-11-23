@@ -1,0 +1,76 @@
+# Respuestas con las que se generó el servicio. Permiten regenerarlo con `copier update` cuando
+# cambie la plantilla. No lo edites a mano.
+_src_path: templates/microservicio_nestjs
+base_datos: pagos_db
+descripcion: Integra la pasarela externa, recibe notificaciones firmadas de resultados
+    de pagos, valida la procedencia y actualiza el estado del pedido a pagado, sin
+    almacenar datos sensibles de tarjetas.
+entidades:
+-   campos:
+    -   max: 1000000.0
+        min: 0.0
+        nombre: importe
+        requerido: true
+        tipo: decimal
+    -   max: 3
+        min: 3
+        nombre: moneda
+        requerido: true
+        tipo: texto
+    -   nombre: estado
+        requerido: true
+        tipo: enumeracion
+        valores:
+        - pendiente
+        - aprobado
+        - rechazado
+        - error
+    -   descripcion: Identificador del pago en la pasarela externa
+        nombre: external_payment_id
+        requerido: true
+        tipo: uuid
+        unico: true
+    -   descripcion: Identificador del pedido en el servicio de pedidos
+        nombre: pedido_id
+        requerido: true
+        tipo: uuid
+    -   entidad: transaccion
+        nombre: transaccion_id
+        requerido: false
+        tipo: referencia
+    nombre: pago
+-   campos:
+    -   entidad: pago
+        nombre: pago_id
+        requerido: true
+        tipo: referencia
+    -   nombre: tipo
+        requerido: true
+        tipo: enumeracion
+        valores:
+        - autorizacion
+        - captura
+        - reembolso
+    -   max: 1000000.0
+        min: 0.0
+        nombre: importe
+        requerido: true
+        tipo: decimal
+    -   nombre: fecha_hora
+        requerido: true
+        tipo: fecha_hora
+    -   descripcion: Identificador de la transacción en la pasarela externa
+        nombre: external_transaction_id
+        requerido: true
+        tipo: uuid
+        unico: true
+    -   nombre: estado
+        requerido: true
+        tipo: enumeracion
+        valores:
+        - pendiente
+        - completado
+        - fallido
+    nombre: transaccion
+puerto: 3004
+servicio: pagos
