@@ -25,3 +25,13 @@ vulnerabilities:
       está compilado sin QUIC (openssl_quic=false). Sin corrección en Debian el 22/11/2026.
       Revisado el 22/11/2026 (Marcelo).
     expired_at: 2026-12-06
+  - id: CVE-2026-107494
+    purls:
+      - pkg:deb/debian/libssl3t64
+    statement: >-
+      Denegación de servicio por cola sin límite de tramas QUIC en el OpenSSL del sistema, en la
+      imagen base distroless. Mismo caso que CVE-2026-124709: Node.js no carga libssl.so
+      (node_shared_openssl=false) y su OpenSSL está compilado sin QUIC (openssl_quic=false),
+      comprobado en la imagen el 23/11/2026. Sin corrección en Debian en esa fecha.
+      Revisado el 23/11/2026 (Marcelo).
+    expired_at: 2026-12-06
