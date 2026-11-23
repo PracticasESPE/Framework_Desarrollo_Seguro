@@ -1,0 +1,101 @@
+# Respuestas con las que se generó el servicio. Permiten regenerarlo con `copier update` cuando
+# cambie la plantilla. No lo edites a mano.
+_src_path: templates/microservicio_nestjs
+base_datos: catalogo_db
+descripcion: Ofrece búsqueda y visualización de productos, permite a administradores
+    crear, modificar y retirar productos con gestión de imágenes, y conserva la información
+    de productos retirados en pedidos históricos, cumpliendo con requisitos de rendimiento
+    de búsqueda.
+entidades:
+-   campos:
+    -   descripcion: Nombre del producto
+        max: 100
+        min: 1
+        nombre: nombre
+        requerido: true
+        tipo: texto
+        unico: false
+    -   descripcion: Descripción detallada del producto
+        max: 1000
+        min: 1
+        nombre: descripcion
+        requerido: true
+        tipo: texto
+        unico: false
+    -   descripcion: Precio del producto
+        max: 999999.99
+        min: 0.0
+        nombre: precio
+        requerido: true
+        tipo: decimal
+        unico: false
+    -   descripcion: Cantidad de unidades disponibles en stock
+        max: 1000000
+        min: 0
+        nombre: unidades_disponibles
+        requerido: true
+        tipo: entero
+        unico: false
+    -   descripcion: Referencia a la categoría del producto
+        entidad: categoria
+        nombre: categoria_id
+        requerido: true
+        tipo: referencia
+        unico: false
+    -   descripcion: Indica si el producto está retirado del catálogo
+        nombre: retirado
+        requerido: true
+        tipo: booleano
+        unico: false
+    descripcion: Producto del catálogo
+    nombre: producto
+-   campos:
+    -   descripcion: Nombre de la categoría
+        max: 100
+        min: 1
+        nombre: nombre
+        requerido: true
+        tipo: texto
+        unico: true
+    -   descripcion: Descripción de la categoría
+        max: 500
+        min: 0
+        nombre: descripcion
+        requerido: false
+        tipo: texto
+        unico: false
+    descripcion: Categoría de productos
+    nombre: categoria
+-   campos:
+    -   descripcion: URL donde se almacena la foto
+        max: 2048
+        min: 1
+        nombre: url
+        requerido: true
+        tipo: texto
+        unico: false
+    -   descripcion: Referencia al producto al que pertenece la foto
+        entidad: producto
+        nombre: producto_id
+        requerido: true
+        tipo: referencia
+        unico: false
+    -   descripcion: Formato de la imagen
+        nombre: tipo
+        requerido: true
+        tipo: enumeracion
+        unico: false
+        valores:
+        - jpg
+        - png
+    -   descripcion: Posición de la foto dentro del conjunto (máximo 5 fotos por producto)
+        max: 5
+        min: 1
+        nombre: orden
+        requerido: false
+        tipo: entero
+        unico: false
+    descripcion: Imágenes asociadas a un producto
+    nombre: foto
+puerto: 3002
+servicio: catalogo

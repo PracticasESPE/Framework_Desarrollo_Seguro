@@ -1,0 +1,61 @@
+// Generado por la plantilla microservicio_nestjs del framework. Entidades de notificaciones:
+// cada una es una tabla de la base notificaciones_db, que solo usa este servicio.
+
+generator client {
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "cjs"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Notificacion {
+  id String @id @default(uuid()) @db.Uuid
+  /// Identificador del pedido (servicio pedidos)
+  pedidoId String @db.Uuid @map("pedido_id")
+  /// Identificador del cliente (servicio usuarios)
+  clienteId String @db.Uuid @map("cliente_id")
+  clienteEmail String @db.VarChar(254) @map("cliente_email")
+  tipo NotificacionTipo
+  plantillaCorreoId String @db.Uuid @map("plantilla_correo_id")
+  plantillaCorreo PlantillaCorreo @relation("NotificacionPlantillaCorreo", fields: [plantillaCorreoId], references: [id], onDelete: Restrict)
+  enviado Boolean
+  fechaHora DateTime @db.Timestamptz(3) @map("fecha_hora")
+  creadoEn DateTime @default(now()) @map("creado_en") @db.Timestamptz(3)
+  actualizadoEn DateTime @updatedAt @map("actualizado_en") @db.Timestamptz(3)
+
+  @@index([pedidoId])
+  @@index([clienteId])
+  @@index([plantillaCorreoId])
+
+  @@map("notificacion")
+}
+
+model PlantillaCorreo {
+  id String @id @default(uuid()) @db.Uuid
+  nombre String @db.VarChar(100)
+  asunto String @db.VarChar(150)
+  cuerpo String @db.VarChar(2000)
+  tipo PlantillaCorreoTipo
+  activo Boolean
+  notificacionPorPlantillaCorreo Notificacion[] @relation("NotificacionPlantillaCorreo")
+  creadoEn DateTime @default(now()) @map("creado_en") @db.Timestamptz(3)
+  actualizadoEn DateTime @updatedAt @map("actualizado_en") @db.Timestamptz(3)
+
+  @@map("plantilla_correo")
+}
+
+enum NotificacionTipo {
+  pedido_aceptado
+  pedido_pagado
+  pedido_estado_cambiado
+}
+
+enum PlantillaCorreoTipo {
+  pedido_aceptado
+  pedido_pagado
+  pedido_estado_cambiado
+}
+

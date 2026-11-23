@@ -1,0 +1,46 @@
+# Imagen del servicio notificaciones, generada por la plantilla microservicio_nestjs del framework.
+# Tres etapas: solo el JavaScript compilado y las dependencias de producción llegan a la imagen.
+
+# ---- Etapa 1: construcción (compila TypeScript) ----
+FROM node:22-slim AS build
+WORKDIR /app
+# npm ci instala exactamente package-lock.json; .npmrc desactiva los scripts de instalación.
+COPY package.json package-lock.json .npmrc ./
+RUN npm ci --ignore-scripts --no-audit --no-fund
+COPY prisma ./prisma
+COPY prisma.config.ts tsconfig.json tsconfig.build.json nest-cli.json ./
+COPY src ./src
+# DATABASE_URL ficticia: solo para que prisma.config.ts cargue; generate no se conecta a la base.
+# El generador del contrato OpenAPI solo lo usa el pipeline (Gate 2): no va en la imagen.
+RUN DATABASE_URL="postgresql://build:build@localhost:5432/build" npm run prisma:generate \
+    && npm run build \
+    && rm -f dist/openapi/generar-openapi.*
+
+# ---- Etapa 2: dependencias de producción ----
+# --omit=optional además de --omit=dev: el CLI de prisma y typescript son peers opcionales de
+# @prisma/client, y npm los marca como devOptional, que --omit=dev no quita. Sin esta opción la
+# imagen llevaría unos 130 paquetes de desarrollo (el CLI, Prisma Studio con React, d3...).
+FROM node:22-slim AS prod-deps
+WORKDIR /app
+COPY package.json package-lock.json .npmrc ./
+RUN npm ci --omit=dev --omit=optional --ignore-scripts --no-audit --no-fund \
+    && npm cache clean --force
+
+# ---- Etapa 3: imagen final ----
+# Distroless: sin shell, sin npm y sin utilidades del sistema, para reducir las vulnerabilidades
+# de la imagen (Gate 3). 65532 es su usuario sin privilegios y node es el punto de entrada.
+# NODE_ENV=production: /docs desactivado y la configuración se valida con las reglas de producción.
+FROM gcr.io/distroless/nodejs22-debian13:nonroot AS runtime
+ENV NODE_ENV=production \
+    PORT=3005
+WORKDIR /app
+COPY --from=prod-deps --chown=65532:65532 /app/node_modules ./node_modules
+COPY --from=build --chown=65532:65532 /app/dist ./dist
+COPY --chown=65532:65532 package.json ./
+USER 65532:65532
+EXPOSE 3005
+# Comprueba que el puerto acepta conexiones (todas las rutas exigen token, así que no hay una
+# ruta HTTP pública que consultar). Sin shell: lo hace el propio node.
+HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
+  CMD ["/nodejs/bin/node", "-e", "require('net').connect(process.env.PORT||3005,'127.0.0.1').on('connect',()=>process.exit(0)).on('error',()=>process.exit(1))"]
+CMD ["dist/main.js"]

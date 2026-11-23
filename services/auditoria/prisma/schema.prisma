@@ -1,0 +1,67 @@
+// Generado por la plantilla microservicio_nestjs del framework. Entidades de auditoria:
+// cada una es una tabla de la base auditoria_db, que solo usa este servicio.
+
+generator client {
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "cjs"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+/// Registro inmutable de acciones de administradores sobre productos y pedidos
+model AuditoriaLog {
+  id String @id @default(uuid()) @db.Uuid
+  /// Identificador del administrador en Keycloak
+  adminId String @db.Uuid @map("admin_id")
+  /// Tipo de acción realizada
+  accion AuditoriaLogAccion
+  /// Tipo de entidad afectada
+  entidad AuditoriaLogEntidad
+  /// Identificador del producto o pedido en su servicio
+  entidadId String @db.Uuid @map("entidad_id")
+  /// Descripción de los cambios realizados
+  detalleCambio String @db.VarChar(1000) @map("detalle_cambio")
+  /// Momento en que se realizó la acción
+  fechaHora DateTime @db.Timestamptz(3) @map("fecha_hora")
+  creadoEn DateTime @default(now()) @map("creado_en") @db.Timestamptz(3)
+  actualizadoEn DateTime @updatedAt @map("actualizado_en") @db.Timestamptz(3)
+
+  @@index([adminId])
+  @@index([entidadId])
+
+  @@map("auditoria_log")
+}
+
+/// Reporte de ventas generado entre dos fechas
+model VentaReporte {
+  id String @id @default(uuid()) @db.Uuid
+  /// Fecha de inicio del rango del reporte
+  fechaInicio DateTime @db.Date @map("fecha_inicio")
+  /// Fecha de fin del rango del reporte
+  fechaFin DateTime @db.Date @map("fecha_fin")
+  /// Importe total de ventas en el rango
+  totalVentas Decimal @db.Decimal(12, 2) @map("total_ventas")
+  /// Cantidad total de ítems vendidos
+  totalItems Int @map("total_items")
+  /// Momento en que se generó el reporte
+  generadoEn DateTime @db.Timestamptz(3) @map("generado_en")
+  creadoEn DateTime @default(now()) @map("creado_en") @db.Timestamptz(3)
+  actualizadoEn DateTime @updatedAt @map("actualizado_en") @db.Timestamptz(3)
+
+  @@map("venta_reporte")
+}
+
+enum AuditoriaLogAccion {
+  crear
+  actualizar
+  eliminar
+}
+
+enum AuditoriaLogEntidad {
+  producto
+  pedido
+}
+
