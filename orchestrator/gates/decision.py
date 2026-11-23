@@ -69,11 +69,16 @@ class EntradaGate(BaseModel):
     hallazgos: list[Hallazgo]
 
 
-def _leer_herramientas(gate: int, carpeta_sarif: Path) -> tuple[list[Hallazgo], list[dict]]:
-    """Hallazgos de las herramientas del gate y su estado: ok, hallazgos o error (sin SARIF)."""
+def _leer_herramientas(
+    gate: int, carpeta_sarif: Path, extra: dict[str, str] | None = None
+) -> tuple[list[Hallazgo], list[dict]]:
+    """Hallazgos de las herramientas del gate y su estado: ok, hallazgos o error (sin SARIF).
+
+    `extra` añade herramientas a las del gate (p. ej. ESLint en los servicios generados).
+    """
     hallazgos: list[Hallazgo] = []
     estados: list[dict] = []
-    for archivo, nombre in HERRAMIENTAS[gate].items():
+    for archivo, nombre in (HERRAMIENTAS[gate] | (extra or {})).items():
         ruta = carpeta_sarif / archivo
         if not ruta.is_file() or ruta.stat().st_size == 0:
             # Los scripts de los gates borran el SARIF de una herramienta que no terminó.
@@ -111,6 +116,7 @@ def construir_entrada(
     salida: Path,
     carpeta_sarif: Path | None = None,
     compilacion_ok: bool = False,
+    herramientas_extra: dict[str, str] | None = None,
 ) -> EntradaGate:
     """Arma la entrada de la política del gate con los artefactos que dejaron sus herramientas.
 
@@ -120,7 +126,7 @@ def construir_entrada(
     if gate not in HERRAMIENTAS:
         raise ValueError(f"No existe el gate {gate}; los gates son 1, 2 y 3")
     sarif = carpeta_sarif or salida / "security" / "sarif"
-    hallazgos, herramientas = _leer_herramientas(gate, sarif)
+    hallazgos, herramientas = _leer_herramientas(gate, sarif, herramientas_extra)
     datos: dict[str, Any] = {"herramientas": herramientas}
 
     if gate == 1:

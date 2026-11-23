@@ -1,0 +1,18 @@
+# Gitleaks sobre un servicio generado (Gate 1, scripts/gate1-servicios.sh).
+#
+# El código generado no está en el historial de Git (salida/ se ignora), así que Gitleaks lo
+# analiza como carpeta. Se usan todas las reglas por defecto; solo se excluye lo que no escribe ni
+# la plantilla ni el LLM: las dependencias, el cliente que genera Prisma y lo compilado.
+title = "Gitleaks de los servicios generados"
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Dependencias, cliente de Prisma y archivos compilados: no los genera el framework"
+paths = [
+  '''(^|/)node_modules/''',
+  '''(^|/)src/generated/''',
+  '''(^|/)dist/''',
+  '''(^|/)coverage/''',
+]

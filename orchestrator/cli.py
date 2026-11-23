@@ -677,6 +677,72 @@ def gates_decidir(
         raise typer.Exit(1)
 
 
+@gates_app.command("servicios")
+def gates_servicios(
+    sarif: Annotated[
+        Path | None,
+        typer.Option(
+            "--sarif",
+            help="Carpeta con una subcarpeta de SARIF por servicio (scripts/gate1-servicios.sh).",
+        ),
+    ] = None,
+    bloquear: Annotated[
+        bool,
+        typer.Option(
+            "--bloquear/--no-bloquear",
+            help="Terminar con código 1 si se rechaza algún servicio.",
+        ),
+    ] = True,
+    carpeta_salida: Annotated[
+        Path | None,
+        typer.Option(
+            "--salida", help="Carpeta de resultados del pipeline; por defecto la configurada."
+        ),
+    ] = None,
+) -> None:
+    """Decisión OPA del Gate 1 sobre cada servicio generado, con la política del Gate 1."""
+    from orchestrator.gates.decision import ErrorDecision
+    from orchestrator.gates.fase4 import publicar_resumen_en_actions
+    from orchestrator.gates.servicios import decidir_servicios, resumen_markdown
+
+    salida = carpeta_salida or obtener_configuracion().directorio_salida
+    carpeta = sarif or salida / "security" / "sarif" / "servicios"
+    if not carpeta.is_dir() or not any(p.is_dir() for p in carpeta.iterdir()):
+        typer.echo(
+            f"Error: no hay SARIF de servicios en {carpeta.as_posix()}; "
+            "ejecuta antes scripts/gate1-servicios.sh",
+            err=True,
+        )
+        raise typer.Exit(1)
+    try:
+        decisiones = decidir_servicios(carpeta, salida)
+    except ErrorDecision as error:
+        typer.echo(f"Error: {error}", err=True)
+        raise typer.Exit(1) from error
+
+    for d in decisiones:
+        estado = "APROBADO" if d.decision.aprobado else "RECHAZADO"
+        typer.echo(f"Gate 1 de {d.servicio}: {estado}")
+        typer.echo(f"  {d.decision.justificacion}")
+        for criterio in d.decision.criterios:
+            marca = "cumple   " if criterio.cumple else "NO cumple"
+            typer.echo(f"  [{marca}] {criterio.regla}: {criterio.detalle}")
+        for bloqueante in d.decision.bloqueantes:
+            typer.echo(f"  Bloqueante {bloqueante.regla}: {bloqueante.motivo}")
+        if d.decision.advertencias:
+            typer.echo(f"  Advertencias (no bloquean): {len(d.decision.advertencias)}")
+        typer.echo(f"  Decisión guardada en {d.destino.as_posix()}")
+    resumen = resumen_markdown(decisiones)
+    publicar_resumen_en_actions(resumen)
+    rechazados = [d.servicio for d in decisiones if not d.decision.aprobado]
+    typer.echo(
+        f"{len(decisiones) - len(rechazados)} de {len(decisiones)} servicios aprobados"
+        + (f"; rechazados: {', '.join(rechazados)}" if rechazados else "")
+    )
+    if rechazados and bloquear:
+        raise typer.Exit(1)
+
+
 @gates_app.command("listar")
 def gates_listar(
     ejecucion: Annotated[
