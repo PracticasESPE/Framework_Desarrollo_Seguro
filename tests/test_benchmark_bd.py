@@ -68,8 +68,9 @@ def test_la_cache_calcula_cada_embedding_una_vez():
 def test_contar_datos_de_la_base_real():
     datos = contar_datos(cargar_base_conocimiento(), 384)
     # El benchmark del 28/10 se midió con 86 nodos; la revisión v1 del 30/10 añadió 5 controles
-    # ASVS y 5 CWE (ver docs/sprints/sprint2).
-    assert datos == {"nodos": 96, "relaciones": 113, "fragmentos": 96, "dimensiones": 384}
+    # ASVS y 5 CWE (ver docs/sprints/sprint2), y el #73 las CWE-78 y CWE-95 de la regla propia
+    # ejecucion-de-codigo-dinamico.
+    assert datos == {"nodos": 98, "relaciones": 113, "fragmentos": 98, "dimensiones": 384}
 
 
 def _latencias(neo, pg):

@@ -90,3 +90,21 @@ this.prisma.usuario.findMany({ where: { activo: true } });
 this.prisma.usuario.findMany({ take: 100 });
 // ok: prisma-findmany-sin-limite
 this.prisma.usuario.findMany({ orderBy: { creadoEn: 'asc' }, take: 100 });
+
+// ---------- ejecucion-de-codigo-dinamico ----------
+// ruleid: ejecucion-de-codigo-dinamico
+eval(codigo);
+// ruleid: ejecucion-de-codigo-dinamico
+const funcion = new Function('a', codigo);
+// ruleid: ejecucion-de-codigo-dinamico
+setTimeout('alert(1)', 10);
+// ruleid: ejecucion-de-codigo-dinamico
+vm.runInNewContext(codigo, {});
+// ruleid: ejecucion-de-codigo-dinamico
+const procesos = require('child_process');
+// ruleid: ejecucion-de-codigo-dinamico
+import { exec } from 'node:child_process';
+// ok: ejecucion-de-codigo-dinamico
+setTimeout(() => limpiar(), 10);
+// ok: ejecucion-de-codigo-dinamico
+const valor = JSON.parse(codigo);

@@ -19,8 +19,12 @@ export interface CuerpoError {
 const MENSAJE_INTERNO = 'Error interno del servidor';
 const RUTA_NO_ENCONTRADA = 'La ruta no existe';
 
+// Los nombres estándar de los códigos HTTP («Not Found»…), en un Map: sin acceso por clave
+// dinámica a un objeto (eslint-plugin-security, detect-object-injection).
+const NOMBRES_DE_ESTADO = new Map(Object.entries(STATUS_CODES));
+
 function nombreDelEstado(estado: number): string {
-  return STATUS_CODES[estado] ?? 'Error';
+  return NOMBRES_DE_ESTADO.get(String(estado)) ?? 'Error';
 }
 
 function mensajeDe(respuesta: string | object): string | string[] | undefined {

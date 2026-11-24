@@ -130,3 +130,41 @@ servicio se rechaza (fallo seguro).
 desde julio de 2025 dos SARIF con la misma herramienta y la misma categoría. El job
 `gate1-servicios` del workflow lo hace en cada pull request con los ejemplos de la plantilla; en
 Security > Code scanning se filtra por herramienta o por la categoría de cada servicio.
+
+### Ajustes de la plantilla según los hallazgos del Gate 1 (#73)
+
+Como el código determinista lo genera la plantilla, un hallazgo en un servicio generado se repite
+en todos: se corrige una vez, en la plantilla. Hallazgos del Gate 1 sobre los dos ejemplos
+(`pedidos` y `todos-los-tipos`):
+
+| Momento | Errores (bloquean) | Avisos | Total |
+|---|---|---|---|
+| Primera ejecución (#71, antes de corregir) | 4 | 8 | 12 |
+| Tras #71 (publicados en GitHub code scanning) | 0 | 8 | 8 |
+| Tras #73 | 0 | 0 | **0** |
+
+| Hallazgo (por servicio) | Archivo de la plantilla | Decisión |
+|---|---|---|
+| `@typescript-eslint/no-unnecessary-type-assertion` | `src/seguridad/filtro-errores.ts` | Corregido en #71: predicado de tipo en lugar de `as string[]` |
+| `@typescript-eslint/no-unsafe-enum-comparison` | `src/seguridad/filtro-errores.ts` | Corregido en #71: se compara con `401`, no con el enum |
+| `security/detect-object-injection` | `src/configuracion/entorno.ts` | Corregido: `switch` exhaustivo en lugar de `objeto[variable]` |
+| `security/detect-object-injection` | `src/seguridad/filtro-errores.ts` | Corregido: `Map` con los nombres de los códigos HTTP |
+| `security/detect-non-literal-fs-filename` (×2) | `src/openapi/generar-openapi.ts` | Falso positivo con control: la ruta la pasa el pipeline (no una petición) y no puede ser un literal porque el Gate 2 escribe fuera del servicio. Se valida (solo `.json`, sin caracteres de control) y la regla se desactiva solo en esas dos líneas, con el motivo |
+
+Con todas las severidades (Semgrep con INFO, Trivy config y Trivy fs sin filtro y Hadolint en
+todos los niveles) tampoco queda ningún hallazgo.
+
+**Las reglas también se ajustaron.** Un control negativo (un token falso, `USER root` y un `eval`
+con entrada externa en `pedidos`) mostró que el Gate rechazaba el secreto y el usuario root, pero
+el `eval` solo era un aviso de ESLint que no bloqueaba, y Semgrep no lo veía. Ahora bloquea:
+
+- regla propia `ejecucion-de-codigo-dinamico` de Semgrep (`semgrep_rules/`), con severidad ERROR;
+- en `eslint/eslint.config.mjs`, `no-eval`, `no-new-func`, `security/detect-eval-with-expression`,
+  `security/detect-child-process` y `security/detect-non-literal-require` como error.
+
+Son las mismas construcciones que el generador de lógica de negocio prohíbe en el código del LLM.
+Con el control negativo repetido, el `eval` da tres hallazgos altos y OPA rechaza el servicio.
+
+**El script es más rápido.** Cada contenedor monta solo la carpeta del servicio (de solo lectura),
+sus reglas y la carpeta de su SARIF, no el repositorio entero: en Windows el Gate 1 de los dos
+servicios pasó de unos 16 minutos a menos de 3.

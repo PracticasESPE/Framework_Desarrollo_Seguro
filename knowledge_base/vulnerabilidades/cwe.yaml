@@ -7,9 +7,15 @@ debilidades:
   - id: CWE-20
     nombre: Improper Input Validation
     descripcion: La entrada no se valida, o se valida mal, antes de usarla
+  - id: CWE-78
+    nombre: Improper Neutralization of Special Elements used in an OS Command ('OS Command Injection')
+    descripcion: Datos externos terminan dentro de una orden del sistema operativo y ejecutan otras órdenes
   - id: CWE-89
     nombre: Improper Neutralization of Special Elements used in an SQL Command ('SQL Injection')
     descripcion: Datos del usuario terminan dentro de una consulta SQL y alteran su significado
+  - id: CWE-95
+    nombre: Improper Neutralization of Directives in Dynamically Evaluated Code ('Eval Injection')
+    descripcion: Datos externos se evalúan como código (eval, Function) y el atacante ejecuta el suyo
   - id: CWE-116
     nombre: Improper Encoding or Escaping of Output
     descripcion: La salida no se codifica correctamente para el contexto donde se interpreta
