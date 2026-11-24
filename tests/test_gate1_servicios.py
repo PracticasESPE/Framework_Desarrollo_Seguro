@@ -240,7 +240,10 @@ def test_el_script_analiza_el_codigo_generado_aunque_no_este_en_git():
     script = (RAIZ / "scripts" / "gate1-servicios.sh").read_text(encoding="utf-8")
     assert "--no-git-ignore" in script  # sin la opción, Semgrep no ve salida/ (ignorada por Git)
     assert "dir --no-banner" in script  # Gitleaks sobre la carpeta, no sobre el historial
-    assert "--config scripts/gitleaks-servicios.toml" in script
+    assert '"$RAIZ/scripts/gitleaks-servicios.toml:/gitleaks.toml:ro"' in script
+    # Cada contenedor monta solo lo que analiza, nunca el repositorio entero.
+    assert '"$RAIZ:/' not in script and "'$RAIZ:/" not in script
+    assert '-v "$RAIZ/$dir:/servicio:ro"' in script
     assert "--config '$RAIZ_NODE/eslint/eslint.config.mjs'" in script
 
 
@@ -252,3 +255,67 @@ def test_eslint_del_framework_con_versiones_exactas_y_las_reglas_de_seguridad():
     assert "pluginSecurity.configs.recommended" in configuracion
     assert "tseslint.configs.recommendedTypeChecked" in configuracion
     assert (RAIZ / "eslint" / "package-lock.json").is_file()
+
+
+# --- Ajustes de la plantilla según el Gate 1 (#73) ---------------------------------------------
+
+
+def test_la_plantilla_no_repite_los_hallazgos_del_gate1(tmp_path: Path):
+    """objeto[variable] pasó a un switch y a un Map (detect-object-injection)."""
+    from orchestrator.generation import RUTA_PLANTILLA, generar_servicio, leer_especificacion
+
+    carpeta = generar_servicio(
+        leer_especificacion(RUTA_PLANTILLA / "ejemplos" / "pedidos.yml"), tmp_path
+    )
+    entorno = (carpeta / "src" / "configuracion" / "entorno.ts").read_text(encoding="utf-8")
+    assert "REGISTRO[" not in entorno and "switch (nombre)" in entorno
+    filtro = (carpeta / "src" / "seguridad" / "filtro-errores.ts").read_text(encoding="utf-8")
+    assert "STATUS_CODES[" not in filtro
+    assert "new Map(Object.entries(STATUS_CODES))" in filtro
+
+
+def test_el_falso_positivo_del_generador_del_contrato_esta_acotado(tmp_path: Path):
+    """La regla se desactiva solo en las dos escrituras, con motivo, y la ruta se valida."""
+    from orchestrator.generation import RUTA_PLANTILLA, generar_servicio, leer_especificacion
+
+    carpeta = generar_servicio(
+        leer_especificacion(RUTA_PLANTILLA / "ejemplos" / "pedidos.yml"), tmp_path
+    )
+    texto = (carpeta / "src" / "openapi" / "generar-openapi.ts").read_text(encoding="utf-8")
+    desactivacion = (
+        "eslint-disable-next-line security/detect-non-literal-fs-filename"
+        " -- ruta del pipeline, validada"
+    )
+    assert re.findall(r"eslint-disable[^\n]*", texto) == [desactivacion, desactivacion]
+    assert "const destino = validarDestino(ruta);" in texto
+    assert "ruta.endsWith('.json')" in texto
+    # Ningún otro archivo generado desactiva reglas.
+    otros = [
+        p.relative_to(carpeta).as_posix()
+        for p in carpeta.rglob("*.ts")
+        if "eslint-disable" in p.read_text(encoding="utf-8") and p.name != "generar-openapi.ts"
+    ]
+    assert otros == []
+
+
+def test_la_ejecucion_de_codigo_dinamico_bloquea_el_gate1():
+    """Lo que el generador de lógica prohíbe al LLM es un error en Semgrep y en ESLint."""
+    import yaml
+
+    reglas = yaml.safe_load((RAIZ / "semgrep_rules" / "nestjs-seguridad.yaml").read_text("utf-8"))
+    regla = next(r for r in reglas["rules"] if r["id"] == "ejecucion-de-codigo-dinamico")
+    assert regla["severity"] == "ERROR"
+    patrones = {p["pattern"] for p in regla["pattern-either"]}
+    assert {"eval(...)", "new Function(...)", 'require("child_process")'} <= patrones
+    casos = (RAIZ / "semgrep_rules" / "nestjs-seguridad.ts").read_text(encoding="utf-8")
+    assert casos.count("// ruleid: ejecucion-de-codigo-dinamico") == 6
+
+    configuracion = (RAIZ / "eslint" / "eslint.config.mjs").read_text(encoding="utf-8")
+    for regla_eslint in (
+        "no-eval",
+        "no-new-func",
+        "security/detect-eval-with-expression",
+        "security/detect-child-process",
+        "security/detect-non-literal-require",
+    ):
+        assert f"'{regla_eslint}': 'error'" in configuracion

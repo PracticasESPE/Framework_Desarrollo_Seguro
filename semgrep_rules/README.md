@@ -13,6 +13,12 @@ conocimiento: cada una declara el CWE y la categoría OWASP que detecta.
 | tls-verificacion-desactivada | ERROR | 295 |
 | hash-criptografico-debil | WARNING | 327 |
 | prisma-findmany-sin-limite | WARNING | 770 |
+| ejecucion-de-codigo-dinamico | ERROR | 95, 78 |
+
+`ejecucion-de-codigo-dinamico` (#73) detecta `eval`, `Function`, `vm.runIn*`, temporizadores con
+texto y `child_process`: lo mismo que el generador de lógica de negocio prohíbe en el código del
+LLM, como segunda barrera en el Gate 1. Con los rulesets públicos (`p/typescript`, `p/nodejs`) un
+`eval` con datos externos no aparecía.
 
 ## Probar las reglas
 

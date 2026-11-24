@@ -10,7 +10,17 @@ import { PrismaService } from '../prisma.service';
 import { {{ servicio_clase }}Module } from '../{{ servicio_archivo }}.module';
 import { crearDocumentoOpenApi } from './configuracion';
 
-async function generar(destino: string): Promise<void> {
+/** Solo un archivo .json y sin caracteres de control (p. ej. un byte nulo que corte la ruta). */
+function validarDestino(ruta: string): string {
+  const conControl = [...ruta].some((caracter) => caracter.charCodeAt(0) < 0x20);
+  if (!ruta.endsWith('.json') || conControl) {
+    throw new Error('El destino del contrato debe ser una ruta a un archivo .json');
+  }
+  return resolve(ruta);
+}
+
+async function generar(ruta: string): Promise<void> {
+  const destino = validarDestino(ruta);
   // PrismaService se sustituye para no necesitar DATABASE_URL ni conectarse a la base.
   const modulo = await Test.createTestingModule({ imports: [{{ servicio_clase }}Module] })
     .overrideProvider(PrismaService)
@@ -19,15 +29,18 @@ async function generar(destino: string): Promise<void> {
   const app = modulo.createNestApplication();
   app.setGlobalPrefix('api');
   const documento = crearDocumentoOpenApi(app);
-  // La ruta la fija el pipeline, no un usuario.
+  // La ruta la pasa el pipeline por la línea de comandos (Gate 2), nunca llega de una petición,
+  // y validarDestino ya la comprobó. detect-non-literal-fs-filename avisa de cualquier ruta que
+  // no sea un literal; no puede serlo, porque el Gate 2 escribe el contrato fuera del servicio.
+  // eslint-disable-next-line security/detect-non-literal-fs-filename -- ruta del pipeline, validada
   mkdirSync(dirname(destino), { recursive: true });
+  // eslint-disable-next-line security/detect-non-literal-fs-filename -- ruta del pipeline, validada
   writeFileSync(destino, JSON.stringify(documento, null, 2), 'utf-8');
   await app.close();
   console.log(`OpenAPI escrito en ${destino}`);
 }
 
-const destino = resolve(process.argv[2] ?? 'openapi/{{ servicio }}.json');
-generar(destino).catch((error: unknown) => {
+generar(process.argv[2] ?? 'openapi/{{ servicio }}.json').catch((error: unknown) => {
   console.error('No se pudo generar el OpenAPI:', error);
   process.exit(1);
 });

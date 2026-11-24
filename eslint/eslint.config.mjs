@@ -38,6 +38,13 @@ export default tseslint.config(
       '@typescript-eslint/no-explicit-any': 'off',
       '@typescript-eslint/no-floating-promises': 'warn',
       '@typescript-eslint/no-unsafe-argument': 'warn',
+      // Lo que prohíbe el generador de lógica en el código del LLM, como error y no como aviso:
+      // un eval con datos externos solo era un aviso que no bloqueaba el Gate 1 (#73).
+      'no-eval': 'error',
+      'no-new-func': 'error',
+      'security/detect-eval-with-expression': 'error',
+      'security/detect-child-process': 'error',
+      'security/detect-non-literal-require': 'error',
     },
   },
 );

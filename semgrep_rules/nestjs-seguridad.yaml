@@ -155,3 +155,40 @@ rules:
       confidence: MEDIUM
       cwe: ["CWE-770: Allocation of Resources Without Limits or Throttling"]
       owasp: ["API4:2023 Unrestricted Resource Consumption"]
+
+  # Lo mismo que prohíbe el generador de lógica de negocio en el código del LLM
+  # (orchestrator/generation/logica.py), como segunda barrera en el Gate 1: con los rulesets
+  # públicos, un eval con datos externos solo era un aviso de ESLint (#73).
+  - id: ejecucion-de-codigo-dinamico
+    languages: [typescript]
+    severity: ERROR
+    message: >-
+      Ejecuta código construido en tiempo de ejecución (eval, Function, vm o un temporizador con
+      texto) o lanza procesos del sistema (child_process). Con datos externos es inyección de
+      código o de órdenes. Un microservicio generado no lo necesita: usa funciones y llamadas
+      tipadas.
+    pattern-either:
+      - pattern: eval(...)
+      - pattern: new Function(...)
+      - pattern: Function(...)
+      - pattern: setTimeout("...", ...)
+      - pattern: setInterval("...", ...)
+      - pattern: $VM.runInNewContext(...)
+      - pattern: $VM.runInThisContext(...)
+      - pattern: $VM.runInContext(...)
+      - pattern: require("child_process")
+      - pattern: require("node:child_process")
+      - pattern: import $X from "child_process"
+      - pattern: import $X from "node:child_process"
+      - pattern: import { ... } from "child_process"
+      - pattern: import { ... } from "node:child_process"
+      - pattern: import * as $X from "child_process"
+      - pattern: import * as $X from "node:child_process"
+    metadata:
+      category: security
+      technology: [nodejs]
+      confidence: HIGH
+      cwe:
+        - "CWE-95: Improper Neutralization of Directives in Dynamically Evaluated Code ('Eval Injection')"
+        - "CWE-78: Improper Neutralization of Special Elements used in an OS Command ('OS Command Injection')"
+      owasp: ["A03:2021 Injection"]

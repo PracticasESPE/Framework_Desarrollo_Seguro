@@ -99,7 +99,14 @@ ejecutar() {
   return "$codigo"
 }
 
-trivy() { docker run --rm -v "$RAIZ:/work" -v "$RAIZ/$CACHE:/root/.cache/trivy" -w /work "$TRIVY_IMG" "$@"; }
+# Cada contenedor monta solo lo que analiza: la carpeta del servicio (solo lectura), sus reglas o
+# su configuración y la carpeta donde deja el SARIF. Montar el repositorio entero hacía cada
+# herramienta muchas veces más lenta en Windows. Las rutas relativas que dejan así las corrige
+# después sarif_servicio.py.
+trivy_servicio() {
+  docker run --rm -v "$RAIZ/$dir:/servicio:ro" -v "$RAIZ/$out:/salida" \
+    -v "$RAIZ/$CACHE:/root/.cache/trivy" "$TRIVY_IMG" "$@"
+}
 
 echo "=== Preparación: imágenes de las herramientas y ESLint del framework ==="
 for img in "$SEMGREP" "$GITLEAKS" "$TRIVY_IMG" "$HADOLINT"; do
@@ -165,36 +172,40 @@ for dir in "$SERVICIOS"/*/; do
 
   echo "=== $svc 3/7 Semgrep (reglas públicas y propias) ==="
   # --no-git-ignore: el código generado no está en Git; sin la opción, Semgrep no lo vería.
-  ejecutar "$svc" "Semgrep" 1 docker run --rm -v "$RAIZ:/src" "$SEMGREP" \
+  # Las reglas propias se montan en semgrep_rules/, como en gate1.sh: mismos ids de regla.
+  ejecutar "$svc" "Semgrep" 1 docker run --rm -w /src \
+    -v "$RAIZ/$dir/src:/src/src:ro" -v "$RAIZ/semgrep_rules:/src/semgrep_rules:ro" \
+    -v "$RAIZ/$out:/salida" "$SEMGREP" \
     semgrep scan --config p/typescript --config p/nodejs --config semgrep_rules/ \
     --metrics=off --error --severity ERROR --severity WARNING --no-git-ignore \
-    --sarif-output="$out/semgrep.sarif" \
-    --exclude generated --exclude "*.spec.ts" "$dir/src"
+    --sarif-output=/salida/semgrep.sarif \
+    --exclude generated --exclude "*.spec.ts" src
 
   echo "=== $svc 4/7 Gitleaks (secretos en el servicio) ==="
-  ejecutar "$svc" "Gitleaks" "$HALLAZGO" docker run --rm -v "$RAIZ:/repo" -w /repo "$GITLEAKS" \
-    dir --no-banner --redact --verbose --exit-code "$HALLAZGO" \
-    --config scripts/gitleaks-servicios.toml \
-    --report-format sarif --report-path "/repo/$out/gitleaks.sarif" "$dir"
+  ejecutar "$svc" "Gitleaks" "$HALLAZGO" docker run --rm \
+    -v "$RAIZ/$dir:/servicio:ro" -v "$RAIZ/scripts/gitleaks-servicios.toml:/gitleaks.toml:ro" \
+    -v "$RAIZ/$out:/salida" "$GITLEAKS" \
+    dir --no-banner --redact --verbose --exit-code "$HALLAZGO" --config /gitleaks.toml \
+    --report-format sarif --report-path /salida/gitleaks.sarif /servicio
 
   echo "=== $svc 5/7 Trivy fs (dependencias) ==="
-  ejecutar "$svc" "Trivy fs" "$HALLAZGO" trivy fs --quiet --scanners vuln --severity HIGH,CRITICAL \
-    --exit-code "$HALLAZGO" --skip-dirs "**/node_modules" "$dir"
-  reintentar trivy fs --quiet --scanners vuln --severity HIGH,CRITICAL --skip-dirs "**/node_modules" \
-    --format sarif --output "$out/trivy-fs.sarif" "$dir" \
+  ejecutar "$svc" "Trivy fs" "$HALLAZGO" trivy_servicio fs --quiet --scanners vuln \
+    --severity HIGH,CRITICAL --exit-code "$HALLAZGO" --skip-dirs "**/node_modules" /servicio
+  reintentar trivy_servicio fs --quiet --scanners vuln --severity HIGH,CRITICAL \
+    --skip-dirs "**/node_modules" --format sarif --output /salida/trivy-fs.sarif /servicio \
     || echo "::warning::$svc: no se pudo generar trivy-fs.sarif"
 
   echo "=== $svc 6/7 Trivy config (Dockerfile) ==="
-  ejecutar "$svc" "Trivy config" "$HALLAZGO" trivy config --quiet --severity HIGH,CRITICAL \
-    --exit-code "$HALLAZGO" --skip-dirs "**/node_modules" "$dir"
-  reintentar trivy config --quiet --severity HIGH,CRITICAL --skip-dirs "**/node_modules" \
-    --format sarif --output "$out/trivy-config.sarif" "$dir" \
+  ejecutar "$svc" "Trivy config" "$HALLAZGO" trivy_servicio config --quiet \
+    --severity HIGH,CRITICAL --exit-code "$HALLAZGO" --skip-dirs "**/node_modules" /servicio
+  reintentar trivy_servicio config --quiet --severity HIGH,CRITICAL \
+    --skip-dirs "**/node_modules" --format sarif --output /salida/trivy-config.sarif /servicio \
     || echo "::warning::$svc: no se pudo generar trivy-config.sarif"
 
   echo "=== $svc 7/7 Hadolint (Dockerfile) ==="
-  ejecutar "$svc" "Hadolint" 1 docker run --rm -v "$RAIZ:/work" -w /work "$HADOLINT" \
-    hadolint --failure-threshold warning "$dir/Dockerfile"
-  reintentar bash -c "docker run --rm -v '$RAIZ:/work' -w /work $HADOLINT hadolint --no-fail --format sarif '$dir/Dockerfile' > '$out/hadolint.sarif'" \
+  ejecutar "$svc" "Hadolint" 1 docker run --rm -v "$RAIZ/$dir:/servicio:ro" -w /servicio \
+    "$HADOLINT" hadolint --failure-threshold warning Dockerfile
+  reintentar bash -c "docker run --rm -v '$RAIZ/$dir:/servicio:ro' -w /servicio $HADOLINT hadolint --no-fail --format sarif Dockerfile > '$out/hadolint.sarif'" \
     || echo "::warning::$svc: no se pudo generar hadolint.sarif"
 
   # Los contenedores escriben como root; GitHub rechaza los SARIF vacíos (y el motor trata un

@@ -23,11 +23,18 @@ export class ConfiguracionInvalida extends Error {
   }
 }
 
-const REGISTRO: Record<NombreEntorno, LogLevel[]> = {
-  development: ['fatal', 'error', 'warn', 'log', 'debug', 'verbose'],
-  test: ['fatal', 'error', 'warn'],
-  production: ['fatal', 'error', 'warn', 'log'],
-};
+// Un switch exhaustivo en lugar de un objeto indexado por una variable: sin acceso por clave
+// dinámica (eslint-plugin-security, detect-object-injection) y tsc avisa si falta un entorno.
+function nivelesDeRegistro(nombre: NombreEntorno): LogLevel[] {
+  switch (nombre) {
+    case 'development':
+      return ['fatal', 'error', 'warn', 'log', 'debug', 'verbose'];
+    case 'test':
+      return ['fatal', 'error', 'warn'];
+    case 'production':
+      return ['fatal', 'error', 'warn', 'log'];
+  }
+}
 
 // La contraseña de .env.example: si llega a producción, nadie configuró la real.
 const CLAVE_DE_EJEMPLO = 'cambiar';
@@ -125,6 +132,6 @@ export function leerEntorno(
     nombre,
     puerto,
     documentacion: nombre !== 'production',
-    registro: REGISTRO[nombre],
+    registro: nivelesDeRegistro(nombre),
   };
 }
