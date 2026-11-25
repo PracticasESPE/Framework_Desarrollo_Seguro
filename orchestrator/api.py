@@ -32,6 +32,7 @@ from orchestrator.documentos import (
 )
 from orchestrator.ejecuciones import (
     ID_EJECUCION,
+    CrearContexto,
     DetalleEjecucion,
     Ejecucion,
     EjecucionEnCurso,
@@ -42,11 +43,14 @@ from orchestrator.ejecuciones import (
     RegistrarDecisiones,
     RegistrarEnNeo4j,
     RegistroEjecuciones,
+    contexto_graphrag_en_neo4j,
+    nombre_arquitectura,
     nombre_modelo_requisitos,
     registrar_decisiones_en_neo4j,
     registrar_en_neo4j,
     trabajo_fase1,
     trabajo_fase2,
+    trabajo_fase3,
 )
 from orchestrator.fases import FASES, Fase
 from orchestrator.ingest.requisito import ModeloRequisitos
@@ -162,9 +166,14 @@ def carpeta_arquitectura() -> Path:
     return obtener_configuracion().directorio_salida / "arquitectura"
 
 
+def carpeta_servicios() -> Path:
+    return obtener_configuracion().directorio_salida / "servicios"
+
+
 Carpeta = Annotated[Path, Depends(carpeta_documentos)]
 CarpetaRequisitos = Annotated[Path, Depends(carpeta_requisitos)]
 CarpetaArquitectura = Annotated[Path, Depends(carpeta_arquitectura)]
+CarpetaServicios = Annotated[Path, Depends(carpeta_servicios)]
 IdDocumento = Annotated[
     str, ParametroRuta(pattern=ID_DOCUMENTO, description="Id que devolvió la carga")
 ]
@@ -296,6 +305,11 @@ def registrador_decisiones() -> RegistrarDecisiones | None:
     return registrar_decisiones_en_neo4j
 
 
+def fabrica_contexto() -> CrearContexto | None:
+    """En la fase 3, el contexto de seguridad de cada servicio sale de GraphRAG (Neo4j)."""
+    return contexto_graphrag_en_neo4j
+
+
 Registro = Annotated[RegistroEjecuciones, Depends(registro_ejecuciones)]
 
 
@@ -306,15 +320,18 @@ class SolicitudEjecucion(BaseModel):
             "examples": [
                 {"documento": "0123456789abcdef0123456789abcdef"},
                 {"documento": "0123456789abcdef0123456789abcdef", "fase": 2},
+                {"documento": "0123456789abcdef0123456789abcdef", "fase": 3},
             ]
         },
     )
 
     documento: str = Field(pattern=ID_DOCUMENTO, description="Id de un documento cargado")
-    fase: Literal[1, 2] = Field(
+    fase: Literal[1, 2, 3] = Field(
         default=1,
         description="1: adquisición de requisitos. 2: propuesta arquitectónica, que parte del "
-        "modelo de requisitos que dejó la fase 1 y gasta llamadas al LLM",
+        "modelo de requisitos que dejó la fase 1 y gasta llamadas al LLM. 3: generación de los "
+        "microservicios, que parte de la arquitectura aprobada en la fase 2 y gasta llamadas "
+        "al LLM",
     )
 
 
@@ -322,12 +339,12 @@ class SolicitudEjecucion(BaseModel):
     "/ejecuciones",
     tags=["ejecuciones"],
     status_code=201,
-    summary="Lanzar la fase 1 o la fase 2 con un documento cargado",
+    summary="Lanzar la fase 1, la 2 o la 3 con un documento cargado",
     responses={
         404: _error("No existe el documento"),
         409: _error(
-            "Ya hay una ejecución en curso (el motor procesa un documento a la vez) o, para la "
-            "fase 2, el documento todavía no pasó por la fase 1"
+            "Ya hay una ejecución en curso (el motor procesa un documento a la vez) o falta la "
+            "fase anterior: la 2 parte de los requisitos de la 1 y la 3 de la arquitectura de la 2"
         ),
     },
 )
@@ -337,16 +354,20 @@ def iniciar_ejecucion(
     carpeta: Carpeta,
     destino: CarpetaRequisitos,
     destino_arquitectura: CarpetaArquitectura,
+    destino_servicios: CarpetaServicios,
     registro: Registro,
     crear_llm: Annotated[Callable[[], ProveedorLLM], Depends(fabrica_llm)],
     registrar: Annotated[RegistrarEnNeo4j | None, Depends(registrador_neo4j)],
     registrar_arquitectura: Annotated[RegistrarDecisiones | None, Depends(registrador_decisiones)],
+    crear_contexto: Annotated[CrearContexto | None, Depends(fabrica_contexto)],
 ) -> EstadoEjecucion:
     """Lanza la ejecución en segundo plano y responde enseguida.
 
     Con `fase: 2` hace falta que el documento ya haya pasado por la fase 1: parte del
     `modelo_requisitos.json` guardado en disco. Es una petición aparte para que una persona revise
-    los requisitos antes de gastar las llamadas al LLM de la propuesta arquitectónica.
+    los requisitos antes de gastar las llamadas al LLM de la propuesta arquitectónica. Con
+    `fase: 3` hace falta además la arquitectura que aprobó OPA en la fase 2: una persona la revisa
+    antes de generar los microservicios.
 
     El progreso se sigue en `/ejecuciones/{id}/eventos` y el estado se consulta en
     `/ejecuciones/{id}`, que es lo que indica la cabecera `Location`.
@@ -355,12 +376,30 @@ def iniciar_ejecucion(
         documento, ruta = obtener_documento(carpeta, solicitud.documento)
     except DocumentoNoEncontrado as error:
         raise HTTPException(status_code=404, detail=str(error)) from error
-    if solicitud.fase == 2:
-        if not (destino / nombre_modelo_requisitos(documento.id)).is_file():
+    if (
+        solicitud.fase in (2, 3)
+        and not (destino / nombre_modelo_requisitos(documento.id)).is_file()
+    ):
+        raise HTTPException(
+            status_code=409,
+            detail="Falta la fase 1: procesa el documento antes de proponer la arquitectura",
+        )
+    if solicitud.fase == 3:
+        if not (destino_arquitectura / nombre_arquitectura(documento.id)).is_file():
             raise HTTPException(
                 status_code=409,
-                detail="Falta la fase 1: procesa el documento antes de proponer la arquitectura",
+                detail="Falta la fase 2: propón y aprueba la arquitectura antes de generar los "
+                "servicios",
             )
+        trabajo = trabajo_fase3(
+            documento,
+            destino,
+            destino_arquitectura,
+            destino_servicios,
+            crear_llm,
+            crear_contexto,
+        )
+    elif solicitud.fase == 2:
         trabajo = trabajo_fase2(
             documento, destino, destino_arquitectura, crear_llm, registrar_arquitectura
         )

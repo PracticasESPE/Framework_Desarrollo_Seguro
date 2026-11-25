@@ -14,8 +14,10 @@
 {{ cadena('Texto de prueba' if n == 15 else ('Prueba' * 2000)[:n]) }}
 {%- endmacro -%}
 
-{#- Un id fijo en formato UUID v4, para los campos uuid y referencia. -#}
-{%- macro uuid() -%}'0b7e4c1a-5d2f-4a8b-9c3d-1e2f3a4b5c6d'{%- endmacro -%}
+{#- Un id fijo en formato UUID v4, para los campos uuid y referencia. De baja entropía a propósito:
+    junto a un nombre como «keycloakId» o «tokenId», uno aleatorio parece una clave y Gitleaks lo
+    marca (generic-api-key) en el Gate 1 de los servicios generados. -#}
+{%- macro uuid() -%}'00000000-0000-4000-8000-000000000001'{%- endmacro -%}
 
 {%- macro entrada(c) -%}
 {%- if c.tipo == 'texto' -%}{{ texto(c) }}

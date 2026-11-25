@@ -45,6 +45,11 @@ export default tseslint.config(
       'security/detect-eval-with-expression': 'error',
       'security/detect-child-process': 'error',
       'security/detect-non-literal-require': 'error',
+      // Las reglas de negocio son async por contrato (devuelven Promise<void>, y el servicio
+      // las espera con await); una regla que no necesita consultar la base no tiene await y es
+      // correcta. Es una regla de estilo, no de seguridad: con ella el Gate 1 rechazaba la
+      // lógica válida que escribe el LLM.
+      '@typescript-eslint/require-await': 'off',
     },
   },
 );

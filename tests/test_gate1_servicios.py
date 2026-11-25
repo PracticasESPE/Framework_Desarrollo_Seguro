@@ -319,3 +319,62 @@ def test_la_ejecucion_de_codigo_dinamico_bloquea_el_gate1():
         "security/detect-non-literal-require",
     ):
         assert f"'{regla_eslint}': 'error'" in configuracion
+
+
+def test_los_datos_de_prueba_de_la_plantilla_no_parecen_secretos(tmp_path: Path):
+    """Un UUID aleatorio junto a «keycloakId» o «tokenId» lo marca Gitleaks (generic-api-key)."""
+    from orchestrator.generation import generar_servicio
+
+    datos = {
+        "servicio": "usuarios",
+        "entidades": [
+            {
+                "nombre": "jugador",
+                "campos": [
+                    {"nombre": "keycloak_id", "tipo": "uuid"},
+                    {"nombre": "password_reset_token_id", "tipo": "uuid", "requerido": False},
+                ],
+            }
+        ],
+    }
+    carpeta = generar_servicio(datos, tmp_path)
+    for archivo in ("src/jugador.service.spec.ts", "test/usuarios.e2e-spec.ts"):
+        texto = (carpeta / archivo).read_text(encoding="utf-8")
+        assert "keycloakId: '00000000-0000-4000-8000-000000000001'" in texto
+
+
+def test_las_reglas_async_sin_await_no_bloquean_el_gate1():
+    configuracion = (RAIZ / "eslint" / "eslint.config.mjs").read_text(encoding="utf-8")
+    assert "'@typescript-eslint/require-await': 'off'" in configuracion
+
+
+def test_los_campos_opcionales_de_la_entrada_admiten_null(tmp_path: Path):
+    """@IsOptional deja pasar null y el contrato lo declara nullable: el tipo también lo dice, así
+    las reglas y las pruebas del LLM lo tratan sin que tsc las rechace en el Gate 1."""
+    from orchestrator.generation import RUTA_PLANTILLA, generar_servicio, leer_especificacion
+
+    carpeta = generar_servicio(
+        leer_especificacion(RUTA_PLANTILLA / "ejemplos" / "pedidos.yml"), tmp_path
+    )
+    for dto in ("crear-pedido.dto.ts", "actualizar-pedido.dto.ts"):
+        texto = (carpeta / "src" / "dto" / dto).read_text(encoding="utf-8")
+        assert "notas?: string | null;" in texto and "fechaEntrega?: string | null;" in texto
+    # Un campo obligatorio nunca es null, ni al actualizar (lo impide @ValidateIf(seEnvio)).
+    actualizar = (carpeta / "src" / "dto" / "actualizar-pedido.dto.ts").read_text(encoding="utf-8")
+    assert "direccionEnvio?: string;" in actualizar
+    respuesta = (carpeta / "src" / "dto" / "pedido-respuesta.dto.ts").read_text(encoding="utf-8")
+    assert "| null" not in respuesta  # la respuesta no lleva null (aRespuesta lo quita)
+
+
+def test_jest_comprueba_los_tipos(tmp_path: Path):
+    """ts-jest con isolatedModules no comprueba tipos: el generador de pruebas del LLM no veía los
+    errores que después rechazaba tsc en el Gate 1."""
+    from orchestrator.generation import RUTA_PLANTILLA, generar_servicio, leer_especificacion
+
+    carpeta = generar_servicio(
+        leer_especificacion(RUTA_PLANTILLA / "ejemplos" / "pedidos.yml"), tmp_path
+    )
+    paquete = json.loads((carpeta / "package.json").read_text(encoding="utf-8"))
+    assert paquete["jest"]["transform"] == {
+        "^.+\.(t|j)s$": ["ts-jest", {"tsconfig": {"isolatedModules": False}}]
+    }

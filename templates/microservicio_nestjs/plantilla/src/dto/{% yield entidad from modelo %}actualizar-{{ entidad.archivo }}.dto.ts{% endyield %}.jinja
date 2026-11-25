@@ -21,7 +21,7 @@ export class Actualizar{{ entidad.clase }}Dto {
   {%- for linea in validadores(c, actualizar=true).splitlines() if linea.strip() %}
 {{ linea }}
   {%- endfor %}
-  {{ c.propiedad }}?: {{ ts_tipo(c) }};
+  {{ c.propiedad }}?: {{ ts_tipo(c) }}{{ '' if c.requerido else ' | null' }};
 {%- if not loop.last %}
 {% endif %}
 {%- endfor %}

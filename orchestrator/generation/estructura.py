@@ -24,6 +24,7 @@ Solo usa la biblioteca estándar y PyYAML, así que el CI lo ejecuta como script
 
 from __future__ import annotations
 
+import os
 import re
 import sys
 from dataclasses import dataclass, field
@@ -43,8 +44,11 @@ _PRODUCIDOS_DESPUES = (
     "src/generated/",
     "openapi/",
     "logica/",
+    "pruebas/",
 )
 _ARCHIVOS_DESPUES = {".env"}
+# node_modules puede ser un enlace a las dependencias compartidas (generation/sistema.py).
+_ENLACES_PERMITIDOS = {"node_modules"}
 
 # Los controles de seguridad del servicio: deben estar aunque alguien los quite de la plantilla.
 ARCHIVOS_DE_SEGURIDAD = (
@@ -118,17 +122,40 @@ def archivos_esperados(
     return esperados
 
 
+def _es_enlace(ruta: Path) -> bool:
+    """Enlace simbólico o, en Windows, unión de directorios (junction)."""
+    return ruta.is_symlink() or bool(getattr(ruta, "is_junction", lambda: False)())
+
+
 def _generados(carpeta: Path, problemas: list[str]) -> list[str]:
+    """Los archivos de la plantilla, sin entrar en lo que producen la instalación y el LLM.
+
+    Recorre el árbol podando esas carpetas (node_modules tiene miles de archivos y puede ser un
+    enlace a las dependencias compartidas) y sin seguir ningún enlace.
+    """
     archivos = []
-    for ruta in sorted(carpeta.rglob("*")):
-        relativa = ruta.relative_to(carpeta).as_posix()
-        if relativa.startswith(_PRODUCIDOS_DESPUES) or relativa in _ARCHIVOS_DESPUES:
-            continue
-        if ruta.is_symlink():
-            problemas.append(f"{relativa} es un enlace simbólico")
-        elif ruta.is_file():
-            archivos.append(relativa)
-    return archivos
+    for raiz, carpetas, nombres in os.walk(carpeta):
+        base = Path(raiz)
+        for nombre in sorted(carpetas):
+            ruta = base / nombre
+            relativa = ruta.relative_to(carpeta).as_posix()
+            if f"{relativa}/".startswith(_PRODUCIDOS_DESPUES):
+                if _es_enlace(ruta) and relativa not in _ENLACES_PERMITIDOS:
+                    problemas.append(f"{relativa} es un enlace")
+                carpetas.remove(nombre)
+            elif _es_enlace(ruta):
+                problemas.append(f"{relativa} es un enlace")
+                carpetas.remove(nombre)
+        for nombre in nombres:
+            ruta = base / nombre
+            relativa = ruta.relative_to(carpeta).as_posix()
+            if relativa in _ARCHIVOS_DESPUES:
+                continue
+            if ruta.is_symlink():
+                problemas.append(f"{relativa} es un enlace simbólico")
+            else:
+                archivos.append(relativa)
+    return sorted(archivos)
 
 
 def _leer(carpeta: Path, relativa: str) -> str:
@@ -235,7 +262,10 @@ def validar_estructura(
     esperados = archivos_esperados(especificacion, plantilla) | set(ARCHIVOS_DE_SEGURIDAD)
     for falta in sorted(esperados - set(generados)):
         problemas.append(f"Falta {falta}")
-    for sobra in sorted(set(generados) - esperados):
+    # Las pruebas de las reglas de negocio que genera el LLM (orchestrator/generation/pruebas.py).
+    _, entidades = _nombres(especificacion)
+    opcionales = {f"src/{archivo_de(e)}.reglas.spec.ts" for e in entidades}
+    for sobra in sorted(set(generados) - esperados - opcionales):
         problemas.append(f"Archivo inesperado: {sobra}")
     for relativa in generados:
         texto = _leer(carpeta, relativa)

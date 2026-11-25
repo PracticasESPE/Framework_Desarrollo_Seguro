@@ -220,7 +220,14 @@ Keycloak, así que la fase 9 del pipeline las puede ejecutar en cualquier servic
 | `src/configuracion/entorno.spec.ts` | La validación de la configuración de cada entorno |
 
 Los datos de prueba salen de `_macros/pruebas.jinja`: un valor válido por tipo de campo, dentro de
-sus límites. Las pruebas sustituyen las reglas de negocio que escribe el LLM, para comprobar lo que
+sus límites. El UUID de prueba es de baja entropía a propósito
+(`00000000-0000-4000-8000-000000000001`): junto a un campo como `keycloakId` o `tokenId`, uno
+aleatorio parecía una clave y Gitleaks lo marcaba en el Gate 1 de los servicios generados. Jest
+comprueba los tipos (`ts-jest` con `isolatedModules: false`), igual que `tsc --noEmit`.
+
+En los DTO de entrada, un campo opcional es `tipo | null`: `@IsOptional` deja pasar `null` (lo deja
+vacío) y el contrato lo declara `nullable`, así que el tipo dice lo que de verdad llega y las
+reglas y las pruebas del LLM lo tratan sin que tsc las rechace. Las pruebas sustituyen las reglas de negocio que escribe el LLM, para comprobar lo que
 genera la plantilla aunque cambien las reglas.
 
 **Imagen** (`Dockerfile`), con el mismo diseño que el servicio de referencia:

@@ -22,7 +22,7 @@ export class Crear{{ entidad.clase }}Dto {
   {%- for linea in validadores(c).splitlines() if linea.strip() %}
 {{ linea }}
   {%- endfor %}
-  {{ c.propiedad }}{{ '!' if c.requerido else '?' }}: {{ ts_tipo(c) }};
+  {{ c.propiedad }}{{ '!' if c.requerido else '?' }}: {{ ts_tipo(c) }}{{ '' if c.requerido else ' | null' }};
 {%- if not loop.last %}
 {% endif %}
 {%- endfor %}

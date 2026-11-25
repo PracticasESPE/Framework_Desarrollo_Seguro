@@ -1656,6 +1656,112 @@ def servicio_generar(
     )
 
 
+@servicio_app.command("sistema")
+def servicio_sistema(
+    arquitectura: Annotated[
+        Path, typer.Argument(help="arquitectura.json aprobada por «arquitectura proponer».")
+    ],
+    requisitos: Annotated[
+        Path, typer.Option("--requisitos", help="modelo_requisitos.json del que salió.")
+    ],
+    destino: Annotated[
+        Path | None,
+        typer.Option(
+            "--destino",
+            help="Carpeta nueva para los servicios; por defecto salida/servicios/<nombre>-<fecha>.",
+        ),
+    ] = None,
+    compilar_servicios: Annotated[
+        bool,
+        typer.Option(
+            "--compilar/--sin-compilar",
+            help="Instalar las dependencias, compilar con tsc y ejecutar las pruebas con Jest.",
+        ),
+    ] = True,
+    con_logica: Annotated[
+        bool, typer.Option("--logica/--sin-logica", help="Pedir al LLM la lógica de negocio.")
+    ] = True,
+    con_pruebas: Annotated[
+        bool, typer.Option("--pruebas/--sin-pruebas", help="Pedir al LLM las pruebas Jest.")
+    ] = True,
+    graphrag: Annotated[
+        bool,
+        typer.Option("--graphrag/--sin-graphrag", help="Contexto de seguridad desde Neo4j."),
+    ] = True,
+    proveedor: Annotated[
+        str | None,
+        typer.Option("--proveedor", help="Proveedor de LLM; por defecto LLM_PROVIDER."),
+    ] = None,
+) -> None:
+    """Fase 3 completa: un microservicio por cada servicio de la arquitectura."""
+    from datetime import UTC, datetime
+
+    from pydantic import ValidationError
+
+    from orchestrator.architecture import Arquitectura
+    from orchestrator.ejecuciones import contexto_graphrag_en_neo4j
+    from orchestrator.generation.sistema import (
+        CARPETA_DEPENDENCIAS,
+        ErrorSistema,
+        generar_sistema,
+    )
+    from orchestrator.ingest import ModeloRequisitos
+    from orchestrator.llm import ErrorLLM, crear_proveedor
+
+    try:
+        arq = Arquitectura.model_validate_json(arquitectura.read_bytes())
+        modelo = ModeloRequisitos.model_validate_json(requisitos.read_bytes())
+    except (OSError, ValidationError) as error:
+        typer.echo(
+            f"Error: no se pudieron leer la arquitectura o los requisitos: {error}", err=True
+        )
+        raise typer.Exit(1) from error
+    servicios = obtener_configuracion().directorio_salida / "servicios"
+    nombre = arquitectura.name.removesuffix(".arquitectura.json")
+    fecha = datetime.now(UTC).strftime("%Y%m%d-%H%M%S")
+    carpeta = destino or servicios / f"{nombre}-{fecha}"
+
+    contexto_de, cerrar = None, None
+    if graphrag:
+        try:
+            contexto_de, cerrar = contexto_graphrag_en_neo4j()
+        except Exception as error:  # Neo4j o los embeddings no están disponibles
+            typer.echo(f"Sin contexto GraphRAG: {error}", err=True)
+    try:
+        llm = crear_proveedor(proveedor)
+        resultado = generar_sistema(
+            arq,
+            modelo,
+            carpeta,
+            llm,
+            documento=modelo.documento.nombre,
+            contexto_de=contexto_de,
+            compilar_servicios=compilar_servicios,
+            con_logica=con_logica,
+            con_pruebas=con_pruebas,
+            dependencias=servicios / CARPETA_DEPENDENCIAS,
+            avance=lambda mensaje, progreso=None: typer.echo(f"  {mensaje}"),
+        )
+    except (ErrorSistema, ErrorLLM) as error:
+        typer.echo(f"Error: {error}", err=True)
+        raise typer.Exit(1) from error
+    finally:
+        if cerrar is not None:
+            cerrar()
+
+    typer.echo(f"\nServicios en {carpeta.as_posix()}")
+    for s in resultado.servicios:
+        estado = "completo" if s.completo else f"incompleto: {s.error or 'revisa el resumen'}"
+        logica = ", ".join(f"{e.nombre}={e.logica}" for e in s.entidades)
+        typer.echo(f"  {s.servicio:<16} puerto {s.puerto}  {estado}  [{logica}]")
+    typer.echo(
+        f"{resultado.completos} de {len(resultado.servicios)} servicios completos; "
+        f"resumen en {carpeta.as_posix()}/sistema.json"
+    )
+    if resultado.completos < len(resultado.servicios):
+        raise typer.Exit(1)
+
+
 @servicio_app.command("parametros")
 def servicio_parametros(
     arquitectura: Annotated[
