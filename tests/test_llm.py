@@ -167,6 +167,23 @@ def test_gemini_error_de_la_api():
         ProveedorGemini(cliente=cliente).generar_estructurado("x", Requisito)
 
 
+def test_gemini_una_llamada_sin_respuesta_es_un_error_del_proveedor():
+    """Sin tiempo máximo, una llamada colgada detenía la fase entera (fase 3, 24/11)."""
+    import httpx
+
+    cliente, _ = _cliente_gemini(httpx.ReadTimeout("sin respuesta"))
+    with pytest.raises(ErrorProveedorLLM, match="no respondió en 180 s"):
+        ProveedorGemini(cliente=cliente).generar_estructurado("x", Requisito)
+    cliente, _ = _cliente_gemini(httpx.ConnectError("sin red"))
+    with pytest.raises(ErrorProveedorLLM, match="no se pudo conectar"):
+        ProveedorGemini(cliente=cliente).generar_estructurado("x", Requisito)
+
+
+def test_gemini_el_cliente_real_tiene_tiempo_maximo():
+    proveedor = ProveedorGemini(api_key="clave-de-prueba", tiempo_maximo_s=90)
+    assert proveedor._cliente._api_client._http_options.timeout == 90_000
+
+
 def test_gemini_limite_de_uso():
     error = errores_gemini.APIError(429, {"error": {"message": "cuota agotada"}})
     cliente, _ = _cliente_gemini(error)

@@ -68,7 +68,7 @@
       "^(\\.{1,2}/.*)\\.js$": "$1"
     },
     "transform": {
-      "^.+\\.(t|j)s$": "ts-jest"
+      "^.+\\.(t|j)s$": ["ts-jest", { "tsconfig": { "isolatedModules": false } }]
     },
     "collectCoverageFrom": [
       "src/**/*.ts",

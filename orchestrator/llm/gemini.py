@@ -4,8 +4,9 @@ import time
 from collections.abc import Callable
 from typing import Any
 
+import httpx
 from google import genai
-from google.genai import errors
+from google.genai import errors, types
 from pydantic import BaseModel
 
 from orchestrator.llm.base import ErrorProveedorLLM, Nivel, ProveedorBase, T, error_de_limite
@@ -13,6 +14,11 @@ from orchestrator.llm.base import ErrorProveedorLLM, Nivel, ProveedorBase, T, er
 # Errores del servidor que suelen pasar solos («high demand»): se reintenta tras estas esperas.
 ERRORES_PASAJEROS = {500, 502, 503, 504}
 ESPERAS_ERROR_PASAJERO_S = (3.0, 10.0)
+
+# Tiempo máximo de cada llamada. Sin él, el SDK espera sin límite: en la fase 3 una llamada se
+# quedó 14 minutos sin respuesta y la fase entera se detuvo. Con el modelo de razonamiento una
+# respuesta larga (la lógica de una entidad) tarda menos de un par de minutos.
+TIEMPO_MAXIMO_S = 180.0
 
 MODELOS_POR_DEFECTO: dict[Nivel, str] = {
     "rapido": "gemini-3.5-flash-lite",
@@ -49,10 +55,15 @@ class ProveedorGemini(ProveedorBase):
         temperatura: float = 0.1,
         cliente: Any | None = None,
         dormir: Callable[[float], None] = time.sleep,
+        tiempo_maximo_s: float = TIEMPO_MAXIMO_S,
     ) -> None:
         super().__init__(modelos or dict(MODELOS_POR_DEFECTO), max_intentos)
         self.temperatura = temperatura
-        self._cliente = cliente or genai.Client(api_key=api_key)
+        self.tiempo_maximo_s = tiempo_maximo_s
+        self._cliente = cliente or genai.Client(
+            api_key=api_key,
+            http_options=types.HttpOptions(timeout=int(tiempo_maximo_s * 1000)),  # en ms
+        )
         self._dormir = dormir
 
     def _generar(self, modelo: str, prompt: str, configuracion: dict[str, Any]) -> Any:
@@ -87,6 +98,13 @@ class ProveedorGemini(ProveedorBase):
 
         try:
             respuesta = self._generar(modelo, prompt, configuracion)
+        except httpx.TimeoutException as error:
+            # Como un error del proveedor: la cadena pasa al siguiente y la fase puede reintentar.
+            raise ErrorProveedorLLM(
+                f"gemini: la API no respondió en {self.tiempo_maximo_s:.0f} s"
+            ) from error
+        except httpx.TransportError as error:
+            raise ErrorProveedorLLM(f"gemini: no se pudo conectar con la API ({error})") from error
         except errors.APIError as error:
             if error.code == 429:
                 # Gemini indica la espera y si la cuota es diaria en el texto del error.

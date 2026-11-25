@@ -2,6 +2,7 @@
 
 | Paso | Módulo | Comando |
 |---|---|---|
+| **La fase 3 completa: todos los servicios de la arquitectura** | `sistema.py` | `framework servicio sistema <arquitectura.json> --requisitos …` (o el dashboard) |
 | Parámetros de la plantilla de cada servicio (nombre, entidades y rutas) | `parametros.py` | `framework servicio parametros <arquitectura.json>` |
 | Especificación del servicio (entidades y campos) con el LLM | `orchestrator/llm/prompts` | `framework servicio prompt … --enviar --salida <servicio>.yml` |
 | Esqueleto determinista con la plantilla Copier, con su estructura validada | `plantilla.py`, `estructura.py` | `framework servicio generar <servicio>.yml` |
@@ -64,6 +65,61 @@ Escribe solo en su carpeta (`--destino`, por defecto `salida/servicios-demo`) y 
 archivo propio: si la carpeta existe, no está vacía y no la creó la demostración, se niega a
 usarla, para no borrar nunca nada ajeno. Las copias de los controles negativos se borran siempre
 al terminar.
+
+## La fase 3 completa (`sistema.py`)
+
+`generar_sistema()` encadena las piezas de abajo para los N servicios de `arquitectura.json`. Es
+lo que ejecuta el dashboard (`POST /ejecuciones` con `fase: 3`) y `framework servicio sistema`:
+
+1. Parámetros de todos los servicios (se validan antes de generar nada).
+2. Por cada servicio: los campos de sus entidades con el LLM (el esquema exige exactamente las de
+   la arquitectura), la plantilla con su estructura validada, las dependencias contra la lista
+   permitida, la instalación y `tsc`, y por cada entidad su lógica de negocio (verificada con
+   tsc) y sus pruebas Jest (verificadas ejecutándolas).
+3. La estructura se valida otra vez al final: el LLM solo pudo escribir entre las marcas.
+
+Un fallo en un servicio (el LLM no responde, no compila, una dependencia no permitida) queda en su
+resumen y la fase sigue con el siguiente. El resumen de todos se guarda en
+`<destino>/sistema.json` y las especificaciones que propuso el LLM en `<destino>/especificaciones/`.
+
+**Dependencias compartidas.** Los servicios generados tienen el mismo `package-lock.json` salvo el
+nombre, así que se instalan una sola vez (`npm ci --ignore-scripts`, después de comprobar la lista
+permitida) en `.dependencias/<huella del lock>/` y cada servicio enlaza ahí su `node_modules`. La
+huella cambia si cambia el lock, así que nunca se mezclan versiones. La validación de estructura
+solo admite ese enlace; cualquier otro enlace es un problema.
+
+```bash
+uv run framework servicio sistema salida/arquitectura/<id>.arquitectura.json \
+  --requisitos salida/requisitos/<id>.modelo_requisitos.json
+```
+
+`--sin-compilar` genera sin instalar, compilar ni probar; `--sin-logica` y `--sin-pruebas` omiten
+esos pasos del LLM; `--sin-graphrag` no consulta Neo4j.
+
+**Lo que aprendimos con el LLM real** (arquitectura de 5 servicios y 7 entidades, 24/11), y cómo
+lo resuelve la fase:
+
+- *Límite de uso.* La fase hace muchas llamadas seguidas y los planes gratuitos limitan las
+  peticiones y los tokens por minuto. Cuando la cadena de proveedores no tiene ninguno disponible,
+  `LLMConEsperas` espera lo que pide el proveedor (como mucho 2 minutos, y la espera se corta al
+  cancelar) y reintenta. La cuota diaria no se espera, y si una llamada agota sus esperas las
+  siguientes fallan enseguida.
+- *Llamadas colgadas.* El SDK de Gemini esperaba sin límite: una llamada se quedó 14 minutos sin
+  respuesta. Ahora cada llamada tiene 180 s (`orchestrator/llm/gemini.py`) y el corte cuenta como
+  un error del proveedor, así que se pasa al siguiente o se reintenta.
+- *Pruebas que pasan en Jest pero no en tsc.* Al final de cada servicio se compila con `tsc`,
+  como en el Gate 1, y se descarta (con su motivo) el archivo de pruebas de una entidad que no
+  compila. Además, ts-jest ya comprueba los tipos (antes no, por `isolatedModules`), así que el
+  generador de pruebas recibe el error y se lo devuelve al LLM para que lo corrija.
+- *Errores sin datos de la cuenta.* Los mensajes de los proveedores incluyen el cuerpo de la
+  respuesta (con el identificador de la organización de Groq). Al resumen y al dashboard solo
+  llegan el proveedor y el código (`mensaje_breve`).
+- Un servicio no cuenta como completo si la lógica de alguna entidad no se pudo pedir (`error`).
+  «Sin lógica» sí cuenta: ningún intento pasó tsc y la entidad queda, sin reglas, para revisión.
+
+Con esos ajustes, la ejecución real desde el dashboard generó los 5 servicios en 4,5 minutos (con
+las dependencias ya instaladas): 4 entidades con lógica aceptada y 49 pruebas Jest que pasan, y 3
+sin lógica para revisión. Sin tocar nada a mano, el Gate 1 los aprobó a los 5 sin hallazgos.
 
 ## Parámetros por servicio (`parametros.py`)
 

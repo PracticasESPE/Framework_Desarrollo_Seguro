@@ -2,7 +2,13 @@ import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import App from './App'
-import type { DocumentoCargado, Ejecucion, ResumenFase1, ResumenFase2 } from './api'
+import type {
+  DocumentoCargado,
+  Ejecucion,
+  ResumenFase1,
+  ResumenFase2,
+  ResumenFase3,
+} from './api'
 import { EventSourceSimulado, evento } from './pruebas/eventSourceSimulado'
 
 function json(cuerpo: unknown): Response {
@@ -19,6 +25,7 @@ function respuestaJson(cuerpo: unknown, status: number): Response {
 const FASES = [
   { numero: 1, nombre: 'Adquisición de requisitos', es_gate: false },
   { numero: 2, nombre: 'Análisis y propuesta arquitectónica', es_gate: false },
+  { numero: 3, nombre: 'Generación de la estructura interna', es_gate: false },
   { numero: 4, nombre: 'Security Gate 1: análisis estático', es_gate: true },
 ]
 
@@ -173,6 +180,8 @@ interface Simulacion {
   alIniciar?: Response
   /** Respuesta de POST /ejecuciones con `fase: 2`. */
   alIniciarFase2?: Response
+  /** Respuesta de POST /ejecuciones con `fase: 3`. */
+  alIniciarFase3?: Response
   /** Lo que devuelve GET /ejecuciones al cargar la página, de la más reciente a la más antigua. */
   ejecuciones?: Ejecucion[]
   /** Respuesta de POST /ejecuciones/{id}/cancelar. */
@@ -184,13 +193,24 @@ function esFase2(init: RequestInit | undefined): boolean {
   return typeof init?.body === 'string' && init.body.includes('"fase":2')
 }
 
+/** La petición de POST /ejecuciones que lanza la fase 3. */
+function esFase3(init: RequestInit | undefined): boolean {
+  return typeof init?.body === 'string' && init.body.includes('"fase":3')
+}
+
 /** El EventSource se abre en un efecto de React: se espera a que existan antes de usarlos. */
 async function esperarFuentes(cantidad: number) {
   await waitFor(() => expect(EventSourceSimulado.instancias).toHaveLength(cantidad))
 }
 
 /** Responde las rutas de la API del motor como lo haría orchestrator/api.py. */
-function simularApi({ alIniciar, alIniciarFase2, ejecuciones = [], alCancelar }: Simulacion = {}) {
+function simularApi({
+  alIniciar,
+  alIniciarFase2,
+  alIniciarFase3,
+  ejecuciones = [],
+  alCancelar,
+}: Simulacion = {}) {
   return vi.spyOn(globalThis, 'fetch').mockImplementation((entrada, init) => {
     const ruta = typeof entrada === 'string' ? entrada : ''
     if (ruta === '/salud') return Promise.resolve(json({ estado: 'ok', version: '0.1.0' }))
@@ -199,6 +219,9 @@ function simularApi({ alIniciar, alIniciarFase2, ejecuciones = [], alCancelar }:
     if (ruta === '/ejecuciones' && init?.method !== 'POST') return Promise.resolve(json(ejecuciones))
     if (ruta === '/ejecuciones' && esFase2(init) && alIniciarFase2) {
       return Promise.resolve(alIniciarFase2)
+    }
+    if (ruta === '/ejecuciones' && esFase3(init) && alIniciarFase3) {
+      return Promise.resolve(alIniciarFase3)
     }
     if (ruta === '/ejecuciones' && alIniciar) return Promise.resolve(alIniciar)
     if (ruta.endsWith('/cancelar') && alCancelar) return Promise.resolve(alCancelar)
@@ -223,7 +246,7 @@ describe('App', () => {
 
     expect(await screen.findByText('Motor v0.1.0')).toBeInTheDocument()
     const fases = screen.getByRole('list')
-    expect(within(fases).getAllByRole('listitem')).toHaveLength(3)
+    expect(within(fases).getAllByRole('listitem')).toHaveLength(4)
     expect(within(fases).getByText('Security Gate 1: análisis estático')).toBeInTheDocument()
     expect(screen.getByRole('cell', { name: 'tienda.docx' })).toBeInTheDocument()
   })
@@ -680,5 +703,277 @@ describe('App: fase 2', () => {
       expect(EventSourceSimulado.instancias).toHaveLength(0)
       expect(screen.queryByRole('region', { name: /Progreso/ })).not.toBeInTheDocument()
     })
+  })
+})
+
+describe('App: fase 3', () => {
+  const EJECUCION_FASE3: Ejecucion = {
+    ...EJECUCION,
+    id: 'c'.repeat(32),
+    fase_actual: 3,
+    inicio: '2026-11-09T15:20:00Z',
+  }
+
+  const SERVICIOS: ResumenFase3 = {
+    documento: 'tienda.docx',
+    carpeta: `${DOCUMENTO.id}-20261124-170000`,
+    compilado: true,
+    advertencias: ['La entidad «cliente» está en usuarios, pedidos'],
+    completos: 1,
+    servicios: [
+      {
+        servicio: 'usuarios',
+        carpeta: 'usuarios',
+        puerto: 3001,
+        base_datos: 'usuarios_db',
+        prefijo: '/api/usuarios',
+        entidades: [
+          {
+            nombre: 'cliente',
+            ruta: '/api/usuarios/cliente',
+            logica: 'aceptada',
+            requisitos: ['RF-01'],
+            pendientes: ['Comprobar que el correo no esté en una lista de bloqueo'],
+            intentos_logica: 2,
+            pruebas_aceptadas: 3,
+            pruebas_descartadas: 1,
+            detalle: null,
+          },
+        ],
+        archivos: 40,
+        estructura_valida: true,
+        problemas_estructura: [],
+        dependencias_permitidas: true,
+        problemas_dependencias: [],
+        dependencias_compartidas: true,
+        compila: true,
+        errores_tsc: [],
+        error: null,
+        completo: true,
+      },
+      {
+        servicio: 'pedidos',
+        carpeta: 'pedidos',
+        puerto: 3002,
+        base_datos: 'pedidos_db',
+        prefijo: '/api/pedidos',
+        entidades: [
+          {
+            nombre: 'pedido',
+            ruta: '/api/pedidos/pedido',
+            logica: 'omitida',
+            requisitos: [],
+            pendientes: [],
+            intentos_logica: 0,
+            pruebas_aceptadas: 0,
+            pruebas_descartadas: 0,
+            detalle: null,
+          },
+        ],
+        archivos: 0,
+        estructura_valida: false,
+        problemas_estructura: [],
+        dependencias_permitidas: null,
+        problemas_dependencias: [],
+        dependencias_compartidas: false,
+        compila: null,
+        errores_tsc: [],
+        error: '<script>alert(1)</script> El proveedor no respondió',
+        completo: false,
+      },
+    ],
+  }
+
+  /** Lleva el dashboard hasta la fase 2 terminada con la arquitectura `arquitectura`. */
+  async function terminarFases1y2(
+    usuario: ReturnType<typeof userEvent.setup>,
+    arquitectura: ResumenFase2 = ARQUITECTURA,
+  ) {
+    await usuario.click(await screen.findByRole('button', { name: 'Procesar tienda.docx' }))
+    const fuente1 = EventSourceSimulado.instancias[0]
+    fuente1?.emitir(evento({ tipo: 'fase', fase: 1, estado: 'en_curso', mensaje: 'Adquisición' }))
+    fuente1?.emitir(evento({ tipo: 'resultado', fase: 1, progreso: 1, resultado: RESUMEN }))
+    fuente1?.emitir(evento({ tipo: 'fase', fase: 1, estado: 'completada', mensaje: 'Adquisición' }))
+    fuente1?.emitir(evento({ tipo: 'fin', estado: 'completada', mensaje: 'Ejecución completada' }))
+    await usuario.click(screen.getByRole('button', { name: 'Continuar a la fase 2' }))
+    const fuente2 = EventSourceSimulado.instancias[1]
+    const aprobada = arquitectura.aprobada
+    fuente2?.emitir(evento({ tipo: 'fase', fase: 2, estado: 'en_curso', mensaje: 'Análisis' }))
+    fuente2?.emitir(evento({ tipo: 'resultado', fase: 2, progreso: 1, arquitectura }))
+    fuente2?.emitir(
+      evento({
+        tipo: 'fase',
+        fase: 2,
+        estado: aprobada ? 'completada' : 'fallida',
+        mensaje: 'Análisis',
+      }),
+    )
+    fuente2?.emitir(
+      evento({
+        tipo: 'fin',
+        estado: aprobada ? 'completada' : 'fallida',
+        mensaje: aprobada ? 'Ejecución completada' : 'OPA no aprobó ninguna propuesta',
+      }),
+    )
+  }
+
+  function llamadasDeFase3(fetchSimulado: ReturnType<typeof simularApi>) {
+    return fetchSimulado.mock.calls.filter(([, init]) => esFase3(init))
+  }
+
+  it('espera a que se pulse el botón antes de generar los servicios', async () => {
+    const fetchSimulado = simularApi({
+      alIniciar: respuestaJson(EJECUCION, 201),
+      alIniciarFase2: respuestaJson(EJECUCION_FASE2, 201),
+    })
+    const usuario = userEvent.setup()
+    render(<App />)
+    await terminarFases1y2(usuario)
+
+    const paso = screen.getByRole('region', { name: 'Siguiente paso: fase 3' })
+    expect(paso).toHaveTextContent('sus 2 servicios')
+    expect(paso).toHaveTextContent('gasta llamadas al LLM')
+    expect(within(paso).getByRole('button', { name: 'Continuar a la fase 3' })).toBeEnabled()
+    expect(llamadasDeFase3(fetchSimulado)).toHaveLength(0)
+  })
+
+  it('no ofrece la fase 3 si OPA rechazó la arquitectura', async () => {
+    simularApi({
+      alIniciar: respuestaJson(EJECUCION, 201),
+      alIniciarFase2: respuestaJson(EJECUCION_FASE2, 201),
+    })
+    const usuario = userEvent.setup()
+    render(<App />)
+    await terminarFases1y2(usuario, { ...ARQUITECTURA, aprobada: false })
+
+    expect(screen.getByRole('button', { name: 'Volver a intentar la fase 2' })).toBeEnabled()
+    expect(screen.queryByRole('button', { name: /fase 3/ })).not.toBeInTheDocument()
+  })
+
+  it('lanza la fase 3, muestra su progreso y los servicios generados', async () => {
+    const fetchSimulado = simularApi({
+      alIniciar: respuestaJson(EJECUCION, 201),
+      alIniciarFase2: respuestaJson(EJECUCION_FASE2, 201),
+      alIniciarFase3: respuestaJson(EJECUCION_FASE3, 201),
+    })
+    const usuario = userEvent.setup()
+    render(<App />)
+    await terminarFases1y2(usuario)
+
+    await usuario.click(screen.getByRole('button', { name: 'Continuar a la fase 3' }))
+
+    expect(fetchSimulado).toHaveBeenCalledWith(
+      '/ejecuciones',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({ documento: DOCUMENTO.id, fase: 3 }),
+      }),
+    )
+    const fuente3 = EventSourceSimulado.instancias[2]
+    expect(fuente3?.url).toBe(`/ejecuciones/${EJECUCION_FASE3.id}/eventos`)
+    if (!fuente3) return
+    expect(screen.queryByRole('button', { name: 'Continuar a la fase 3' })).not.toBeInTheDocument()
+    // La arquitectura de la fase 2 sigue a la vista mientras se generan los servicios.
+    expect(screen.getByRole('region', { name: 'Arquitectura propuesta' })).toBeInTheDocument()
+
+    fuente3.abrir()
+    fuente3.emitir(evento({ tipo: 'fase', fase: 3, estado: 'en_curso', mensaje: 'Generación' }))
+    fuente3.emitir(
+      evento({
+        tipo: 'avance',
+        fase: 3,
+        mensaje: 'usuarios (1/2): lógica de negocio de cliente',
+        progreso: 0.4,
+      }),
+    )
+    const progreso = screen.getByRole('region', { name: 'Progreso de la fase 3' })
+    expect(within(progreso).getByRole('progressbar')).toHaveValue(40)
+    const fases = screen.getByRole('region', { name: 'Fases del pipeline' })
+    const tercera = within(fases).getAllByRole('listitem')[2]
+    expect(tercera).toHaveTextContent('En curso')
+    expect(tercera).toHaveTextContent('usuarios (1/2): lógica de negocio de cliente')
+    expect(screen.getByRole('button', { name: 'Procesar tienda.docx' })).toBeDisabled()
+
+    fuente3.emitir(evento({ tipo: 'resultado', fase: 3, progreso: 1, servicios: SERVICIOS }))
+    fuente3.emitir(evento({ tipo: 'fase', fase: 3, estado: 'completada', mensaje: 'Generación' }))
+    fuente3.emitir(evento({ tipo: 'fin', estado: 'completada', mensaje: 'Ejecución completada' }))
+
+    const servicios = screen.getByRole('region', { name: 'Microservicios generados' })
+    expect(servicios).toHaveTextContent('1 de 2 completos')
+    expect(servicios).toHaveTextContent(`salida/servicios/${SERVICIOS.carpeta}`)
+    expect(servicios).toHaveTextContent('La entidad «cliente» está en usuarios, pedidos')
+    const usuarios = within(servicios).getByRole('article', { name: 'usuarios' })
+    expect(usuarios).toHaveTextContent('Completo')
+    expect(usuarios).toHaveTextContent('Puerto 3001')
+    expect(usuarios).toHaveTextContent('coincide con la plantilla')
+    expect(usuarios).toHaveTextContent('instaladas una vez para todos los servicios')
+    expect(usuarios).toHaveTextContent('compila con tsc')
+    const fila = within(usuarios).getByRole('row', { name: /cliente/ })
+    expect(fila).toHaveTextContent('/api/usuarios/cliente')
+    expect(fila).toHaveTextContent('Aceptada (2 intentos)')
+    expect(fila).toHaveTextContent('Pendiente: Comprobar que el correo no esté en una lista de bloqueo')
+    expect(fila).toHaveTextContent('3 aceptadas, 1 descartadas')
+    const pedidos = within(servicios).getByRole('article', { name: 'pedidos' })
+    expect(pedidos).toHaveTextContent('Incompleto')
+    expect(pedidos).toHaveTextContent('Estructura: no se generó')
+    expect(pedidos).toHaveTextContent('Compilación: no se compiló')
+    // El mensaje de error se muestra como texto, nunca como HTML.
+    expect(within(pedidos).getByRole('alert')).toHaveTextContent('<script>alert(1)</script>')
+    expect(pedidos.querySelector('script')).toBeNull()
+    expect(within(fases).getAllByRole('listitem')[2]).toHaveTextContent('Completada')
+    expect(screen.queryByRole('button', { name: /fase 3/ })).not.toBeInTheDocument()
+  })
+
+  it('muestra el motivo si el motor no puede lanzar la fase 3 y permite reintentar', async () => {
+    simularApi({
+      alIniciar: respuestaJson(EJECUCION, 201),
+      alIniciarFase2: respuestaJson(EJECUCION_FASE2, 201),
+      alIniciarFase3: respuestaJson({ detail: 'Falta la fase 2: propón y aprueba la arquitectura' }, 409),
+    })
+    const usuario = userEvent.setup()
+    render(<App />)
+    await terminarFases1y2(usuario)
+
+    await usuario.click(screen.getByRole('button', { name: 'Continuar a la fase 3' }))
+
+    const paso = screen.getByRole('region', { name: 'Siguiente paso: fase 3' })
+    expect(await within(paso).findByRole('alert')).toHaveTextContent('Falta la fase 2')
+    expect(within(paso).getByRole('button', { name: 'Continuar a la fase 3' })).toBeEnabled()
+    expect(EventSourceSimulado.instancias).toHaveLength(2)
+  })
+
+  it('si la fase 3 falla, deja volver a intentarla', async () => {
+    simularApi({
+      alIniciar: respuestaJson(EJECUCION, 201),
+      alIniciarFase2: respuestaJson(EJECUCION_FASE2, 201),
+      alIniciarFase3: respuestaJson(EJECUCION_FASE3, 201),
+    })
+    const usuario = userEvent.setup()
+    render(<App />)
+    await terminarFases1y2(usuario)
+    await usuario.click(screen.getByRole('button', { name: 'Continuar a la fase 3' }))
+    const fuente3 = EventSourceSimulado.instancias[2]
+    const motivo = 'Ningún servicio se completó: 0 de 2 servicios generados y verificados'
+    fuente3?.emitir(evento({ tipo: 'fase', fase: 3, estado: 'en_curso', mensaje: 'Generación' }))
+    fuente3?.emitir(evento({ tipo: 'fase', fase: 3, estado: 'fallida', mensaje: motivo }))
+    fuente3?.emitir(evento({ tipo: 'fin', estado: 'fallida', mensaje: motivo }))
+
+    const progreso = screen.getByRole('region', { name: 'Progreso de la fase 3' })
+    expect(within(progreso).getByRole('alert')).toHaveTextContent(motivo)
+    expect(screen.getByRole('button', { name: 'Volver a intentar la fase 3' })).toBeEnabled()
+  })
+
+  it('retoma una fase 3 en curso al recargar la página', async () => {
+    const FASE1: Ejecucion = { ...EJECUCION, estado: 'completada', fase_actual: 1 }
+    const FASE2: Ejecucion = { ...EJECUCION_FASE2, estado: 'completada' }
+    simularApi({ ejecuciones: [EJECUCION_FASE3, FASE2, FASE1] })
+    render(<App />)
+
+    expect(await screen.findByRole('region', { name: 'Progreso de la fase 3' })).toBeInTheDocument()
+    await esperarFuentes(3)
+    const urls = EventSourceSimulado.instancias.map((fuente) => fuente.url)
+    expect(urls).toContain(`/ejecuciones/${EJECUCION_FASE3.id}/eventos`)
+    expect(urls).toContain(`/ejecuciones/${FASE1.id}/eventos`)
+    expect(screen.getByRole('button', { name: 'Procesar tienda.docx' })).toBeDisabled()
   })
 })

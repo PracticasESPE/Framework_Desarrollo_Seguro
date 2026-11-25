@@ -151,8 +151,8 @@ def test_sin_la_fase_1_no_se_puede_proponer_la_arquitectura(entorno):
     assert entorno["estado"]["llm"].prompts == []
 
 
-@pytest.mark.parametrize("fase", [0, 3, "2", None])
-def test_solo_existen_las_fases_1_y_2_en_el_motor(entorno, fase):
+@pytest.mark.parametrize("fase", [0, 4, "2", None])
+def test_solo_existen_las_fases_1_a_3_en_el_motor(entorno, fase):
     cuerpo = {"documento": entorno["documento"].id, "fase": fase}
     assert entorno["cliente"].post("/ejecuciones", json=cuerpo).status_code == 422
 

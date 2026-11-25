@@ -6,7 +6,7 @@ const HORA = new Intl.DateTimeFormat('es-EC', { timeStyle: 'medium' })
 
 interface Props {
   /** Fase que sigue la ejecución; cambia los textos. */
-  fase?: 1 | 2
+  fase?: 1 | 2 | 3
   nombreDocumento: string
   eventos: EventoEjecucion[]
   conexion: ConexionEventos
@@ -29,6 +29,13 @@ const TEXTOS_FASE2 = {
   reintento: 'volver a lanzar la fase 2',
 }
 
+const TEXTOS_FASE3 = {
+  titulo: 'Progreso de la fase 3',
+  intro:
+    'Fase 3 con %: un microservicio por servicio de la arquitectura, con la plantilla, la lógica de negocio del LLM verificada con tsc y sus pruebas con Jest.',
+  reintento: 'volver a lanzar la fase 3',
+}
+
 export function ProgresoEjecucion({
   fase = 1,
   nombreDocumento,
@@ -36,7 +43,7 @@ export function ProgresoEjecucion({
   conexion,
   onCancelar,
 }: Props) {
-  const textos = fase === 2 ? TEXTOS_FASE2 : TEXTOS_FASE1
+  const textos = fase === 3 ? TEXTOS_FASE3 : fase === 2 ? TEXTOS_FASE2 : TEXTOS_FASE1
   const [antes, despues] = textos.intro.split('%')
   const idTitulo = useId()
   const fin = finDe(eventos)

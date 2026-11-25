@@ -174,9 +174,9 @@ def test_el_dto_de_entrada_valida_cada_tipo(tmp_path: Path, ejemplo: dict):
         "@ApiPropertyOptional({ nullable: true, format: 'date', maxLength: 10 })\n"
         "  @IsOptional()" in crear
     )
-    assert "fechaEntrega?: string;" in crear
+    assert "fechaEntrega?: string | null;" in crear  # opcional: null lo deja vacío
     assert "@IsInt()\n  @Min(1)\n  @Max(100)\n  cantidad!: number;" in linea
-    assert "@IsOptional()\n  @IsBoolean()\n  regalo?: boolean;" in linea
+    assert "@IsOptional()\n  @IsBoolean()\n  regalo?: boolean | null;" in linea
 
 
 def _importados(texto: str) -> list[str]:

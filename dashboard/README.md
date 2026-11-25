@@ -82,8 +82,45 @@ ignora. El motor guarda las últimas 20 ejecuciones **en memoria**: si se reinic
 sesión se pierde y los resultados siguen en `salida/`.
 
 Cada evento lleva un número correlativo. Si se corta la conexión, EventSource se reconecta solo
-con `Last-Event-ID` y el motor le reenvía lo que faltaba. Las fases 3 a 11 aparecen pendientes
+con `Last-Event-ID` y el motor le reenvía lo que faltaba. Las fases 4 a 11 aparecen pendientes
 hasta que existan en el motor.
+
+## Versión 3: fase 3, los microservicios
+
+Igual que la fase 2, **no arranca sola**: cuando la fase 2 termina y OPA aprobó la arquitectura,
+bajo ella aparece «Siguiente paso: fase 3». La persona revisa los servicios, las bases de datos y
+las dependencias y pulsa **Continuar a la fase 3**. Si OPA rechazó la arquitectura, no se ofrece.
+
+- **Lanzar.** `POST /ejecuciones` con `{"documento": "<id>", "fase": 3}`. Parte de
+  `salida/arquitectura/<id>.arquitectura.json` y del modelo de requisitos; si falta alguno, la API
+  responde 409. Cada ejecución escribe en una carpeta nueva, `salida/servicios/<id>-<fecha>/`.
+- **Qué hace el motor por cada servicio** (`orchestrator/generation/sistema.py`): parámetros desde
+  la arquitectura; campos de las entidades con el LLM (exactamente las entidades de la
+  arquitectura); plantilla Copier con su estructura validada; dependencias contra la lista
+  permitida; instalación y `tsc`; lógica de negocio de cada entidad con el LLM, verificada con tsc;
+  y sus pruebas Jest, verificadas ejecutándolas. Un servicio que falla no detiene los demás.
+- **Más rápido.** Todos los servicios generados tienen el mismo `package-lock.json` salvo el
+  nombre, así que las dependencias se instalan una sola vez en `salida/servicios/.dependencias/`
+  y cada servicio enlaza ahí su `node_modules` (unión de directorios en Windows, sin permisos de
+  administrador). Lo comparten todos los servicios y todas las ejecuciones: con la arquitectura de
+  prueba, el primer servicio tarda unos 36 s en instalarlas y cada uno de los siguientes, 5 s.
+- **Progreso.** Tarjeta «Progreso de la fase 3», con el servicio y el paso en curso
+  («pedidos (2/5): lógica de negocio de pedido»). Se puede cancelar entre pasos.
+- **Microservicios generados.** Al terminar: cuántos quedaron completos, las advertencias de la
+  arquitectura (p. ej. una entidad en varios servicios) y, por servicio, su puerto, base de datos y
+  rutas, si la estructura coincide con la plantilla, si las dependencias son las permitidas, si
+  compila, y por entidad el estado de la lógica de negocio (aceptada, sin lógica para revisión,
+  error o no generada), los requisitos que implementa, lo que el LLM dejó pendiente y las pruebas
+  aceptadas y descartadas. Todo se muestra como texto; el código no, queda en la carpeta para
+  revisarlo.
+- **Si ningún servicio se completa**, la fase queda «Fallida» con el detalle de cada uno y el
+  botón pasa a «Volver a intentar la fase 3».
+- **Contexto de seguridad.** Con Neo4j levantado (`NEO4J_PASSWORD`), cada prompt lleva el contexto
+  GraphRAG del servicio; si no responde, la fase sigue sin él y el registro de eventos lo avisa.
+- **Requisitos del entorno.** Node.js 22 y el proveedor de LLM configurado.
+
+Volver a lanzar la fase 1 o la 2 descarta la fase 3 que se estaba mostrando, porque partiría de un
+resultado anterior. Al recargar la página se recuperan las tres fases del documento.
 
 Con los endpoints de estado (#53):
 

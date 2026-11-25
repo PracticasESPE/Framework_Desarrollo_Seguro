@@ -3,9 +3,10 @@
 Cada ejecución corre en un hilo aparte y publica eventos que la API envía al dashboard con
 Server-Sent Events (`GET /ejecuciones/{id}/eventos`). El estado de una ejecución y el de cada fase
 se calculan a partir de esos mismos eventos, así que la API y el dashboard nunca discrepan. Por
-ahora el motor ejecuta la fase 1 (adquisición de requisitos) y la fase 2 (propuesta arquitectónica);
-las demás fases se sumarán cuando existan en el motor. La fase 2 no arranca sola: el usuario revisa
-los requisitos y la lanza con una petición aparte, porque gasta llamadas al LLM.
+ahora el motor ejecuta la fase 1 (adquisición de requisitos), la fase 2 (propuesta arquitectónica)
+y la fase 3 (generación de los microservicios); las demás fases se sumarán cuando existan en el
+motor. Las fases 2 y 3 no arrancan solas: el usuario revisa el resultado de la anterior y las
+lanza con una petición aparte, porque gastan llamadas al LLM.
 
 Los eventos se guardan en memoria con un número correlativo. Si el navegador pierde la conexión,
 EventSource se reconecta enviando `Last-Event-ID` y recibe solo lo que le faltaba.
@@ -16,8 +17,8 @@ uso del LLM. Una llamada al LLM o una extracción con Docling ya empezadas termi
 ejecución se detenga.
 
 Seguridad:
-- Una sola ejecución a la vez (CWE-400): la fase 1 ocupa Docling y la cuota del LLM, y la fase 2
-  la cuota del LLM.
+- Una sola ejecución a la vez (CWE-400): la fase 1 ocupa Docling y la cuota del LLM, la fase 2
+  la cuota del LLM, y la fase 3 la cuota del LLM, npm, tsc y Jest.
 - El registro guarda como mucho MAX_GUARDADAS ejecuciones y descarta las terminadas más antiguas,
   para que la memoria no crezca sin límite.
 - El documento se busca por el id que generó el servidor, nunca por una ruta (CWE-22).
@@ -43,6 +44,8 @@ from orchestrator.architecture.modelo import Arquitectura
 from orchestrator.architecture.validacion import DecisionArquitectura, validar_arquitectura
 from orchestrator.documentos import DocumentoCargado, ErrorDocumento
 from orchestrator.fases import FASES
+from orchestrator.generation.sistema import ResultadoSistema
+from orchestrator.generation.sistema import mensaje_breve as motivo_breve
 from orchestrator.ingest.requisito import ModeloRequisitos, Requisito
 from orchestrator.llm import ErrorLLM, ProveedorEnCadena, ProveedorLLM, describir_uso
 
@@ -163,6 +166,7 @@ class Evento(BaseModel):
     progreso: float | None = Field(default=None, ge=0, le=1)
     resultado: ResumenFase1 | None = None
     arquitectura: ResumenFase2 | None = None
+    servicios: ResultadoSistema | None = None
 
 
 class EstadoEjecucion(BaseModel):
@@ -190,12 +194,13 @@ class FaseEjecucion(BaseModel):
 
 
 class DetalleEjecucion(EstadoEjecucion):
-    """Estado completo: el de cada fase del pipeline y el resultado de la fase 1 o la 2."""
+    """Estado completo: el de cada fase del pipeline y el resultado de la fase 1, la 2 o la 3."""
 
     fases: list[FaseEjecucion]
     eventos: int = Field(description="Eventos publicados; el flujo SSE los reenvía todos")
     resultado: ResumenFase1 | None = None
     arquitectura: ResumenFase2 | None = None
+    servicios: ResultadoSistema | None = None
 
 
 class EjecucionEnCurso(Exception):
@@ -301,12 +306,14 @@ class Ejecucion:
         eventos = self.eventos_desde(0)
         resultado = next((e.resultado for e in reversed(eventos) if e.resultado), None)
         arquitectura = next((e.arquitectura for e in reversed(eventos) if e.arquitectura), None)
+        servicios = next((e.servicios for e in reversed(eventos) if e.servicios), None)
         return DetalleEjecucion(
             **self.resumen().model_dump(),
             fases=estado_de_fases(eventos),
             eventos=len(eventos),
             resultado=resultado,
             arquitectura=arquitectura,
+            servicios=servicios,
         )
 
 
@@ -644,7 +651,7 @@ def trabajo_fase2(
         if isinstance(llm, ProveedorEnCadena):
 
             def al_cambiar(de: str, a: str, motivo: str) -> None:
-                avance(f"{motivo}: se pasa a {a}")
+                avance(f"{motivo_breve(motivo)}: se pasa a {a}")
 
             llm.al_cambiar = al_cambiar
 
@@ -915,3 +922,153 @@ def registrar_decisiones_en_neo4j(
     finally:
         driver.close()
     return ejecucion_id, registradas
+
+
+# --- Fase 3 --------------------------------------------------------------------------------------
+
+
+NOMBRE_FASE3 = "Generación de la estructura interna"
+
+# Función servicio -> contexto GraphRAG y la que cierra la conexión con Neo4j.
+CrearContexto = Callable[[], tuple[Callable[[object], object], Callable[[], None]]]
+
+
+def nombre_arquitectura(id_documento: str) -> str:
+    return f"{id_documento}.arquitectura.json"
+
+
+def trabajo_fase3(
+    documento: DocumentoCargado,
+    carpeta_requisitos: Path,
+    carpeta_arquitectura: Path,
+    carpeta_servicios: Path,
+    crear_llm: Callable[[], ProveedorLLM],
+    crear_contexto: CrearContexto | None = None,
+    compilar: bool = True,
+) -> Trabajo:
+    """Fase 3 completa, como `framework servicio sistema`: un microservicio por servicio.
+
+    Parte de `arquitectura.json` (fase 2) y del modelo de requisitos (fase 1) guardados en disco.
+    Cada ejecución escribe en una carpeta nueva, `carpeta_servicios/<documento>-<fecha>`, para no
+    tocar nunca lo generado antes. Las dependencias se instalan una sola vez en
+    `carpeta_servicios/.dependencias` y las comparten todos los servicios y todas las ejecuciones
+    con el mismo package-lock.json. Con `crear_contexto`, cada servicio recibe el contexto de
+    seguridad de GraphRAG; si Neo4j no responde, la fase sigue sin él y lo avisa.
+    """
+
+    def trabajo(ejecucion: Ejecucion) -> None:
+        from orchestrator.generation.sistema import (
+            CARPETA_DEPENDENCIAS,
+            ErrorSistema,
+            generar_sistema,
+        )
+
+        def avance(mensaje: str, progreso: float | None = None) -> None:
+            campos = {} if progreso is None else {"progreso": round(min(progreso, 1.0), 3)}
+            ejecucion.publicar("avance", mensaje, fase=3, **campos)
+
+        ejecucion.publicar("fase", NOMBRE_FASE3, fase=3, estado="en_curso", progreso=0.0)
+        modelo = _leer_modelo_requisitos(carpeta_requisitos, documento.id)
+        arquitectura = _leer_arquitectura(carpeta_arquitectura, documento.id)
+        avance(
+            f"Arquitectura cargada: {len(arquitectura.servicios)} servicios y "
+            f"{len(modelo.requisitos)} requisitos",
+            0.0,
+        )
+
+        llm = crear_llm()
+        if isinstance(llm, ProveedorEnCadena):
+
+            def al_cambiar(de: str, a: str, motivo: str) -> None:
+                avance(f"{motivo_breve(motivo)}: se pasa a {a}")
+
+            llm.al_cambiar = al_cambiar
+
+        contexto_de, cerrar = None, None
+        if crear_contexto is not None:
+            try:
+                contexto_de, cerrar = crear_contexto()
+                avance("Contexto de seguridad: GraphRAG sobre Neo4j")
+            except Exception as error:  # Neo4j o los embeddings no están disponibles
+                log.warning("Fase 3 sin contexto GraphRAG: %s", error)
+                avance("Sin contexto GraphRAG (Neo4j no responde): los prompts van sin él")
+
+        fecha = datetime.now(UTC).strftime("%Y%m%d-%H%M%S")
+        destino = carpeta_servicios / f"{documento.id}-{fecha}"
+        try:
+            resultado = generar_sistema(
+                arquitectura,
+                modelo,
+                destino,
+                llm,
+                documento=documento.nombre,
+                contexto_de=contexto_de,
+                compilar_servicios=compilar,
+                dependencias=carpeta_servicios / CARPETA_DEPENDENCIAS,
+                avance=avance,
+                comprobar_cancelacion=ejecucion.comprobar_cancelacion,
+                esperar=ejecucion.esperar,
+            )
+        except ErrorSistema as error:
+            raise ErrorFase(str(error)) from error
+        finally:
+            if cerrar is not None:
+                cerrar()
+        avance(f"Uso del LLM: {describir_uso(llm)}")
+
+        # La carpeta solo se muestra: relativa a la de servicios, sin la ruta de la máquina.
+        resultado.carpeta = destino.name
+        total = len(resultado.servicios)
+        mensaje = f"{resultado.completos} de {total} servicios generados y verificados"
+        ejecucion.publicar("resultado", mensaje, fase=3, progreso=1.0, servicios=resultado)
+        if resultado.completos == 0:
+            raise ErrorFase(
+                f"Ningún servicio se completó: {mensaje}; revisa el detalle de cada uno"
+            )
+        ejecucion.publicar("fase", NOMBRE_FASE3, fase=3, estado="completada", progreso=1.0)
+
+    return trabajo
+
+
+def _leer_arquitectura(carpeta: Path, id_documento: str) -> Arquitectura:
+    from pydantic import ValidationError
+
+    archivo = carpeta / nombre_arquitectura(id_documento)
+    try:
+        return Arquitectura.model_validate_json(archivo.read_bytes())
+    except FileNotFoundError as error:
+        raise ErrorFase(
+            "Falta la fase 2: propón y aprueba la arquitectura antes de generar los servicios"
+        ) from error
+    except ValidationError as error:
+        log.exception("La arquitectura %s no es válida", archivo.name)
+        raise ErrorFase(
+            "La arquitectura guardada no es válida; vuelve a ejecutar la fase 2"
+        ) from error
+
+
+def contexto_graphrag_en_neo4j(k: int = 3):  # noqa: ANN201
+    """Contexto de seguridad de cada servicio con GraphRAG, y la función que cierra Neo4j.
+
+    Lo mismo que usa `framework servicio prompt`: las preguntas fijas de las etiquetas de seguridad
+    del servicio, respondidas con Neo4j y los embeddings locales.
+    """
+    from orchestrator.config import obtener_configuracion
+    from orchestrator.knowledge import conectar
+    from orchestrator.knowledge.embeddings import EmbeddingsLocales
+    from orchestrator.knowledge.graphrag import consultar
+    from orchestrator.llm.prompts import contexto_de_seguridad
+
+    config = obtener_configuracion()
+    if config.neo4j_password is None:
+        raise RuntimeError("NEO4J_PASSWORD no está configurada")
+    proveedor = EmbeddingsLocales(config.embeddings_modelo, config.embeddings_cache)
+    driver = conectar(config)
+
+    def consultor(pregunta: str):  # noqa: ANN202
+        return consultar(driver, proveedor, pregunta, k=k, base_datos=config.neo4j_database)
+
+    def contexto_de(servicio):  # noqa: ANN001, ANN202
+        return contexto_de_seguridad(servicio.etiquetas, consultor)
+
+    return contexto_de, driver.close

@@ -162,6 +162,58 @@ export interface ResumenFase2 {
   decisiones_neo4j: number | null
 }
 
+/**
+ * Qué pasó con la lógica de negocio de una entidad: «aceptada» si el LLM la escribió y pasó el
+ * análisis y tsc; «sin_logica» si ningún intento pasó (queda para revisión); «error» si no se
+ * pudo pedir; «omitida» si no se llegó a generar.
+ */
+export type EstadoLogica = 'aceptada' | 'sin_logica' | 'error' | 'omitida'
+
+export interface EntidadGenerada {
+  nombre: string
+  ruta: string
+  logica: EstadoLogica
+  requisitos: string[]
+  /** Lo que el LLM no pudo implementar en las reglas. */
+  pendientes: string[]
+  intentos_logica: number
+  pruebas_aceptadas: number
+  pruebas_descartadas: number
+  detalle: string | null
+}
+
+export interface ServicioGenerado {
+  servicio: string
+  carpeta: string
+  puerto: number
+  base_datos: string
+  prefijo: string
+  entidades: EntidadGenerada[]
+  archivos: number
+  estructura_valida: boolean
+  problemas_estructura: string[]
+  /** null si no se llegó a comprobar. */
+  dependencias_permitidas: boolean | null
+  problemas_dependencias: string[]
+  dependencias_compartidas: boolean
+  /** null si no se compiló. */
+  compila: boolean | null
+  errores_tsc: string[]
+  error: string | null
+  completo: boolean
+}
+
+/** Resultado de la fase 3 (ResultadoSistema en orchestrator/generation/sistema.py). */
+export interface ResumenFase3 {
+  documento: string
+  /** Carpeta de los servicios dentro de salida/servicios. */
+  carpeta: string
+  compilado: boolean
+  servicios: ServicioGenerado[]
+  advertencias: string[]
+  completos: number
+}
+
 /** Lo que llega en cada evento de /ejecuciones/{id}/eventos (orchestrator/ejecuciones.py). */
 export interface EventoEjecucion {
   id: number
@@ -173,6 +225,7 @@ export interface EventoEjecucion {
   progreso: number | null
   resultado: ResumenFase1 | null
   arquitectura: ResumenFase2 | null
+  servicios: ResumenFase3 | null
 }
 
 /** Lanza la fase 1 con un documento cargado; el progreso se sigue con `rutaEventos`. */
@@ -195,6 +248,19 @@ export async function iniciarFase2(documento: string): Promise<Ejecucion> {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ documento, fase: 2 }),
+  })
+  return leer<Ejecucion>(respuesta)
+}
+
+/**
+ * Lanza la fase 3 (un microservicio por servicio de la arquitectura aprobada). Gasta llamadas al
+ * LLM, así que solo se llama cuando la persona lo pide después de revisar la arquitectura.
+ */
+export async function iniciarFase3(documento: string): Promise<Ejecucion> {
+  const respuesta = await fetch('/ejecuciones', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ documento, fase: 3 }),
   })
   return leer<Ejecucion>(respuesta)
 }
