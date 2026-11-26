@@ -1,0 +1,160 @@
+{
+  "documento": "03_citas_medicas",
+  "titulo": "Citas médicas",
+  "pasos": {
+    "clasificar": {
+      "correcto": true,
+      "segundos": 339.3
+    },
+    "proponer": {
+      "correcto": true,
+      "segundos": 24.3
+    },
+    "adr": {
+      "correcto": true,
+      "segundos": 135.9
+    },
+    "diagrama": {
+      "correcto": true,
+      "segundos": 2.5
+    },
+    "sistema": {
+      "correcto": false,
+      "segundos": 4985.8,
+      "ejecuciones": 1
+    }
+  },
+  "fase1": {
+    "documento": "03_citas_medicas",
+    "referencia": 43,
+    "modelo": 44,
+    "encontrados": 43,
+    "exhaustividad": 1.0,
+    "falsos_positivos": 1,
+    "fuera_de_alcance_como_requisito": 0,
+    "tipo_correcto": 39,
+    "acierto_tipo": 0.907,
+    "etiquetas_precision": 0.625,
+    "etiquetas_exhaustividad": 0.667,
+    "etiquetas_f1": 0.645,
+    "no_encontrados": [],
+    "tipo_incorrecto": [
+      "RNF-03: funcional (esperado no_funcional)",
+      "RNF-04: funcional (esperado no_funcional)",
+      "RNF-06: funcional (esperado no_funcional)",
+      "RNF-09: funcional (esperado no_funcional)"
+    ],
+    "falsos_positivos_texto": [
+      "RF-01 [1, párrafo 2] La red quiere que los pacientes reserven y paguen sus citas en línea, que la his"
+    ]
+  },
+  "ciclo": {
+    "aprobada": true,
+    "intentos": 1,
+    "rechazos": [],
+    "patrones": [
+      "api_gateway",
+      "circuit_breaker",
+      "database_per_service",
+      "event_driven",
+      "saga"
+    ],
+    "patrones_referencia": [
+      "api_gateway",
+      "bff",
+      "circuit_breaker",
+      "database_per_service",
+      "event_driven",
+      "saga"
+    ],
+    "avisos": [
+      "arquitectura.ciclo_de_eventos"
+    ]
+  },
+  "fase2": {
+    "documento": "03_citas_medicas",
+    "servicios_propuestos": [
+      "auth",
+      "citas",
+      "historia",
+      "laboratorio",
+      "pagos",
+      "gestion"
+    ],
+    "servicios_referencia": [
+      "usuarios",
+      "agenda",
+      "historia_clinica",
+      "laboratorio",
+      "pagos",
+      "notificaciones"
+    ],
+    "nombres_coincidentes": [
+      "laboratorio",
+      "pagos"
+    ],
+    "requisitos_emparejados": 43,
+    "requisitos_referencia": 43,
+    "pares_precision": 0.633,
+    "pares_exhaustividad": 0.629,
+    "pares_f1": 0.631,
+    "correspondencia": {
+      "agenda": "citas",
+      "historia_clinica": "historia",
+      "laboratorio": "laboratorio",
+      "notificaciones": "citas",
+      "pagos": "pagos",
+      "transversal": "transversal",
+      "usuarios": "auth"
+    }
+  },
+  "adr": 10,
+  "uso_llm": {
+    "fase3": {
+      "proveedores": {
+        "groq": {
+          "llamadas": 79,
+          "desde_cache": 40,
+          "tokens_entrada": 168668,
+          "tokens_salida": 184602
+        },
+        "gemini": {
+          "llamadas": 2,
+          "desde_cache": 0,
+          "tokens_entrada": 4761,
+          "tokens_salida": 3002
+        },
+        "openrouter": {
+          "llamadas": 47,
+          "desde_cache": 2,
+          "tokens_entrada": 87656,
+          "tokens_salida": 423170
+        }
+      },
+      "llamadas": 128,
+      "tokens": 871859
+    }
+  },
+  "carpeta_servicios": "salida/servicios/eval-03_citas_medicas-20261126-204053",
+  "fase3": {
+    "servicios": 6,
+    "completos": 5,
+    "entidades": 31,
+    "logica_aceptada": 20,
+    "logica_al_primer_intento": 7,
+    "sin_logica": 8,
+    "logica_con_error": 3,
+    "pruebas_aceptadas": 144,
+    "pruebas_descartadas": 10,
+    "pendientes": 36,
+    "advertencias": [
+      "La entidad «aviso» está en historia, gestion: cada servicio tendrá su propia tabla en su base (Database per Service)",
+      "La entidad «cita» está en citas, pagos: cada servicio tendrá su propia tabla en su base (Database per Service)",
+      "La entidad «especialidad» está en citas, gestion: cada servicio tendrá su propia tabla en su base (Database per Service)",
+      "La entidad «horario» está en citas, gestion: cada servicio tendrá su propia tabla en su base (Database per Service)",
+      "La entidad «medico» está en citas, gestion: cada servicio tendrá su propia tabla en su base (Database per Service)",
+      "La entidad «paciente» está en auth, historia, gestion: cada servicio tendrá su propia tabla en su base (Database per Service)",
+      "La entidad «sede» está en citas, gestion: cada servicio tendrá su propia tabla en su base (Database per Service)"
+    ]
+  }
+}

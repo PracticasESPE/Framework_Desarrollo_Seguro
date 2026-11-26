@@ -1,0 +1,83 @@
+servicio: auth
+descripcion: Gestiona registro de pacientes, inicio de sesión, MFA, bloqueo de cuenta,
+  gestión de sesiones, emisión y validación de tokens.
+base_datos: auth_db
+puerto: 3001
+entidades:
+- nombre: cuenta
+  campos:
+  - nombre: email
+    tipo: correo
+    descripcion: Correo del paciente
+    requerido: true
+    unico: true
+  - nombre: cedula
+    tipo: texto
+    descripcion: Número de cédula del paciente
+    requerido: true
+    unico: true
+    min: 1
+    max: 20
+  - nombre: activada
+    tipo: booleano
+    descripcion: Indica si la cuenta está activada
+    requerido: false
+  - nombre: keycloak_user_id
+    tipo: uuid
+    descripcion: Identificador del usuario en Keycloak
+    requerido: true
+    unico: true
+  - nombre: paciente_id
+    tipo: referencia
+    descripcion: Referencia al paciente asociado
+    requerido: false
+    entidad: paciente
+- nombre: paciente
+  campos:
+  - nombre: cuenta_id
+    tipo: referencia
+    descripcion: Cuenta asociada al paciente
+    requerido: true
+    entidad: cuenta
+  - nombre: fecha_nacimiento
+    tipo: fecha
+    descripcion: Fecha de nacimiento del paciente
+    requerido: true
+- nombre: personal
+  campos:
+  - nombre: keycloak_user_id
+    tipo: uuid
+    descripcion: Identificador del personal en Keycloak
+    requerido: true
+    unico: true
+  - nombre: rol
+    tipo: enumeracion
+    descripcion: Rol del personal
+    requerido: true
+    valores:
+    - medico
+    - administrativo
+  - nombre: mfa_habilitado
+    tipo: booleano
+    descripcion: Indica si MFA está habilitado
+    requerido: true
+- nombre: sesion
+  campos:
+  - nombre: cuenta_id
+    tipo: referencia
+    descripcion: Sesión de paciente
+    requerido: false
+    entidad: cuenta
+  - nombre: personal_id
+    tipo: referencia
+    descripcion: Sesión de personal
+    requerido: false
+    entidad: personal
+  - nombre: token_id
+    tipo: uuid
+    descripcion: Identificador del token de sesión
+    requerido: true
+  - nombre: expiracion
+    tipo: fecha_hora
+    descripcion: Fecha y hora de expiración de la sesión
+    requerido: true

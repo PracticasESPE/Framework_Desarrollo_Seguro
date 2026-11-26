@@ -1,0 +1,691 @@
+{
+  "version_esquema": "1.0",
+  "documento": {
+    "nombre": "requisitos.docx",
+    "sha256": "97afabd99b91abe8183d883c744e6d69a550ef2cfeac07a10fe29e9aad8eebd4",
+    "herramienta": "docling 2.148.0"
+  },
+  "requisitos": [
+    {
+      "actor": "paciente",
+      "accion": "reservar y pagar citas en línea, digitalizar historia clínica y recibir resultados de laboratorio automáticamente",
+      "entidades": [
+        "Cita",
+        "HistoriaClinica",
+        "ResultadoLaboratorio"
+      ],
+      "servicio_sugerido": "citas",
+      "etiquetas": [
+        "autenticacion",
+        "hash_password",
+        "cifrado_transito",
+        "auditoria",
+        "control_acceso_recursos",
+        "validacion_entrada",
+        "autorizacion"
+      ],
+      "id": "RF-01",
+      "tipo": "funcional",
+      "texto": "La red quiere que los pacientes reserven y paguen sus citas en línea, que la historia clínica sea electrónica y compartida entre las tres sedes, y que los resultados del laboratorio externo lleguen solos. La dirección es consciente de que los datos de salud son datos personales especialmente protegidos y de que una filtración afectaría a la confianza de sus pacientes.",
+      "ubicacion": "1, párrafo 2"
+    },
+    {
+      "actor": "perfil",
+      "accion": "ver historia clínica",
+      "entidades": [
+        "Historia clínica"
+      ],
+      "servicio_sugerido": "historia_clinica",
+      "etiquetas": [
+        "autorizacion",
+        "control_acceso_recursos"
+      ],
+      "id": "RF-02",
+      "tipo": "funcional",
+      "texto": "Cada perfil solo ve de la historia clínica lo que indica la siguiente tabla.",
+      "ubicacion": "2, párrafo 1"
+    },
+    {
+      "actor": "paciente",
+      "accion": "registrar cuenta",
+      "entidades": [
+        "Paciente",
+        "Cuenta"
+      ],
+      "servicio_sugerido": "usuarios",
+      "etiquetas": [
+        "autenticacion",
+        "validacion_entrada"
+      ],
+      "id": "RF-03",
+      "tipo": "funcional",
+      "texto": "El paciente se registra con su correo, su número de cédula y su fecha de nacimiento; la cuenta se activa cuando confirma el correo, y una misma cédula no puede tener dos cuentas.",
+      "ubicacion": "3.1"
+    },
+    {
+      "actor": "paciente",
+      "accion": "solicitar código de verificación",
+      "entidades": [
+        "Cuenta",
+        "Paciente"
+      ],
+      "servicio_sugerido": "autenticacion",
+      "etiquetas": [
+        "autenticacion"
+      ],
+      "id": "RF-04",
+      "tipo": "funcional",
+      "texto": "Si alguien falla cinco veces seguidas la contraseña de una cuenta, el sistema le pide además un código que se envía al correo del paciente.",
+      "ubicacion": "3.2"
+    },
+    {
+      "actor": "paciente",
+      "accion": "gestionar citas de hijos",
+      "entidades": [
+        "Paciente",
+        "Cita",
+        "Hijo"
+      ],
+      "servicio_sugerido": "citas",
+      "etiquetas": [
+        "autorizacion",
+        "control_acceso_recursos"
+      ],
+      "id": "RF-05",
+      "tipo": "funcional",
+      "texto": "Un paciente puede gestionar desde su propia cuenta las citas de sus hijos menores de edad, y solo las de ellos.",
+      "ubicacion": "3.3"
+    },
+    {
+      "actor": "personal",
+      "accion": "autenticarse con contraseña y código",
+      "entidades": [
+        "Personal"
+      ],
+      "servicio_sugerido": "autenticacion",
+      "etiquetas": [
+        "autenticacion"
+      ],
+      "id": "RF-06",
+      "tipo": "funcional",
+      "texto": "El personal médico y administrativo entra con su contraseña y además con un código de un solo uso que le da una aplicación de autenticación en el móvil.",
+      "ubicacion": "3.4"
+    },
+    {
+      "actor": "sistema",
+      "accion": "cerrar sesión tras inactividad",
+      "entidades": [
+        "Sesion"
+      ],
+      "servicio_sugerido": "transversal",
+      "etiquetas": [
+        "autenticacion"
+      ],
+      "id": "RNF-01",
+      "tipo": "no_funcional",
+      "texto": "La sesión del personal se cierra sola tras 10 minutos sin actividad, y la de los pacientes tras 30 minutos.",
+      "ubicacion": "3.5"
+    },
+    {
+      "actor": "medico",
+      "accion": "define horario de atención",
+      "entidades": [
+        "Horario",
+        "Especialidad",
+        "Sede"
+      ],
+      "servicio_sugerido": "horarios",
+      "etiquetas": [
+        "autorizacion",
+        "validacion_entrada"
+      ],
+      "id": "RF-07",
+      "tipo": "funcional",
+      "texto": "Cada médico define su propio horario de atención por sede y por día, en bloques de 20 o 40 minutos según la especialidad.",
+      "ubicacion": "4.1"
+    },
+    {
+      "actor": "paciente",
+      "accion": "busca horarios libres y reserva cita",
+      "entidades": [
+        "Horario",
+        "Cita",
+        "Especialidad",
+        "Medico",
+        "Sede"
+      ],
+      "servicio_sugerido": "citas",
+      "etiquetas": [
+        "validacion_entrada"
+      ],
+      "id": "RF-08",
+      "tipo": "funcional",
+      "texto": "El paciente busca horarios libres por especialidad, médico, sede y fecha, y reserva una cita en línea.",
+      "ubicacion": "4.2"
+    },
+    {
+      "actor": "sistema",
+      "accion": "garantiza exclusividad de reserva",
+      "entidades": [
+        "Horario",
+        "Cita",
+        "Paciente"
+      ],
+      "servicio_sugerido": "citas",
+      "etiquetas": [
+        "validacion_entrada"
+      ],
+      "id": "RF-09",
+      "tipo": "funcional",
+      "texto": "Un mismo horario nunca puede quedar reservado para dos pacientes, aunque lo reserven en el mismo instante desde la web y desde recepción.",
+      "ubicacion": "4.3"
+    },
+    {
+      "actor": "paciente",
+      "accion": "limita citas pendientes por especialidad",
+      "entidades": [
+        "Cita",
+        "Paciente",
+        "Especialidad"
+      ],
+      "servicio_sugerido": "citas",
+      "etiquetas": [
+        "validacion_entrada"
+      ],
+      "id": "RF-10",
+      "tipo": "funcional",
+      "texto": "Un paciente puede tener como máximo dos citas pendientes por especialidad, para que nadie acapare la agenda.",
+      "ubicacion": "4.4"
+    },
+    {
+      "actor": "paciente",
+      "accion": "restringe reserva online tras faltas",
+      "entidades": [
+        "Cita",
+        "Paciente"
+      ],
+      "servicio_sugerido": "citas",
+      "etiquetas": [
+        "validacion_entrada"
+      ],
+      "id": "RF-11",
+      "tipo": "funcional",
+      "texto": "Si un paciente falta a tres citas en seis meses sin cancelarlas, durante el mes siguiente solo puede reservar a través de recepción.",
+      "ubicacion": "4.5"
+    },
+    {
+      "actor": "recepcion",
+      "accion": "reserva, cambia y cancela citas en nombre de paciente",
+      "entidades": [
+        "Cita",
+        "Paciente"
+      ],
+      "servicio_sugerido": "citas",
+      "etiquetas": [
+        "autorizacion"
+      ],
+      "id": "RF-12",
+      "tipo": "funcional",
+      "texto": "Recepción reserva, cambia y cancela citas en nombre de cualquier paciente que llame o acuda a la sede.",
+      "ubicacion": "4.6"
+    },
+    {
+      "actor": "paciente",
+      "accion": "cancela o cambia cita sin costo antes de 24h",
+      "entidades": [
+        "Cita",
+        "Paciente"
+      ],
+      "servicio_sugerido": "citas",
+      "etiquetas": [
+        "autorizacion",
+        "validacion_entrada"
+      ],
+      "id": "RF-13",
+      "tipo": "funcional",
+      "texto": "El paciente cancela o cambia su cita sin costo hasta 24 horas antes de la hora reservada.",
+      "ubicacion": "4.7"
+    },
+    {
+      "actor": "médico",
+      "accion": "registrar motivo, exploración, diagnóstico y tratamiento",
+      "entidades": [
+        "HistoriaClinica",
+        "Diagnostico",
+        "Tratamiento"
+      ],
+      "servicio_sugerido": "historia_clinica",
+      "etiquetas": [
+        "validacion_entrada"
+      ],
+      "id": "RF-14",
+      "tipo": "funcional",
+      "texto": "Durante la consulta, el médico registra el motivo, la exploración, el diagnóstico con su código CIE-10 y el tratamiento.",
+      "ubicacion": "5.1"
+    },
+    {
+      "actor": "médico",
+      "accion": "abrir historia clínica de pacientes con cita previa",
+      "entidades": [
+        "HistoriaClinica",
+        "Paciente",
+        "Cita"
+      ],
+      "servicio_sugerido": "historia_clinica",
+      "etiquetas": [
+        "autorizacion",
+        "control_acceso_recursos"
+      ],
+      "id": "RF-15",
+      "tipo": "funcional",
+      "texto": "El médico solo puede abrir la historia clínica de los pacientes que tienen o tuvieron una cita con él.",
+      "ubicacion": "5.2"
+    },
+    {
+      "actor": "médico",
+      "accion": "abrir historia clínica en urgencia, registrar acceso y avisar dirección médica",
+      "entidades": [
+        "HistoriaClinica",
+        "Paciente",
+        "Acceso",
+        "Aviso"
+      ],
+      "servicio_sugerido": "historia_clinica",
+      "etiquetas": [
+        "autorizacion",
+        "control_acceso_recursos",
+        "auditoria"
+      ],
+      "id": "RF-16",
+      "tipo": "funcional",
+      "texto": "En una urgencia, un médico puede abrir la historia de cualquier paciente indicando el motivo; ese acceso queda registrado y la dirección médica recibe un aviso en el momento.",
+      "ubicacion": "5.3"
+    },
+    {
+      "actor": "médico",
+      "accion": "no modificar nota de consulta firmada, añadir corrección como nueva nota referenciando anterior",
+      "entidades": [
+        "NotaConsulta",
+        "HistoriaClinica"
+      ],
+      "servicio_sugerido": "historia_clinica",
+      "etiquetas": [
+        "auditoria"
+      ],
+      "id": "RF-17",
+      "tipo": "funcional",
+      "texto": "Una nota de consulta firmada ya no se puede modificar, y cualquier corrección se añade como una nota nueva que hace referencia a la anterior.",
+      "ubicacion": "5.4"
+    },
+    {
+      "actor": "paciente",
+      "accion": "registrar cada persona que consulta historia clínica y permitir al paciente ver quién consultó",
+      "entidades": [
+        "HistoriaClinica",
+        "Persona",
+        "Consulta"
+      ],
+      "servicio_sugerido": "historia_clinica",
+      "etiquetas": [
+        "auditoria",
+        "control_acceso_recursos"
+      ],
+      "id": "RF-18",
+      "tipo": "funcional",
+      "texto": "Queda registro de cada persona que consulta una historia clínica, con la fecha y el motivo, y el paciente puede ver quién ha consultado la suya.",
+      "ubicacion": "5.5"
+    },
+    {
+      "actor": "médico",
+      "accion": "emitir receta electrónica con código de autenticidad",
+      "entidades": [
+        "RecetaElectronica",
+        "Farmacia"
+      ],
+      "servicio_sugerido": "recetas",
+      "etiquetas": [],
+      "id": "RF-19",
+      "tipo": "funcional",
+      "texto": "El médico emite recetas electrónicas con un código que la farmacia usa para comprobar que la receta es auténtica.",
+      "ubicacion": "5.6"
+    },
+    {
+      "actor": "paciente",
+      "accion": "descargar PDF de historia clínica completa",
+      "entidades": [
+        "HistoriaClinica",
+        "PDF"
+      ],
+      "servicio_sugerido": "historia_clinica",
+      "etiquetas": [],
+      "id": "RF-20",
+      "tipo": "funcional",
+      "texto": "El paciente descarga en PDF su historia clínica completa cuando la necesite.",
+      "ubicacion": "5.7"
+    },
+    {
+      "actor": "sistema",
+      "accion": "guardar historias clínicas cifradas y conservar 15 años",
+      "entidades": [
+        "HistoriaClinica"
+      ],
+      "servicio_sugerido": "historia_clinica",
+      "etiquetas": [],
+      "id": "RNF-02",
+      "tipo": "no_funcional",
+      "texto": "Las historias clínicas se guardan cifradas y se conservan al menos 15 años, aunque el paciente cierre su cuenta.",
+      "ubicacion": "5.8"
+    },
+    {
+      "actor": "laboratorio",
+      "accion": "enviar resultados",
+      "entidades": [
+        "Resultado"
+      ],
+      "servicio_sugerido": "laboratorio",
+      "etiquetas": [
+        "autenticacion",
+        "validacion_entrada"
+      ],
+      "id": "RF-21",
+      "tipo": "funcional",
+      "texto": "El laboratorio externo envía al sistema los resultados de cada examen, y el sistema solo acepta envíos autenticados del laboratorio con archivos PDF de hasta 5 MB.",
+      "ubicacion": "6.1"
+    },
+    {
+      "actor": "medico",
+      "accion": "recibir aviso",
+      "entidades": [
+        "Resultado"
+      ],
+      "servicio_sugerido": "notificaciones",
+      "etiquetas": [
+        "control_acceso_recursos"
+      ],
+      "id": "RF-22",
+      "tipo": "funcional",
+      "texto": "Cuando llega un resultado, el médico que pidió el examen recibe un aviso, y el paciente lo ve en su cuenta solo después de que el médico lo haya revisado.",
+      "ubicacion": "6.2"
+    },
+    {
+      "actor": "sistema",
+      "accion": "continuar funcionando",
+      "entidades": [
+        "Resultado"
+      ],
+      "servicio_sugerido": "examenes",
+      "etiquetas": [],
+      "id": "RF-23",
+      "tipo": "funcional",
+      "texto": "Si el laboratorio no responde, el resto del sistema sigue funcionando y los resultados se reciben cuando vuelva a estar disponible.",
+      "ubicacion": "6.3"
+    },
+    {
+      "actor": "paciente",
+      "accion": "paga copago en línea con tarjeta",
+      "entidades": [
+        "Cita",
+        "Pago"
+      ],
+      "servicio_sugerido": "pagos",
+      "etiquetas": [],
+      "id": "RF-24",
+      "tipo": "funcional",
+      "texto": "El paciente paga el copago de la cita en línea con tarjeta, a través de una pasarela de pagos externa, y la red nunca guarda los datos de la tarjeta.",
+      "ubicacion": "7.1"
+    },
+    {
+      "actor": "sistema",
+      "accion": "confirma cita tras pago y libera horario si no pagado en 15 min",
+      "entidades": [
+        "Cita"
+      ],
+      "servicio_sugerido": "citas",
+      "etiquetas": [],
+      "id": "RF-25",
+      "tipo": "funcional",
+      "texto": "Una cita reservada en línea solo queda confirmada cuando se aprueba su pago, y si no se paga en 15 minutos el horario vuelve a quedar libre.",
+      "ubicacion": "7.2"
+    },
+    {
+      "actor": "médico",
+      "accion": "cancela cita y devuelve pago automáticamente",
+      "entidades": [
+        "Cita",
+        "Pago"
+      ],
+      "servicio_sugerido": "pagos",
+      "etiquetas": [
+        "autorizacion"
+      ],
+      "id": "RF-26",
+      "tipo": "funcional",
+      "texto": "Si el médico cancela una cita ya pagada, el pago se devuelve al paciente de forma automática.",
+      "ubicacion": "7.3"
+    },
+    {
+      "actor": "sistema",
+      "accion": "acepta avisos de pago solo si provienen de pasarela",
+      "entidades": [
+        "Pago"
+      ],
+      "servicio_sugerido": "pagos",
+      "etiquetas": [
+        "autenticacion",
+        "validacion_entrada"
+      ],
+      "id": "RF-27",
+      "tipo": "funcional",
+      "texto": "La pasarela avisa de cada pago aprobado o devuelto, y el sistema solo acepta los avisos que demuestren venir de la pasarela.",
+      "ubicacion": "7.4"
+    },
+    {
+      "actor": "paciente",
+      "accion": "recibe un recordatorio",
+      "entidades": [
+        "Cita"
+      ],
+      "servicio_sugerido": "notificaciones",
+      "etiquetas": [],
+      "id": "RF-28",
+      "tipo": "funcional",
+      "texto": "El paciente recibe un recordatorio por correo y por mensaje de texto 24 horas antes de su cita.",
+      "ubicacion": "8.1"
+    },
+    {
+      "actor": "sistema",
+      "accion": "excluye información sensible",
+      "entidades": [
+        "Cita"
+      ],
+      "servicio_sugerido": "notificaciones",
+      "etiquetas": [],
+      "id": "RF-29",
+      "tipo": "funcional",
+      "texto": "Los recordatorios y los correos nunca incluyen el motivo de la consulta, el diagnóstico ni la especialidad, solo la fecha, la hora y la sede.",
+      "ubicacion": "8.2"
+    },
+    {
+      "actor": "direccion_medica",
+      "accion": "consulta indicadores de ocupación, ausencias y tiempos de espera por sede y especialidad",
+      "entidades": [
+        "Agenda",
+        "Sede",
+        "Especialidad"
+      ],
+      "servicio_sugerido": "reportes",
+      "etiquetas": [
+        "autorizacion"
+      ],
+      "id": "RF-30",
+      "tipo": "funcional",
+      "texto": "La dirección médica consulta indicadores de ocupación de la agenda, de ausencias y de tiempos de espera por sede y especialidad, sin ver datos que identifiquen a los pacientes.",
+      "ubicacion": "9.1"
+    },
+    {
+      "actor": "direccion_medica",
+      "accion": "gestiona médicos, sus especialidades y sedes donde atiende",
+      "entidades": [
+        "Medico",
+        "Especialidad",
+        "Sede"
+      ],
+      "servicio_sugerido": "medicos",
+      "etiquetas": [
+        "autorizacion"
+      ],
+      "id": "RF-31",
+      "tipo": "funcional",
+      "texto": "La dirección médica gestiona los médicos, sus especialidades y las sedes donde atiende cada uno.",
+      "ubicacion": "9.2"
+    },
+    {
+      "actor": "paciente",
+      "accion": "entrar a una teleconsulta desde el enlace que aparece en mi cita",
+      "entidades": [
+        "Cita",
+        "Teleconsulta"
+      ],
+      "servicio_sugerido": "teleconsulta",
+      "etiquetas": [],
+      "id": "RF-32",
+      "tipo": "funcional",
+      "texto": "Como paciente, quiero entrar a una teleconsulta desde el enlace que aparece en mi cita, para no ir a la clínica cuando mi médico lo permita.",
+      "ubicacion": "10, viñeta 1"
+    },
+    {
+      "actor": "medico",
+      "accion": "ver en una sola pantalla mis citas del día en todas las sedes",
+      "entidades": [
+        "Cita",
+        "Sede"
+      ],
+      "servicio_sugerido": "citas",
+      "etiquetas": [],
+      "id": "RF-33",
+      "tipo": "funcional",
+      "texto": "Como médico, quiero ver en una sola pantalla mis citas del día en todas las sedes, para organizar mis traslados.",
+      "ubicacion": "10, viñeta 2"
+    },
+    {
+      "actor": "paciente",
+      "accion": "pedir que se corrijan mis datos personales y que se eliminen los que ya no sean necesarios",
+      "entidades": [
+        "DatosPersonales",
+        "Paciente"
+      ],
+      "servicio_sugerido": "datos_personales",
+      "etiquetas": [
+        "control_acceso_recursos",
+        "validacion_entrada"
+      ],
+      "id": "RF-34",
+      "tipo": "funcional",
+      "texto": "Como paciente, quiero pedir que se corrijan mis datos personales y que se eliminen los que ya no sean necesarios, para ejercer mis derechos sobre ellos.",
+      "ubicacion": "10, viñeta 3"
+    },
+    {
+      "actor": "sistema",
+      "accion": "cifrar comunicación y usar única dirección de entrada",
+      "entidades": [],
+      "servicio_sugerido": "transversal",
+      "etiquetas": [
+        "cifrado_transito",
+        "punto_unico_acceso"
+      ],
+      "id": "RNF-03",
+      "tipo": "no_funcional",
+      "texto": "Toda la comunicación con el sistema debe viajar cifrada, y pacientes y personal deben entrar siempre por una única dirección.",
+      "ubicacion": "11.1"
+    },
+    {
+      "actor": "usuario",
+      "accion": "proveer interfaz distinta y datos filtrados",
+      "entidades": [
+        "Paciente",
+        "Personal"
+      ],
+      "servicio_sugerido": "transversal",
+      "etiquetas": [],
+      "id": "RF-35",
+      "tipo": "funcional",
+      "texto": "La web de los pacientes y la aplicación del personal son distintas, y cada una recibe solo la información que necesita.",
+      "ubicacion": "11.2"
+    },
+    {
+      "actor": "usuario",
+      "accion": "limitar peticiones a 60/min y búsquedas a 20/min",
+      "entidades": [],
+      "servicio_sugerido": "transversal",
+      "etiquetas": [
+        "limite_peticiones"
+      ],
+      "id": "RNF-04",
+      "tipo": "no_funcional",
+      "texto": "Ninguna persona ni ningún equipo puede hacer más de 60 peticiones por minuto, y como máximo 20 de ellas pueden ser búsquedas de horarios libres.",
+      "ubicacion": "11.3"
+    },
+    {
+      "actor": "sistema",
+      "accion": "mantener disponibilidad 99,5% en horario 07:00-20:00",
+      "entidades": [],
+      "servicio_sugerido": "transversal",
+      "etiquetas": [],
+      "id": "RNF-05",
+      "tipo": "no_funcional",
+      "texto": "El sistema debe estar disponible el 99,5 % del tiempo en el horario de atención de las clínicas, de 07:00 a 20:00.",
+      "ubicacion": "11.4"
+    },
+    {
+      "actor": "sistema",
+      "accion": "permitir actualización independiente de agenda, historia clínica, laboratorio y pagos; historia clínica solo accesible por su servicio",
+      "entidades": [
+        "Agenda",
+        "Historia clínica",
+        "Laboratorio",
+        "Pago"
+      ],
+      "servicio_sugerido": "transversal",
+      "etiquetas": [
+        "control_acceso_recursos"
+      ],
+      "id": "RF-36",
+      "tipo": "funcional",
+      "texto": "La agenda, la historia clínica, el laboratorio y los pagos deben poder actualizarse por separado, cada uno con sus propios datos, y a los datos de la historia clínica solo accede su propio servicio.",
+      "ubicacion": "11.5"
+    },
+    {
+      "actor": "sistema",
+      "accion": "no exponer detalles internos en mensajes de error",
+      "entidades": [],
+      "servicio_sugerido": "transversal",
+      "etiquetas": [],
+      "id": "RNF-06",
+      "tipo": "no_funcional",
+      "texto": "Los mensajes de error no muestran detalles internos del sistema.",
+      "ubicacion": "11.6"
+    },
+    {
+      "actor": "sistema",
+      "accion": "almacenar claves en almacén de secretos",
+      "entidades": [],
+      "servicio_sugerido": "transversal",
+      "etiquetas": [],
+      "id": "RNF-07",
+      "tipo": "no_funcional",
+      "texto": "Las claves del laboratorio, de la pasarela, del envío de mensajes y de las bases de datos se guardan en un almacén de secretos y nunca en el código.",
+      "ubicacion": "11.7"
+    },
+    {
+      "actor": "sistema",
+      "accion": "realizar respaldo cifrado diario y comprobar restauración cada tres meses",
+      "entidades": [],
+      "servicio_sugerido": "transversal",
+      "etiquetas": [],
+      "id": "RNF-08",
+      "tipo": "no_funcional",
+      "texto": "Se hace un respaldo cifrado cada día, y cada tres meses se comprueba que se puede restaurar.",
+      "ubicacion": "11.8"
+    }
+  ]
+}

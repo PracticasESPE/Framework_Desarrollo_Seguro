@@ -1,0 +1,570 @@
+$ bash scripts/gate1-servicios.sh …
+          
+┌────────────────┐
+│ 1 Code Finding │
+└────────────────┘
+                           
+    src/personal.service.ts
+    ❯❱ semgrep_rules.prisma-findmany-sin-limite
+          ❰❰ Blocking ❱❱
+          findMany sin 'take' devuelve todos los registros. Con muchos datos puede agotar memoria y tiempo.
+          Agrega un límite (take) y paginación.                                                            
+                                                                                                           
+          172┆ const sesionesActivas = await this.prisma.sesion.findMany({
+          173┆   where: {
+          174┆     cuentaId: actual.cuentaId,
+          175┆     activa: true
+          176┆   },
+          177┆   select: { id: true }
+          178┆ });
+
+=== auth 4/7 Gitleaks (secretos en el servicio) ===
+=== auth 5/7 Trivy fs (dependencias) ===
+
+Report Summary
+
+┌───────────────────┬──────┬─────────────────┐
+│      Target       │ Type │ Vulnerabilities │
+├───────────────────┼──────┼─────────────────┤
+│ package-lock.json │ npm  │        0        │
+└───────────────────┴──────┴─────────────────┘
+Legend:
+- '-': Not scanned
+- '0': Clean (no security findings detected)
+
+=== auth 6/7 Trivy config (Dockerfile) ===
+
+Report Summary
+
+┌────────────┬────────────┬───────────────────┐
+│   Target   │    Type    │ Misconfigurations │
+├────────────┼────────────┼───────────────────┤
+│ Dockerfile │ dockerfile │         0         │
+└────────────┴────────────┴───────────────────┘
+Legend:
+- '-': Not scanned
+- '0': Clean (no security findings detected)
+
+=== auth 7/7 Hadolint (Dockerfile) ===
+auth: eslint.sarif con 0 resultados
+auth: gitleaks.sarif con 0 resultados
+auth: hadolint.sarif con 0 resultados
+auth: semgrep.sarif con 1 resultados
+auth: trivy-config.sarif con 0 resultados
+auth: trivy-fs.sarif con 0 resultados
+
+################ citas (salida/servicios/eval-03_citas_medicas-20261125-183854/citas) ################
+=== citas 1/7 tsc --noEmit ===
+=== citas 2/7 ESLint + eslint-plugin-security (configuración del framework) ===
+salida/servicios/eval-03_citas_medicas-20261125-183854/citas/src/teleconsulta.service.ts:138:71  error  no-irregular-whitespace  Irregular whitespace not allowed.
+ESLint: 1 resultados en salida/security/sarif/servicios/citas/eslint.sarif
+=== citas 3/7 Semgrep (reglas públicas y propias) ===
+=== citas 4/7 Gitleaks (secretos en el servicio) ===
+=== citas 5/7 Trivy fs (dependencias) ===
+
+Report Summary
+
+┌───────────────────┬──────┬─────────────────┐
+│      Target       │ Type │ Vulnerabilities │
+├───────────────────┼──────┼─────────────────┤
+│ package-lock.json │ npm  │        0        │
+└───────────────────┴──────┴─────────────────┘
+Legend:
+- '-': Not scanned
+- '0': Clean (no security findings detected)
+
+=== citas 6/7 Trivy config (Dockerfile) ===
+
+Report Summary
+
+┌────────────┬────────────┬───────────────────┐
+│   Target   │    Type    │ Misconfigurations │
+├────────────┼────────────┼───────────────────┤
+│ Dockerfile │ dockerfile │         0         │
+└────────────┴────────────┴───────────────────┘
+Legend:
+- '-': Not scanned
+- '0': Clean (no security findings detected)
+
+=== citas 7/7 Hadolint (Dockerfile) ===
+citas: eslint.sarif con 1 resultados
+citas: gitleaks.sarif con 0 resultados
+citas: hadolint.sarif con 0 resultados
+citas: semgrep.sarif con 0 resultados
+citas: trivy-config.sarif con 0 resultados
+citas: trivy-fs.sarif con 0 resultados
+
+################ gestion (salida/servicios/eval-03_citas_medicas-20261125-183854/gestion) ################
+=== gestion 1/7 tsc --noEmit ===
+=== gestion 2/7 ESLint + eslint-plugin-security (configuración del framework) ===
+ESLint: 0 resultados en salida/security/sarif/servicios/gestion/eslint.sarif
+=== gestion 3/7 Semgrep (reglas públicas y propias) ===
+=== gestion 4/7 Gitleaks (secretos en el servicio) ===
+=== gestion 5/7 Trivy fs (dependencias) ===
+
+Report Summary
+
+┌───────────────────┬──────┬─────────────────┐
+│      Target       │ Type │ Vulnerabilities │
+├───────────────────┼──────┼─────────────────┤
+│ package-lock.json │ npm  │        0        │
+└───────────────────┴──────┴─────────────────┘
+Legend:
+- '-': Not scanned
+- '0': Clean (no security findings detected)
+
+=== gestion 6/7 Trivy config (Dockerfile) ===
+
+Report Summary
+
+┌────────────┬────────────┬───────────────────┐
+│   Target   │    Type    │ Misconfigurations │
+├────────────┼────────────┼───────────────────┤
+│ Dockerfile │ dockerfile │         0         │
+└────────────┴────────────┴───────────────────┘
+Legend:
+- '-': Not scanned
+- '0': Clean (no security findings detected)
+
+=== gestion 7/7 Hadolint (Dockerfile) ===
+gestion: eslint.sarif con 0 resultados
+gestion: gitleaks.sarif con 0 resultados
+gestion: hadolint.sarif con 0 resultados
+gestion: semgrep.sarif con 0 resultados
+gestion: trivy-config.sarif con 0 resultados
+gestion: trivy-fs.sarif con 0 resultados
+
+################ historia (salida/servicios/eval-03_citas_medicas-20261125-183854/historia) ################
+=== historia 1/7 tsc --noEmit ===
+=== historia 2/7 ESLint + eslint-plugin-security (configuración del framework) ===
+salida/servicios/eval-03_citas_medicas-20261125-183854/historia/src/acceso.service.ts:153:38  error  @typescript-eslint/no-unused-vars  'actual' is defined but never used.
+salida/servicios/eval-03_citas_medicas-20261125-183854/historia/src/acceso.service.ts:153:54  error  @typescript-eslint/no-unused-vars  'cambios' is defined but never used.
+salida/servicios/eval-03_citas_medicas-20261125-183854/historia/src/acceso.service.ts:157:36  error  @typescript-eslint/no-unused-vars  'actual' is defined but never used.
+salida/servicios/eval-03_citas_medicas-20261125-183854/historia/src/aviso.service.ts:168:36  error  @typescript-eslint/no-unused-vars  'actual' is defined but never used.
+salida/servicios/eval-03_citas_medicas-20261125-183854/historia/src/nota-consulta.service.ts:174:36  error  @typescript-eslint/no-unused-vars  'actual' is defined but never used.
+ESLint: 5 resultados en salida/security/sarif/servicios/historia/eslint.sarif
+=== historia 3/7 Semgrep (reglas públicas y propias) ===
+=== historia 4/7 Gitleaks (secretos en el servicio) ===
+=== historia 5/7 Trivy fs (dependencias) ===
+
+Report Summary
+
+┌───────────────────┬──────┬─────────────────┐
+│      Target       │ Type │ Vulnerabilities │
+├───────────────────┼──────┼─────────────────┤
+│ package-lock.json │ npm  │        0        │
+└───────────────────┴──────┴─────────────────┘
+Legend:
+- '-': Not scanned
+- '0': Clean (no security findings detected)
+
+=== historia 6/7 Trivy config (Dockerfile) ===
+
+Report Summary
+
+┌────────────┬────────────┬───────────────────┐
+│   Target   │    Type    │ Misconfigurations │
+├────────────┼────────────┼───────────────────┤
+│ Dockerfile │ dockerfile │         0         │
+└────────────┴────────────┴───────────────────┘
+Legend:
+- '-': Not scanned
+- '0': Clean (no security findings detected)
+
+=== historia 7/7 Hadolint (Dockerfile) ===
+historia: eslint.sarif con 5 resultados
+historia: gitleaks.sarif con 0 resultados
+historia: hadolint.sarif con 0 resultados
+historia: semgrep.sarif con 0 resultados
+historia: trivy-config.sarif con 0 resultados
+historia: trivy-fs.sarif con 0 resultados
+
+################ laboratorio (salida/servicios/eval-03_citas_medicas-20261125-183854/laboratorio) ################
+=== laboratorio 1/7 tsc --noEmit ===
+=== laboratorio 2/7 ESLint + eslint-plugin-security (configuración del framework) ===
+ESLint: 0 resultados en salida/security/sarif/servicios/laboratorio/eslint.sarif
+=== laboratorio 3/7 Semgrep (reglas públicas y propias) ===
+=== laboratorio 4/7 Gitleaks (secretos en el servicio) ===
+=== laboratorio 5/7 Trivy fs (dependencias) ===
+
+Report Summary
+
+┌───────────────────┬──────┬─────────────────┐
+│      Target       │ Type │ Vulnerabilities │
+├───────────────────┼──────┼─────────────────┤
+│ package-lock.json │ npm  │        0        │
+└───────────────────┴──────┴─────────────────┘
+Legend:
+- '-': Not scanned
+- '0': Clean (no security findings detected)
+
+=== laboratorio 6/7 Trivy config (Dockerfile) ===
+
+Report Summary
+
+┌────────────┬────────────┬───────────────────┐
+│   Target   │    Type    │ Misconfigurations │
+├────────────┼────────────┼───────────────────┤
+│ Dockerfile │ dockerfile │         0         │
+└────────────┴────────────┴───────────────────┘
+Legend:
+- '-': Not scanned
+- '0': Clean (no security findings detected)
+
+=== laboratorio 7/7 Hadolint (Dockerfile) ===
+laboratorio: eslint.sarif con 0 resultados
+laboratorio: gitleaks.sarif con 0 resultados
+laboratorio: hadolint.sarif con 0 resultados
+laboratorio: semgrep.sarif con 0 resultados
+laboratorio: trivy-config.sarif con 0 resultados
+laboratorio: trivy-fs.sarif con 0 resultados
+
+################ pagos (salida/servicios/eval-03_citas_medicas-20261125-183854/pagos) ################
+=== pagos 1/7 tsc --noEmit ===
+=== pagos 2/7 ESLint + eslint-plugin-security (configuración del framework) ===
+salida/servicios/eval-03_citas_medicas-20261125-183854/pagos/src/pago.service.ts:184:12  warning  security/detect-object-injection  Generic Object Injection Sink
+ESLint: 1 resultados en salida/security/sarif/servicios/pagos/eslint.sarif
+=== pagos 3/7 Semgrep (reglas públicas y propias) ===
+=== pagos 4/7 Gitleaks (secretos en el servicio) ===
+=== pagos 5/7 Trivy fs (dependencias) ===
+
+Report Summary
+
+┌───────────────────┬──────┬─────────────────┐
+│      Target       │ Type │ Vulnerabilities │
+├───────────────────┼──────┼─────────────────┤
+│ package-lock.json │ npm  │        0        │
+└───────────────────┴──────┴─────────────────┘
+Legend:
+- '-': Not scanned
+- '0': Clean (no security findings detected)
+
+=== pagos 6/7 Trivy config (Dockerfile) ===
+
+Report Summary
+
+┌────────────┬────────────┬───────────────────┐
+│   Target   │    Type    │ Misconfigurations │
+├────────────┼────────────┼───────────────────┤
+│ Dockerfile │ dockerfile │         0         │
+└────────────┴────────────┴───────────────────┘
+Legend:
+- '-': Not scanned
+- '0': Clean (no security findings detected)
+
+=== pagos 7/7 Hadolint (Dockerfile) ===
+pagos: eslint.sarif con 1 resultados
+pagos: gitleaks.sarif con 0 resultados
+pagos: hadolint.sarif con 0 resultados
+pagos: semgrep.sarif con 0 resultados
+pagos: trivy-config.sarif con 0 resultados
+pagos: trivy-fs.sarif con 0 resultados
+## Security Gate 1 sobre los servicios generados
+
+Servicios: auth citas gestion historia laboratorio pagos
+
+| Servicio | Herramienta | Resultado | Intentos |
+|---|---|---|---|
+| auth | tsc --noEmit | OK | 1 |
+| auth | ESLint + security | OK | 1 |
+| auth | Semgrep | HALLAZGOS | 1 |
+| auth | Gitleaks | OK | 1 |
+| auth | Trivy fs | OK | 1 |
+| auth | Trivy config | OK | 1 |
+| auth | Hadolint | OK | 1 |
+| citas | tsc --noEmit | OK | 1 |
+| citas | ESLint + security | HALLAZGOS | 1 |
+| citas | Semgrep | OK | 1 |
+| citas | Gitleaks | OK | 1 |
+| citas | Trivy fs | OK | 1 |
+| citas | Trivy config | OK | 1 |
+| citas | Hadolint | OK | 1 |
+| gestion | tsc --noEmit | OK | 1 |
+| gestion | ESLint + security | OK | 1 |
+| gestion | Semgrep | OK | 1 |
+| gestion | Gitleaks | OK | 1 |
+| gestion | Trivy fs | OK | 1 |
+| gestion | Trivy config | OK | 1 |
+| gestion | Hadolint | OK | 1 |
+| historia | tsc --noEmit | OK | 1 |
+| historia | ESLint + security | HALLAZGOS | 1 |
+| historia | Semgrep | OK | 1 |
+| historia | Gitleaks | OK | 1 |
+| historia | Trivy fs | OK | 1 |
+| historia | Trivy config | OK | 1 |
+| historia | Hadolint | OK | 1 |
+| laboratorio | tsc --noEmit | OK | 1 |
+| laboratorio | ESLint + security | OK | 1 |
+| laboratorio | Semgrep | OK | 1 |
+| laboratorio | Gitleaks | OK | 1 |
+| laboratorio | Trivy fs | OK | 1 |
+| laboratorio | Trivy config | OK | 1 |
+| laboratorio | Hadolint | OK | 1 |
+| pagos | tsc --noEmit | OK | 1 |
+| pagos | ESLint + security | OK | 1 |
+| pagos | Semgrep | OK | 1 |
+| pagos | Gitleaks | OK | 1 |
+| pagos | Trivy fs | OK | 1 |
+| pagos | Trivy config | OK | 1 |
+| pagos | Hadolint | OK | 1 |
+
+**Gate 1 con 3 fallo(s)**
+=== SARIF para GitHub (salida/security/sarif/servicios-github) ===
+total 1577
+-rw-r--r-- 1 User 197609    383 Nov 26 15:33 auth-eslint.sarif
+-rw-r--r-- 1 User 197609  59563 Nov 26 15:33 auth-gitleaks.sarif
+-rw-r--r-- 1 User 197609    632 Nov 26 15:33 auth-hadolint.sarif
+-rw-r--r-- 1 User 197609 201267 Nov 26 15:33 auth-semgrep.sarif
+-rw-r--r-- 1 User 197609    587 Nov 26 15:33 auth-trivy-config.sarif
+-rw-r--r-- 1 User 197609    583 Nov 26 15:33 auth-trivy-fs.sarif
+-rw-r--r-- 1 User 197609   1363 Nov 26 15:35 citas-eslint.sarif
+-rw-r--r-- 1 User 197609  59564 Nov 26 15:35 citas-gitleaks.sarif
+-rw-r--r-- 1 User 197609    633 Nov 26 15:35 citas-hadolint.sarif
+-rw-r--r-- 1 User 197609 200097 Nov 26 15:35 citas-semgrep.sarif
+-rw-r--r-- 1 User 197609    588 Nov 26 15:35 citas-trivy-config.sarif
+-rw-r--r-- 1 User 197609    584 Nov 26 15:35 citas-trivy-fs.sarif
+-rw-r--r-- 1 User 197609    386 Nov 26 15:37 gestion-eslint.sarif
+-rw-r--r-- 1 User 197609  59566 Nov 26 15:37 gestion-gitleaks.sarif
+-rw-r--r-- 1 User 197609    635 Nov 26 15:37 gestion-hadolint.sarif
+-rw-r--r-- 1 User 197609 200099 Nov 26 15:37 gestion-semgrep.sarif
+-rw-r--r-- 1 User 197609    590 Nov 26 15:37 gestion-trivy-config.sarif
+-rw-r--r-- 1 User 197609    586 Nov 26 15:37 gestion-trivy-fs.sarif
+-rw-r--r-- 1 User 197609   4175 Nov 26 15:40 historia-eslint.sarif
+-rw-r--r-- 1 User 197609  59567 Nov 26 15:40 historia-gitleaks.sarif
+-rw-r--r-- 1 User 197609    636 Nov 26 15:40 historia-hadolint.sarif
+-rw-r--r-- 1 User 197609 200100 Nov 26 15:40 historia-semgrep.sarif
+-rw-r--r-- 1 User 197609    591 Nov 26 15:40 historia-trivy-config.sarif
+-rw-r--r-- 1 User 197609    587 Nov 26 15:40 historia-trivy-fs.sarif
+-rw-r--r-- 1 User 197609    390 Nov 26 15:42 laboratorio-eslint.sarif
+-rw-r--r-- 1 User 197609  59570 Nov 26 15:42 laboratorio-gitleaks.sarif
+-rw-r--r-- 1 User 197609    639 Nov 26 15:42 laboratorio-hadolint.sarif
+-rw-r--r-- 1 User 197609 200103 Nov 26 15:42 laboratorio-semgrep.sarif
+-rw-r--r-- 1 User 197609    594 Nov 26 15:42 laboratorio-trivy-config.sarif
+-rw-r--r-- 1 User 197609    590 Nov 26 15:42 laboratorio-trivy-fs.sarif
+-rw-r--r-- 1 User 197609   1426 Nov 26 15:46 pagos-eslint.sarif
+-rw-r--r-- 1 User 197609  59564 Nov 26 15:46 pagos-gitleaks.sarif
+-rw-r--r-- 1 User 197609    633 Nov 26 15:46 pagos-hadolint.sarif
+-rw-r--r-- 1 User 197609 200097 Nov 26 15:46 pagos-semgrep.sarif
+-rw-r--r-- 1 User 197609    588 Nov 26 15:46 pagos-trivy-config.sarif
+-rw-r--r-- 1 User 197609    584 Nov 26 15:46 pagos-trivy-fs.sarif
+=== Resultado: 3 herramienta(s) con hallazgos o errores en 6 servicio(s) ===
+               
+               
+┌─────────────┐
+│ Scan Status │
+└─────────────┘
+  Scanning 39 files with 83 Code rules:
+  Scanning 39 files with 83 ts rules.
+                
+                
+┌──────────────┐
+│ Scan Summary │
+└──────────────┘
+✅ Scan completed successfully.
+ • Findings: 1 (1 blocking)
+ • Rules run: 83
+ • Targets scanned: 39
+ • Parsed lines: ~100.0%
+ • Scan skipped: 
+   ◦ Matching --exclude patterns: 9
+ • For a detailed list of skipped files and lines, run semgrep with the --verbose flag
+Ran 83 rules on 39 files: 1 finding.
+[90m8:30PM[0m [32mINF[0m [1mscanned ~254979 bytes (254.98 KB) in 882ms[0m
+[90m8:30PM[0m [32mINF[0m [1mno leaks found[0m
+               
+               
+┌─────────────┐
+│ Scan Status │
+└─────────────┘
+  Scanning 57 files with 83 Code rules:
+  Scanning 57 files with 83 ts rules.
+                
+                
+┌──────────────┐
+│ Scan Summary │
+└──────────────┘
+✅ Scan completed successfully.
+ • Findings: 0 (0 blocking)
+ • Rules run: 83
+ • Targets scanned: 57
+ • Parsed lines: ~100.0%
+ • Scan skipped: 
+   ◦ Matching --exclude patterns: 15
+ • For a detailed list of skipped files and lines, run semgrep with the --verbose flag
+Ran 83 rules on 57 files: 0 findings.
+(need more rules? `semgrep login` for additional free Semgrep Registry rules)
+
+
+A new version of Semgrep is available. See https://semgrep.dev/docs/upgrading
+If Semgrep missed a finding, please send us feedback to let us know!
+See https://semgrep.dev/docs/reporting-false-negatives/
+[90m8:34PM[0m [32mINF[0m [1mscanned ~370780 bytes (370.78 KB) in 553ms[0m
+[90m8:34PM[0m [32mINF[0m [1mno leaks found[0m
+               
+               
+┌─────────────┐
+│ Scan Status │
+└─────────────┘
+  Scanning 69 files with 83 Code rules:
+  Scanning 69 files with 83 ts rules.
+                
+                
+┌──────────────┐
+│ Scan Summary │
+└──────────────┘
+✅ Scan completed successfully.
+ • Findings: 0 (0 blocking)
+ • Rules run: 83
+ • Targets scanned: 69
+ • Parsed lines: ~100.0%
+ • Scan skipped: 
+   ◦ Matching --exclude patterns: 20
+ • For a detailed list of skipped files and lines, run semgrep with the --verbose flag
+Ran 83 rules on 69 files: 0 findings.
+(need more rules? `semgrep login` for additional free Semgrep Registry rules)
+
+
+A new version of Semgrep is available. See https://semgrep.dev/docs/upgrading
+If Semgrep missed a finding, please send us feedback to let us know!
+See https://semgrep.dev/docs/reporting-false-negatives/
+[90m8:36PM[0m [32mINF[0m [1mscanned ~457415 bytes (457.42 KB) in 840ms[0m
+[90m8:36PM[0m [32mINF[0m [1mno leaks found[0m
+               
+               
+┌─────────────┐
+│ Scan Status │
+└─────────────┘
+  Scanning 63 files with 83 Code rules:
+  Scanning 63 files with 83 ts rules.
+                
+                
+┌──────────────┐
+│ Scan Summary │
+└──────────────┘
+✅ Scan completed successfully.
+ • Findings: 0 (0 blocking)
+ • Rules run: 83
+ • Targets scanned: 63
+ • Parsed lines: ~100.0%
+ • Scan skipped: 
+   ◦ Matching --exclude patterns: 17
+ • For a detailed list of skipped files and lines, run semgrep with the --verbose flag
+Ran 83 rules on 63 files: 0 findings.
+(need more rules? `semgrep login` for additional free Semgrep Registry rules)
+
+
+A new version of Semgrep is available. See https://semgrep.dev/docs/upgrading
+If Semgrep missed a finding, please send us feedback to let us know!
+See https://semgrep.dev/docs/reporting-false-negatives/
+[90m8:39PM[0m [32mINF[0m [1mscanned ~423535 bytes (423.54 KB) in 930ms[0m
+[90m8:39PM[0m [32mINF[0m [1mno leaks found[0m
+               
+               
+┌─────────────┐
+│ Scan Status │
+└─────────────┘
+  Scanning 21 files with 83 Code rules:
+  Scanning 21 files with 83 ts rules.
+                
+                
+┌──────────────┐
+│ Scan Summary │
+└──────────────┘
+✅ Scan completed successfully.
+ • Findings: 0 (0 blocking)
+ • Rules run: 83
+ • Targets scanned: 21
+ • Parsed lines: ~100.0%
+ • Scan skipped: 
+   ◦ Matching --exclude patterns: 4
+ • For a detailed list of skipped files and lines, run semgrep with the --verbose flag
+Ran 83 rules on 21 files: 0 findings.
+(need more rules? `semgrep login` for additional free Semgrep Registry rules)
+
+
+A new version of Semgrep is available. See https://semgrep.dev/docs/upgrading
+If Semgrep missed a finding, please send us feedback to let us know!
+See https://semgrep.dev/docs/reporting-false-negatives/
+[90m8:41PM[0m [32mINF[0m [1mscanned ~88483 bytes (88.48 KB) in 837ms[0m
+[90m8:41PM[0m [32mINF[0m [1mno leaks found[0m
+               
+               
+┌─────────────┐
+│ Scan Status │
+└─────────────┘
+  Scanning 27 files with 83 Code rules:
+  Scanning 27 files with 83 ts rules.
+                
+                
+┌──────────────┐
+│ Scan Summary │
+└──────────────┘
+✅ Scan completed successfully.
+ • Findings: 0 (0 blocking)
+ • Rules run: 83
+ • Targets scanned: 27
+ • Parsed lines: ~100.0%
+ • Scan skipped: 
+   ◦ Matching --exclude patterns: 5
+ • For a detailed list of skipped files and lines, run semgrep with the --verbose flag
+Ran 83 rules on 27 files: 0 findings.
+(need more rules? `semgrep login` for additional free Semgrep Registry rules)
+
+
+A new version of Semgrep is available. See https://semgrep.dev/docs/upgrading
+If Semgrep missed a finding, please send us feedback to let us know!
+See https://semgrep.dev/docs/reporting-false-negatives/
+[90m8:44PM[0m [32mINF[0m [1mscanned ~131549 bytes (131.55 KB) in 1.86s[0m
+[90m8:44PM[0m [32mINF[0m [1mno leaks found[0m
+
+$ framework gates servicios
+Gate 1 de auth: APROBADO
+  Gate 1 aprobado: sin hallazgos críticos o altos, sin secretos expuestos y el código compila
+  [cumple   ] gate1.severidad: Sin hallazgos críticos o altos en el análisis estático
+  [cumple   ] gate1.secreto: Sin secretos expuestos en el repositorio (Gitleaks)
+  [cumple   ] gate1.compilacion: El código compila (tsc --noEmit)
+  [cumple   ] gate1.herramienta_caida: Todas las herramientas del gate terminaron
+  Advertencias (no bloquean): 1
+  Decisión guardada en salida/gates/servicios/auth/gate1.json
+Gate 1 de citas: RECHAZADO
+  Gate 1 rechazado: incumple 1 de 4 criterios (gate1.severidad)
+  [NO cumple] gate1.severidad: Sin hallazgos críticos o altos en el análisis estático
+  [cumple   ] gate1.secreto: Sin secretos expuestos en el repositorio (Gitleaks)
+  [cumple   ] gate1.compilacion: El código compila (tsc --noEmit)
+  [cumple   ] gate1.herramienta_caida: Todas las herramientas del gate terminaron
+  Bloqueante gate1.severidad: Hallazgo alta de eslint: no-irregular-whitespace en salida/servicios/eval-03_citas_medicas-20261125-183854/citas/src/teleconsulta.service.ts:138
+  Decisión guardada en salida/gates/servicios/citas/gate1.json
+Gate 1 de gestion: APROBADO
+  Gate 1 aprobado: sin hallazgos críticos o altos, sin secretos expuestos y el código compila
+  [cumple   ] gate1.severidad: Sin hallazgos críticos o altos en el análisis estático
+  [cumple   ] gate1.secreto: Sin secretos expuestos en el repositorio (Gitleaks)
+  [cumple   ] gate1.compilacion: El código compila (tsc --noEmit)
+  [cumple   ] gate1.herramienta_caida: Todas las herramientas del gate terminaron
+  Decisión guardada en salida/gates/servicios/gestion/gate1.json
+Gate 1 de historia: RECHAZADO
+  Gate 1 rechazado: incumple 1 de 4 criterios (gate1.severidad)
+  [NO cumple] gate1.severidad: Sin hallazgos críticos o altos en el análisis estático
+  [cumple   ] gate1.secreto: Sin secretos expuestos en el repositorio (Gitleaks)
+  [cumple   ] gate1.compilacion: El código compila (tsc --noEmit)
+  [cumple   ] gate1.herramienta_caida: Todas las herramientas del gate terminaron
+  Bloqueante gate1.severidad: Hallazgo alta de eslint: @typescript-eslint/no-unused-vars en salida/servicios/eval-03_citas_medicas-20261125-183854/historia/src/nota-consulta.service.ts:174
+  Bloqueante gate1.severidad: Hallazgo alta de eslint: @typescript-eslint/no-unused-vars en salida/servicios/eval-03_citas_medicas-20261125-183854/historia/src/acceso.service.ts:157
+  Bloqueante gate1.severidad: Hallazgo alta de eslint: @typescript-eslint/no-unused-vars en salida/servicios/eval-03_citas_medicas-20261125-183854/historia/src/acceso.service.ts:153
+  Bloqueante gate1.severidad: Hallazgo alta de eslint: @typescript-eslint/no-unused-vars en salida/servicios/eval-03_citas_medicas-20261125-183854/historia/src/aviso.service.ts:168
+  Decisión guardada en salida/gates/servicios/historia/gate1.json
+Gate 1 de laboratorio: APROBADO
+  Gate 1 aprobado: sin hallazgos críticos o altos, sin secretos expuestos y el código compila
+  [cumple   ] gate1.severidad: Sin hallazgos críticos o altos en el análisis estático
+  [cumple   ] gate1.secreto: Sin secretos expuestos en el repositorio (Gitleaks)
+  [cumple   ] gate1.compilacion: El código compila (tsc --noEmit)
+  [cumple   ] gate1.herramienta_caida: Todas las herramientas del gate terminaron
+  Decisión guardada en salida/gates/servicios/laboratorio/gate1.json
+Gate 1 de pagos: APROBADO
+  Gate 1 aprobado: sin hallazgos críticos o altos, sin secretos expuestos y el código compila
+  [cumple   ] gate1.severidad: Sin hallazgos críticos o altos en el análisis estático
+  [cumple   ] gate1.secreto: Sin secretos expuestos en el repositorio (Gitleaks)
+  [cumple   ] gate1.compilacion: El código compila (tsc --noEmit)
+  [cumple   ] gate1.herramienta_caida: Todas las herramientas del gate terminaron
+  Advertencias (no bloquean): 1
+  Decisión guardada en salida/gates/servicios/pagos/gate1.json
+4 de 6 servicios aprobados; rechazados: citas, historia

@@ -1,0 +1,535 @@
+{
+  "documento": {
+    "nombre": "requisitos.docx",
+    "sha256": "97afabd99b91abe8183d883c744e6d69a550ef2cfeac07a10fe29e9aad8eebd4",
+    "herramienta": "docling 2.148.0"
+  },
+  "aprobada": true,
+  "maximo_intentos": 3,
+  "intentos": [
+    {
+      "numero": 1,
+      "fecha": "2026-11-25T18:36:35.369905Z",
+      "origen": "llm",
+      "retroalimentacion": [],
+      "arquitectura": {
+        "version_esquema": "1.0",
+        "documento": {
+          "nombre": "requisitos.docx",
+          "sha256": "97afabd99b91abe8183d883c744e6d69a550ef2cfeac07a10fe29e9aad8eebd4",
+          "herramienta": "docling 2.148.0"
+        },
+        "servicios": [
+          {
+            "nombre": "auth",
+            "contexto": "Autenticación y autorización",
+            "responsabilidad": "Gestiona registro de pacientes, inicio de sesión, MFA, bloqueo de cuenta, gestión de sesiones, emisión y validación de tokens.",
+            "entidades": [
+              "Cuenta",
+              "Paciente",
+              "Personal",
+              "Sesion"
+            ],
+            "requisitos": [
+              "RF-03",
+              "RF-04",
+              "RF-06",
+              "RNF-01"
+            ],
+            "base_datos": "auth_db",
+            "depende_de": [],
+            "etiquetas": [
+              "autenticacion",
+              "validacion_entrada"
+            ]
+          },
+          {
+            "nombre": "citas",
+            "contexto": "Gestión de citas y agenda",
+            "responsabilidad": "Búsqueda y reserva de horarios, reglas de negocio (máximo 2 pendientes, bloqueo por ausencias, cancelación, cambios), generación de eventos de pago, recordatorios, enlaces de teleconsulta y vista de agenda para médicos.",
+            "entidades": [
+              "Cita",
+              "Horario",
+              "Especialidad",
+              "Medico",
+              "Sede",
+              "Hijo",
+              "Teleconsulta"
+            ],
+            "requisitos": [
+              "RF-05",
+              "RF-08",
+              "RF-09",
+              "RF-10",
+              "RF-11",
+              "RF-12",
+              "RF-13",
+              "RF-28",
+              "RF-29",
+              "RF-32",
+              "RF-33"
+            ],
+            "base_datos": "citas_db",
+            "depende_de": [
+              {
+                "servicio": "auth",
+                "tipo": "sincrona",
+                "motivo": "Validar token y permisos del paciente al crear o modificar citas"
+              },
+              {
+                "servicio": "pagos",
+                "tipo": "asincrona",
+                "motivo": "Recibir evento de pago aprobado o rechazado para confirmar o liberar la cita"
+              },
+              {
+                "servicio": "gestion",
+                "tipo": "asincrona",
+                "motivo": "Publicar eventos de recordatorio que gestión envía por correo/SMS"
+              }
+            ],
+            "etiquetas": [
+              "autorizacion",
+              "control_acceso_recursos",
+              "validacion_entrada"
+            ]
+          },
+          {
+            "nombre": "historia",
+            "contexto": "Historia clínica electrónica",
+            "responsabilidad": "Almacenar y compartir historias clínicas entre sedes, control de acceso según citas, auditoría de accesos, notas inmutables, descarga PDF, retención cifrada 15 años.",
+            "entidades": [
+              "HistoriaClinica",
+              "Diagnostico",
+              "Tratamiento",
+              "NotaConsulta",
+              "Acceso",
+              "Aviso",
+              "PDF",
+              "Paciente"
+            ],
+            "requisitos": [
+              "RF-01",
+              "RF-02",
+              "RF-14",
+              "RF-15",
+              "RF-16",
+              "RF-17",
+              "RF-18",
+              "RF-20",
+              "RNF-02"
+            ],
+            "base_datos": "historia_db",
+            "depende_de": [
+              {
+                "servicio": "auth",
+                "tipo": "sincrona",
+                "motivo": "Validar token y permisos de acceso a historias clínicas"
+              },
+              {
+                "servicio": "laboratorio",
+                "tipo": "asincrona",
+                "motivo": "Recibir eventos de resultados de laboratorio para asociarlos a la historia"
+              },
+              {
+                "servicio": "gestion",
+                "tipo": "asincrona",
+                "motivo": "Enviar notificaciones de accesos urgentes y auditoría"
+              }
+            ],
+            "etiquetas": [
+              "autenticacion",
+              "hash_password",
+              "cifrado_transito",
+              "auditoria",
+              "control_acceso_recursos",
+              "validacion_entrada",
+              "autorizacion"
+            ]
+          },
+          {
+            "nombre": "laboratorio",
+            "contexto": "Resultados de laboratorio",
+            "responsabilidad": "Recepción segura de resultados del laboratorio externo, validación de autenticación, almacenamiento de PDFs y emisión de eventos de disponibilidad.",
+            "entidades": [
+              "Resultado"
+            ],
+            "requisitos": [
+              "RF-21",
+              "RF-23"
+            ],
+            "base_datos": "laboratorio_db",
+            "depende_de": [
+              {
+                "servicio": "auth",
+                "tipo": "sincrona",
+                "motivo": "Validar credenciales del laboratorio externo al recibir resultados"
+              },
+              {
+                "servicio": "gestion",
+                "tipo": "asincrona",
+                "motivo": "Emitir eventos de notificación de nuevo resultado para médicos"
+              }
+            ],
+            "etiquetas": [
+              "autenticacion",
+              "validacion_entrada"
+            ]
+          },
+          {
+            "nombre": "pagos",
+            "contexto": "Gestión de pagos",
+            "responsabilidad": "Integración con pasarela externa, iniciar pagos, recibir notificaciones de pagos aprobados o reembolsados, emitir eventos y reembolsos automáticos.",
+            "entidades": [
+              "Pago",
+              "Cita"
+            ],
+            "requisitos": [
+              "RF-24",
+              "RF-25",
+              "RF-26",
+              "RF-27"
+            ],
+            "base_datos": "pagos_db",
+            "depende_de": [
+              {
+                "servicio": "auth",
+                "tipo": "sincrona",
+                "motivo": "Validar token del paciente al iniciar pago"
+              },
+              {
+                "servicio": "citas",
+                "tipo": "asincrona",
+                "motivo": "Publicar evento de pago aprobado/reembolsado que citas consume para confirmar o liberar horario"
+              },
+              {
+                "servicio": "gestion",
+                "tipo": "asincrona",
+                "motivo": "Emitir eventos de auditoría y notificaciones de reembolso"
+              }
+            ],
+            "etiquetas": [
+              "autorizacion",
+              "autenticacion",
+              "validacion_entrada"
+            ]
+          },
+          {
+            "nombre": "gestion",
+            "contexto": "Gestión operativa y notificaciones",
+            "responsabilidad": "Administración de médicos, especialidades y sedes; configuración de horarios; generación de reportes de ocupación; envío de notificaciones (recordatorios, avisos de acceso urgente); manejo de datos personales y cumplimiento de derechos; exposición de APIs diferenciadas para pacientes y personal.",
+            "entidades": [
+              "Medico",
+              "Especialidad",
+              "Sede",
+              "Horario",
+              "Reporte",
+              "Notificacion",
+              "DatosPersonales",
+              "Paciente",
+              "Aviso"
+            ],
+            "requisitos": [
+              "RF-07",
+              "RF-19",
+              "RF-22",
+              "RF-30",
+              "RF-31",
+              "RF-34",
+              "RF-35",
+              "RF-36"
+            ],
+            "base_datos": "gestion_db",
+            "depende_de": [
+              {
+                "servicio": "auth",
+                "tipo": "sincrona",
+                "motivo": "Validar token para todas las operaciones de gestión"
+              },
+              {
+                "servicio": "historia",
+                "tipo": "asincrona",
+                "motivo": "Recibir eventos de acceso a historias para generar avisos de urgencia"
+              },
+              {
+                "servicio": "citas",
+                "tipo": "asincrona",
+                "motivo": "Recibir eventos de recordatorio de citas para enviar notificaciones"
+              },
+              {
+                "servicio": "laboratorio",
+                "tipo": "asincrona",
+                "motivo": "Recibir eventos de resultados para notificar a médicos"
+              }
+            ],
+            "etiquetas": [
+              "autorizacion",
+              "validacion_entrada",
+              "control_acceso_recursos"
+            ]
+          }
+        ],
+        "transversales": [
+          "RNF-03",
+          "RNF-04",
+          "RNF-05",
+          "RNF-06",
+          "RNF-07",
+          "RNF-08"
+        ],
+        "etiquetas_transversales": [
+          "cifrado_transito",
+          "punto_unico_acceso",
+          "limite_peticiones"
+        ],
+        "decisiones": [
+          {
+            "id": "D-01",
+            "titulo": "División en 6 microservicios",
+            "decision": "Se crean seis microservicios (auth, citas, historia, laboratorio, pagos, gestion) alineados con bounded contexts claros y con bases de datos independientes.",
+            "justificacion": "Los requisitos funcionales están agrupados por dominio (autenticación, agenda, historia clínica, resultados de laboratorio, pagos y gestión operativa). Evita servicios diminutos y permite escalar cada dominio de forma independiente, cumpliendo con RF-01, RF-07, RF-14, RF-21, RF-24 y RF-30.",
+            "requisitos": [
+              "RF-01",
+              "RF-02",
+              "RF-03",
+              "RF-04",
+              "RF-05",
+              "RF-06",
+              "RF-07",
+              "RF-08",
+              "RF-09",
+              "RF-10",
+              "RF-11",
+              "RF-12",
+              "RF-13",
+              "RF-14",
+              "RF-15",
+              "RF-16",
+              "RF-17",
+              "RF-18",
+              "RF-19",
+              "RF-20",
+              "RF-21",
+              "RF-22",
+              "RF-23",
+              "RF-24",
+              "RF-25",
+              "RF-26",
+              "RF-27",
+              "RF-28",
+              "RF-29",
+              "RF-30",
+              "RF-31",
+              "RF-32",
+              "RF-33",
+              "RF-34",
+              "RF-35",
+              "RF-36"
+            ]
+          },
+          {
+            "id": "D-02",
+            "titulo": "Comunicación síncrona vs asíncrona",
+            "decision": "Se usa comunicación síncrona (HTTP) para validaciones de seguridad y autorización; se usa comunicación asíncrona (RabbitMQ) para eventos de pagos, resultados de laboratorio, notificaciones y auditoría.",
+            "justificacion": "Requisitos de alta disponibilidad y resiliencia (RF-23, RF-25, RF-27, RF-22) requieren desacoplamiento; la validación de tokens y permisos (RF-03, RF-04, RF-06) necesita respuesta inmediata.",
+            "requisitos": [
+              "RF-03",
+              "RF-04",
+              "RF-06",
+              "RF-21",
+              "RF-22",
+              "RF-23",
+              "RF-25",
+              "RF-27",
+              "RF-28",
+              "RF-29"
+            ]
+          },
+          {
+            "id": "D-03",
+            "titulo": "Base de datos por microservicio",
+            "decision": "Cada microservicio posee su propia base de datos PostgreSQL aislada.",
+            "justificacion": "Garantiza aislamiento de datos sensibles (RNF-02, RNF-07) y permite aplicar políticas de retención y cifrado por dominio, evitando dependencias de esquema entre servicios.",
+            "requisitos": [
+              "RNF-02",
+              "RNF-07"
+            ]
+          },
+          {
+            "id": "D-04",
+            "titulo": "Uso de RabbitMQ para eventos",
+            "decision": "Se implementa RabbitMQ como broker de eventos para publicar y suscribirse a eventos de dominio (pago aprobado, resultado disponible, recordatorio de cita, acceso urgente).",
+            "justificacion": "Facilita la arquitectura orientada a eventos requerida por RF-23 (tolerancia a fallos del laboratorio) y permite que servicios reaccionen sin acoplamiento directo.",
+            "requisitos": [
+              "RF-21",
+              "RF-22",
+              "RF-23",
+              "RF-25",
+              "RF-27",
+              "RF-28",
+              "RF-29",
+              "RF-36"
+            ]
+          },
+          {
+            "id": "D-05",
+            "titulo": "Seguridad y gestión de secretos",
+            "decision": "Todas las comunicaciones usan TLS (HTTPS), Keycloak actúa como IdP y los secretos (claves de laboratorio, pasarela, DB) se almacenan en un vault externo.",
+            "justificacion": "Cumple RNF-03 (cifrado en tránsito y punto único de acceso), RNF-07 (almacenamiento seguro de claves) y refuerza los requisitos de autenticación y autorización (RF-03, RF-04, RF-06).",
+            "requisitos": [
+              "RNF-03",
+              "RNF-07",
+              "RF-03",
+              "RF-04",
+              "RF-06"
+            ]
+          }
+        ]
+      },
+      "decision": {
+        "aprobado": true,
+        "bloqueantes": [],
+        "advertencias": [
+          {
+            "regla": "arquitectura.ciclo_de_eventos",
+            "motivo": "citas, gestion, historia, laboratorio, pagos dependen unos de otros en círculo (citas -> gestion (asincrona), citas -> pagos (asincrona), gestion -> citas (asincrona), gestion -> historia (asincrona), gestion -> laboratorio (asincrona), historia -> gestion (asincrona), historia -> laboratorio (asincrona), laboratorio -> gestion (asincrona), pagos -> citas (asincrona), pagos -> gestion (asincrona)): es una saga coreografiada; documenta sus eventos y la compensación si un paso falla"
+          }
+        ],
+        "criterios": [
+          {
+            "regla": "arquitectura.base_datos_propia",
+            "cumple": true,
+            "detalle": "Cada servicio tiene su propia base de datos (Database per Service)"
+          },
+          {
+            "regla": "arquitectura.sin_ciclos",
+            "cumple": true,
+            "detalle": "Las llamadas síncronas entre servicios no forman ciclos"
+          },
+          {
+            "regla": "arquitectura.dependencias_conocidas",
+            "cumple": true,
+            "detalle": "Cada dependencia apunta a otro servicio de la arquitectura"
+          },
+          {
+            "regla": "arquitectura.servicios_unicos",
+            "cumple": true,
+            "detalle": "Hay al menos un servicio y no hay nombres repetidos"
+          }
+        ],
+        "rasgos": [
+          {
+            "etiqueta": "autenticacion_centralizada",
+            "motivo": "Hay requisitos de autenticación y varios servicios: se autentica una sola vez, en la entrada"
+          },
+          {
+            "etiqueta": "autonomia_de_datos",
+            "motivo": "Cada servicio tiene su propia base de datos"
+          },
+          {
+            "etiqueta": "comunicacion_asincrona",
+            "motivo": "Dependencias por eventos: citas -> gestion, citas -> pagos, gestion -> citas, gestion -> historia, gestion -> laboratorio, historia -> gestion, historia -> laboratorio, laboratorio -> gestion, pagos -> citas, pagos -> gestion"
+          },
+          {
+            "etiqueta": "dependencia_sincrona_externa",
+            "motivo": "Llamadas síncronas entre servicios: citas -> auth, gestion -> auth, historia -> auth, laboratorio -> auth, pagos -> auth"
+          },
+          {
+            "etiqueta": "punto_unico_acceso",
+            "motivo": "Hay requisitos de punto único de entrada o de límite de peticiones"
+          },
+          {
+            "etiqueta": "transaccion_entre_servicios",
+            "motivo": "citas, gestion, historia, laboratorio, pagos coordina operaciones que involucran a otros servicios"
+          }
+        ],
+        "patrones": [
+          {
+            "id": "arq.basedatos.001",
+            "patron": "database_per_service",
+            "implementacion": "prisma_postgresql",
+            "controles": [
+              "ASVS-V4.1.3",
+              "ASVS-V13.1.4"
+            ],
+            "cwe": [
+              "CWE-284",
+              "CWE-668"
+            ],
+            "por": [
+              "autonomia_de_datos"
+            ],
+            "motivo": "Cada servicio tiene su propia base de datos"
+          },
+          {
+            "id": "arq.eventos.001",
+            "patron": "event_driven",
+            "implementacion": "rabbitmq",
+            "controles": [
+              "ASVS-V5.1.3"
+            ],
+            "cwe": [
+              "CWE-20",
+              "CWE-345"
+            ],
+            "por": [
+              "comunicacion_asincrona"
+            ],
+            "motivo": "Dependencias por eventos: citas -> gestion, citas -> pagos, gestion -> citas, gestion -> historia, gestion -> laboratorio, historia -> gestion, historia -> laboratorio, laboratorio -> gestion, pagos -> citas, pagos -> gestion"
+          },
+          {
+            "id": "arq.gateway.001",
+            "patron": "api_gateway",
+            "implementacion": "traefik",
+            "controles": [
+              "ASVS-V4.1.1",
+              "ASVS-V1.4.1"
+            ],
+            "cwe": [
+              "CWE-284",
+              "CWE-306"
+            ],
+            "por": [
+              "autenticacion_centralizada",
+              "punto_unico_acceso"
+            ],
+            "motivo": "Hay requisitos de autenticación y varios servicios: se autentica una sola vez, en la entrada; Hay requisitos de punto único de entrada o de límite de peticiones"
+          },
+          {
+            "id": "arq.resiliencia.001",
+            "patron": "circuit_breaker",
+            "implementacion": "nestjs_interceptor_con_reintentos_y_timeout",
+            "controles": [
+              "ASVS-V11.1.4"
+            ],
+            "cwe": [
+              "CWE-400",
+              "CWE-770"
+            ],
+            "por": [
+              "dependencia_sincrona_externa"
+            ],
+            "motivo": "Llamadas síncronas entre servicios: citas -> auth, gestion -> auth, historia -> auth, laboratorio -> auth, pagos -> auth"
+          },
+          {
+            "id": "arq.transaccion.001",
+            "patron": "saga",
+            "implementacion": "rabbitmq",
+            "controles": [
+              "ASVS-V11.1.1",
+              "ASVS-V11.1.6"
+            ],
+            "cwe": [
+              "CWE-362",
+              "CWE-841"
+            ],
+            "por": [
+              "transaccion_entre_servicios"
+            ],
+            "motivo": "citas, gestion, historia, laboratorio, pagos coordina operaciones que involucran a otros servicios"
+          }
+        ],
+        "justificacion": "Arquitectura aprobada: cumple los 4 criterios; patrones inferidos: api_gateway, circuit_breaker, database_per_service, event_driven, saga"
+      }
+    }
+  ]
+}

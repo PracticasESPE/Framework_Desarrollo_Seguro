@@ -1,0 +1,37 @@
+{
+  "documento": "03_citas_medicas",
+  "servicios_propuestos": [
+    "auth",
+    "citas",
+    "historia",
+    "laboratorio",
+    "pagos",
+    "gestion"
+  ],
+  "servicios_referencia": [
+    "usuarios",
+    "agenda",
+    "historia_clinica",
+    "laboratorio",
+    "pagos",
+    "notificaciones"
+  ],
+  "nombres_coincidentes": [
+    "laboratorio",
+    "pagos"
+  ],
+  "requisitos_emparejados": 43,
+  "requisitos_referencia": 43,
+  "pares_precision": 0.633,
+  "pares_exhaustividad": 0.629,
+  "pares_f1": 0.631,
+  "correspondencia": {
+    "agenda": "citas",
+    "historia_clinica": "historia",
+    "laboratorio": "laboratorio",
+    "notificaciones": "citas",
+    "pagos": "pagos",
+    "transversal": "transversal",
+    "usuarios": "auth"
+  }
+}

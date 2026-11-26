@@ -1,0 +1,153 @@
+{
+  "auth": {
+    "aprobado": true,
+    "justificacion": "Gate 1 aprobado: sin hallazgos críticos o altos, sin secretos expuestos y el código compila",
+    "bloqueantes": [],
+    "compila": true,
+    "herramientas": {
+      "eslint": [],
+      "semgrep": [
+        {
+          "regla": "semgrep_rules.prisma-findmany-sin-limite",
+          "severidad": "media",
+          "archivo": "salida/servicios/eval-03_citas_medicas-20261125-183854/auth/src/personal.service.ts",
+          "linea": 172,
+          "mensaje": "findMany sin 'take' devuelve todos los registros. Con muchos datos puede agotar memoria y tiempo. Agrega un límite (take) y paginación."
+        }
+      ],
+      "gitleaks": [],
+      "trivy-fs": [],
+      "trivy-config": [],
+      "hadolint": []
+    }
+  },
+  "citas": {
+    "aprobado": false,
+    "justificacion": "Gate 1 rechazado: incumple 1 de 4 criterios (gate1.severidad)",
+    "bloqueantes": [
+      "Hallazgo alta de eslint: no-irregular-whitespace en salida/servicios/eval-03_citas_medicas-20261125-183854/citas/src/teleconsulta.service.ts:138"
+    ],
+    "compila": true,
+    "herramientas": {
+      "eslint": [
+        {
+          "regla": "no-irregular-whitespace",
+          "severidad": "alta",
+          "archivo": "salida/servicios/eval-03_citas_medicas-20261125-183854/citas/src/teleconsulta.service.ts",
+          "linea": 138,
+          "mensaje": "Irregular whitespace not allowed."
+        }
+      ],
+      "semgrep": [],
+      "gitleaks": [],
+      "trivy-fs": [],
+      "trivy-config": [],
+      "hadolint": []
+    }
+  },
+  "historia": {
+    "aprobado": false,
+    "justificacion": "Gate 1 rechazado: incumple 1 de 4 criterios (gate1.severidad)",
+    "bloqueantes": [
+      "Hallazgo alta de eslint: @typescript-eslint/no-unused-vars en salida/servicios/eval-03_citas_medicas-20261125-183854/historia/src/nota-consulta.service.ts:174",
+      "Hallazgo alta de eslint: @typescript-eslint/no-unused-vars en salida/servicios/eval-03_citas_medicas-20261125-183854/historia/src/acceso.service.ts:157",
+      "Hallazgo alta de eslint: @typescript-eslint/no-unused-vars en salida/servicios/eval-03_citas_medicas-20261125-183854/historia/src/acceso.service.ts:153",
+      "Hallazgo alta de eslint: @typescript-eslint/no-unused-vars en salida/servicios/eval-03_citas_medicas-20261125-183854/historia/src/aviso.service.ts:168"
+    ],
+    "compila": true,
+    "herramientas": {
+      "eslint": [
+        {
+          "regla": "@typescript-eslint/no-unused-vars",
+          "severidad": "alta",
+          "archivo": "salida/servicios/eval-03_citas_medicas-20261125-183854/historia/src/acceso.service.ts",
+          "linea": 153,
+          "mensaje": "'actual' is defined but never used."
+        },
+        {
+          "regla": "@typescript-eslint/no-unused-vars",
+          "severidad": "alta",
+          "archivo": "salida/servicios/eval-03_citas_medicas-20261125-183854/historia/src/acceso.service.ts",
+          "linea": 153,
+          "mensaje": "'cambios' is defined but never used."
+        },
+        {
+          "regla": "@typescript-eslint/no-unused-vars",
+          "severidad": "alta",
+          "archivo": "salida/servicios/eval-03_citas_medicas-20261125-183854/historia/src/acceso.service.ts",
+          "linea": 157,
+          "mensaje": "'actual' is defined but never used."
+        },
+        {
+          "regla": "@typescript-eslint/no-unused-vars",
+          "severidad": "alta",
+          "archivo": "salida/servicios/eval-03_citas_medicas-20261125-183854/historia/src/aviso.service.ts",
+          "linea": 168,
+          "mensaje": "'actual' is defined but never used."
+        },
+        {
+          "regla": "@typescript-eslint/no-unused-vars",
+          "severidad": "alta",
+          "archivo": "salida/servicios/eval-03_citas_medicas-20261125-183854/historia/src/nota-consulta.service.ts",
+          "linea": 174,
+          "mensaje": "'actual' is defined but never used."
+        }
+      ],
+      "semgrep": [],
+      "gitleaks": [],
+      "trivy-fs": [],
+      "trivy-config": [],
+      "hadolint": []
+    }
+  },
+  "laboratorio": {
+    "aprobado": true,
+    "justificacion": "Gate 1 aprobado: sin hallazgos críticos o altos, sin secretos expuestos y el código compila",
+    "bloqueantes": [],
+    "compila": true,
+    "herramientas": {
+      "eslint": [],
+      "semgrep": [],
+      "gitleaks": [],
+      "trivy-fs": [],
+      "trivy-config": [],
+      "hadolint": []
+    }
+  },
+  "pagos": {
+    "aprobado": true,
+    "justificacion": "Gate 1 aprobado: sin hallazgos críticos o altos, sin secretos expuestos y el código compila",
+    "bloqueantes": [],
+    "compila": true,
+    "herramientas": {
+      "eslint": [
+        {
+          "regla": "security/detect-object-injection",
+          "severidad": "media",
+          "archivo": "salida/servicios/eval-03_citas_medicas-20261125-183854/pagos/src/pago.service.ts",
+          "linea": 184,
+          "mensaje": "Generic Object Injection Sink"
+        }
+      ],
+      "semgrep": [],
+      "gitleaks": [],
+      "trivy-fs": [],
+      "trivy-config": [],
+      "hadolint": []
+    }
+  },
+  "gestion": {
+    "aprobado": true,
+    "justificacion": "Gate 1 aprobado: sin hallazgos críticos o altos, sin secretos expuestos y el código compila",
+    "bloqueantes": [],
+    "compila": true,
+    "herramientas": {
+      "eslint": [],
+      "semgrep": [],
+      "gitleaks": [],
+      "trivy-fs": [],
+      "trivy-config": [],
+      "hadolint": []
+    }
+  }
+}

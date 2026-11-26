@@ -1,0 +1,408 @@
+$ framework servicio sistema …
+auth (1/6): el LLM propone los campos de 4 entidades
+  auth (1/6): generado con la plantilla: 61 archivos, estructura validada
+  auth (1/6): instalando dependencias y generando el cliente de Prisma
+  auth (1/6): compila con tsc
+  auth (1/6): lógica de negocio de cuenta
+  auth (1/6): pruebas Jest de las reglas de cuenta
+  auth (1/6): lógica de negocio de paciente
+  auth (1/6): lógica de negocio de personal
+  auth (1/6): pruebas Jest de las reglas de personal
+  auth (1/6): lógica de negocio de sesion
+  auth (1/6): pruebas Jest de las reglas de sesion
+  auth (1/6): comprobando con tsc la lógica y las pruebas
+  auth (1/6): listo
+  citas (2/6): el LLM propone los campos de 7 entidades
+  citas (2/6): generado con la plantilla: 82 archivos, estructura validada
+  citas (2/6): instalando dependencias y generando el cliente de Prisma
+  citas (2/6): compila con tsc
+  citas (2/6): lógica de negocio de cita
+  citas (2/6): pruebas Jest de las reglas de cita
+  citas (2/6): lógica de negocio de horario
+  citas (2/6): lógica de negocio de especialidad
+  citas (2/6): pruebas Jest de las reglas de especialidad
+  citas (2/6): lógica de negocio de medico
+  citas (2/6): pruebas Jest de las reglas de medico
+  citas (2/6): lógica de negocio de sede
+  citas (2/6): pruebas Jest de las reglas de sede
+  ningún proveedor de LLM disponible (groq, gemini). Motivos: groq: error 413 de la API; gemini: error 503 de la API: This model is currently experiencing high demand. Spikes in demand are usually temporary. Please try again later.: se reintenta en 30 s
+  ningún proveedor de LLM disponible (groq, gemini). Motivos: groq: error 413 de la API; gemini: error 503 de la API: This model is currently experiencing high demand. Spikes in demand are usually temporary. Please try again later.: se reintenta en 60 s
+  citas (2/6): lógica de negocio de hijo
+  citas (2/6): pruebas Jest de las reglas de hijo
+  citas (2/6): lógica de negocio de teleconsulta
+  citas (2/6): pruebas Jest de las reglas de teleconsulta
+  citas (2/6): comprobando con tsc la lógica y las pruebas
+  citas (2/6): listo
+  historia (3/6): el LLM propone los campos de 8 entidades
+  ningún proveedor de LLM disponible (groq, gemini). Motivos: groq: cuota diaria agotada; se renueva en 11 min; gemini: error 503 de la API: This model is currently experiencing high demand. Spikes in demand are usually temporary. Please try again later.: se reintenta en 30 s
+  ningún proveedor de LLM disponible (groq, gemini). Motivos: groq: cuota diaria agotada; se renueva en 11 min; gemini: error 503 de la API: This model is currently experiencing high demand. Spikes in demand are usually temporary. Please try again later.: se reintenta en 60 s
+  ningún proveedor de LLM disponible (groq, gemini). Motivos: groq: cuota diaria agotada; se renueva en 11 min; gemini: error 503 de la API: This model is currently experiencing high demand. Spikes in demand are usually temporary. Please try again later.: se reintenta en 120 s
+  historia (3/6): no se completó: todos los proveedores (groq, gemini) alcanzaron su límite de uso
+  laboratorio (4/6): el LLM propone los campos de 1 entidades
+  laboratorio (4/6): no se completó: El LLM no está disponible: se agotaron las esperas en un servicio anterior
+  pagos (5/6): el LLM propone los campos de 2 entidades
+  pagos (5/6): no se completó: El LLM no está disponible: se agotaron las esperas en un servicio anterior
+  gestion (6/6): el LLM propone los campos de 9 entidades
+  gestion (6/6): no se completó: El LLM no está disponible: se agotaron las esperas en un servicio anterior
+
+Servicios en salida/servicios/eval-03_citas_medicas-20261125-183854
+  auth             puerto 3001  completo  [cuenta=aceptada, paciente=sin_logica, personal=aceptada, sesion=aceptada]
+  citas            puerto 3002  completo  [cita=aceptada, horario=sin_logica, especialidad=aceptada, medico=aceptada, sede=aceptada, hijo=aceptada, teleconsulta=aceptada]
+  historia         puerto 3003  incompleto: todos los proveedores (groq, gemini) alcanzaron su límite de uso  [historia_clinica=omitida, diagnostico=omitida, tratamiento=omitida, nota_consulta=omitida, acceso=omitida, aviso=omitida, pdf=omitida, paciente=omitida]
+  laboratorio      puerto 3004  incompleto: El LLM no está disponible: se agotaron las esperas en un servicio anterior  [resultado=omitida]
+  pagos            puerto 3005  incompleto: El LLM no está disponible: se agotaron las esperas en un servicio anterior  [pago=omitida, cita=omitida]
+  gestion          puerto 3006  incompleto: El LLM no está disponible: se agotaron las esperas en un servicio anterior  [medico=omitida, especialidad=omitida, sede=omitida, horario=omitida, reporte=omitida, notificacion=omitida, datos_personales=omitida, paciente=omitida, aviso=omitida]
+2 de 6 servicios completos; resumen en salida/servicios/eval-03_citas_medicas-20261125-183854/sistema.json
+$ framework servicio sistema --sin-graphrag --reanudar …
+auth (1/6): completo en la ejecución anterior: se conserva
+  citas (2/6): completo en la ejecución anterior: se conserva
+  historia (3/6): el LLM propone los campos de 8 entidades
+  historia (3/6): no se completó: todos los proveedores (groq, gemini) alcanzaron su límite de uso
+  laboratorio (4/6): el LLM propone los campos de 1 entidades
+  laboratorio (4/6): no se completó: El LLM no está disponible: se agotaron las esperas en un servicio anterior
+  pagos (5/6): el LLM propone los campos de 2 entidades
+  pagos (5/6): no se completó: El LLM no está disponible: se agotaron las esperas en un servicio anterior
+  gestion (6/6): el LLM propone los campos de 9 entidades
+  gestion (6/6): no se completó: El LLM no está disponible: se agotaron las esperas en un servicio anterior
+
+Servicios en salida/servicios/eval-03_citas_medicas-20261125-183854
+  auth             puerto 3001  completo  [cuenta=aceptada, paciente=sin_logica, personal=aceptada, sesion=aceptada]
+  citas            puerto 3002  completo  [cita=aceptada, horario=sin_logica, especialidad=aceptada, medico=aceptada, sede=aceptada, hijo=aceptada, teleconsulta=aceptada]
+  historia         puerto 3003  incompleto: todos los proveedores (groq, gemini) alcanzaron su límite de uso  [historia_clinica=omitida, diagnostico=omitida, tratamiento=omitida, nota_consulta=omitida, acceso=omitida, aviso=omitida, pdf=omitida, paciente=omitida]
+  laboratorio      puerto 3004  incompleto: El LLM no está disponible: se agotaron las esperas en un servicio anterior  [resultado=omitida]
+  pagos            puerto 3005  incompleto: El LLM no está disponible: se agotaron las esperas en un servicio anterior  [pago=omitida, cita=omitida]
+  gestion          puerto 3006  incompleto: El LLM no está disponible: se agotaron las esperas en un servicio anterior  [medico=omitida, especialidad=omitida, sede=omitida, horario=omitida, reporte=omitida, notificacion=omitida, datos_personales=omitida, paciente=omitida, aviso=omitida]
+2 de 6 servicios completos; resumen en salida/servicios/eval-03_citas_medicas-20261125-183854/sistema.json
+$ framework servicio sistema --sin-graphrag --reanudar …
+auth (1/6): completo en la ejecución anterior: se conserva
+  citas (2/6): completo en la ejecución anterior: se conserva
+  historia (3/6): el LLM propone los campos de 8 entidades
+  historia (3/6): no se completó: todos los proveedores (groq, gemini) alcanzaron su límite de uso
+  laboratorio (4/6): el LLM propone los campos de 1 entidades
+  laboratorio (4/6): no se completó: El LLM no está disponible: se agotaron las esperas en un servicio anterior
+  pagos (5/6): el LLM propone los campos de 2 entidades
+  pagos (5/6): no se completó: El LLM no está disponible: se agotaron las esperas en un servicio anterior
+  gestion (6/6): el LLM propone los campos de 9 entidades
+  gestion (6/6): no se completó: El LLM no está disponible: se agotaron las esperas en un servicio anterior
+
+Servicios en salida/servicios/eval-03_citas_medicas-20261125-183854
+  auth             puerto 3001  completo  [cuenta=aceptada, paciente=sin_logica, personal=aceptada, sesion=aceptada]
+  citas            puerto 3002  completo  [cita=aceptada, horario=sin_logica, especialidad=aceptada, medico=aceptada, sede=aceptada, hijo=aceptada, teleconsulta=aceptada]
+  historia         puerto 3003  incompleto: todos los proveedores (groq, gemini) alcanzaron su límite de uso  [historia_clinica=omitida, diagnostico=omitida, tratamiento=omitida, nota_consulta=omitida, acceso=omitida, aviso=omitida, pdf=omitida, paciente=omitida]
+  laboratorio      puerto 3004  incompleto: El LLM no está disponible: se agotaron las esperas en un servicio anterior  [resultado=omitida]
+  pagos            puerto 3005  incompleto: El LLM no está disponible: se agotaron las esperas en un servicio anterior  [pago=omitida, cita=omitida]
+  gestion          puerto 3006  incompleto: El LLM no está disponible: se agotaron las esperas en un servicio anterior  [medico=omitida, especialidad=omitida, sede=omitida, horario=omitida, reporte=omitida, notificacion=omitida, datos_personales=omitida, paciente=omitida, aviso=omitida]
+2 de 6 servicios completos; resumen en salida/servicios/eval-03_citas_medicas-20261125-183854/sistema.json
+$ framework servicio sistema --sin-graphrag --reanudar …
+auth (1/6): completo en la ejecución anterior: se conserva
+  citas (2/6): completo en la ejecución anterior: se conserva
+  historia (3/6): el LLM propone los campos de 8 entidades
+  historia (3/6): no se completó: todos los proveedores (groq, gemini) alcanzaron su límite de uso
+  laboratorio (4/6): el LLM propone los campos de 1 entidades
+  laboratorio (4/6): no se completó: El LLM no está disponible: se agotaron las esperas en un servicio anterior
+  pagos (5/6): el LLM propone los campos de 2 entidades
+  pagos (5/6): no se completó: El LLM no está disponible: se agotaron las esperas en un servicio anterior
+  gestion (6/6): el LLM propone los campos de 9 entidades
+  gestion (6/6): no se completó: El LLM no está disponible: se agotaron las esperas en un servicio anterior
+
+Servicios en salida/servicios/eval-03_citas_medicas-20261125-183854
+  auth             puerto 3001  completo  [cuenta=aceptada, paciente=sin_logica, personal=aceptada, sesion=aceptada]
+  citas            puerto 3002  completo  [cita=aceptada, horario=sin_logica, especialidad=aceptada, medico=aceptada, sede=aceptada, hijo=aceptada, teleconsulta=aceptada]
+  historia         puerto 3003  incompleto: todos los proveedores (groq, gemini) alcanzaron su límite de uso  [historia_clinica=omitida, diagnostico=omitida, tratamiento=omitida, nota_consulta=omitida, acceso=omitida, aviso=omitida, pdf=omitida, paciente=omitida]
+  laboratorio      puerto 3004  incompleto: El LLM no está disponible: se agotaron las esperas en un servicio anterior  [resultado=omitida]
+  pagos            puerto 3005  incompleto: El LLM no está disponible: se agotaron las esperas en un servicio anterior  [pago=omitida, cita=omitida]
+  gestion          puerto 3006  incompleto: El LLM no está disponible: se agotaron las esperas en un servicio anterior  [medico=omitida, especialidad=omitida, sede=omitida, horario=omitida, reporte=omitida, notificacion=omitida, datos_personales=omitida, paciente=omitida, aviso=omitida]
+2 de 6 servicios completos; resumen en salida/servicios/eval-03_citas_medicas-20261125-183854/sistema.json
+$ framework servicio sistema --sin-graphrag --reanudar …
+auth (1/6): completo en la ejecución anterior: se conserva
+  citas (2/6): completo en la ejecución anterior: se conserva
+  historia (3/6): el LLM propone los campos de 8 entidades
+  historia (3/6): no se completó: todos los proveedores (groq, gemini) alcanzaron su límite de uso
+  laboratorio (4/6): el LLM propone los campos de 1 entidades
+  laboratorio (4/6): no se completó: El LLM no está disponible: se agotaron las esperas en un servicio anterior
+  pagos (5/6): el LLM propone los campos de 2 entidades
+  pagos (5/6): no se completó: El LLM no está disponible: se agotaron las esperas en un servicio anterior
+  gestion (6/6): el LLM propone los campos de 9 entidades
+  gestion (6/6): no se completó: El LLM no está disponible: se agotaron las esperas en un servicio anterior
+Uso del LLM: groq: 1 llamadas al proveedor, 0 desde caché, 5018 tokens (2103 de entrada y 2915 de salida)
+
+Servicios en salida/servicios/eval-03_citas_medicas-20261125-183854
+  auth             puerto 3001  completo  [cuenta=aceptada, paciente=sin_logica, personal=aceptada, sesion=aceptada]
+  citas            puerto 3002  completo  [cita=aceptada, horario=sin_logica, especialidad=aceptada, medico=aceptada, sede=aceptada, hijo=aceptada, teleconsulta=aceptada]
+  historia         puerto 3003  incompleto: todos los proveedores (groq, gemini) alcanzaron su límite de uso  [historia_clinica=omitida, diagnostico=omitida, tratamiento=omitida, nota_consulta=omitida, acceso=omitida, aviso=omitida, pdf=omitida, paciente=omitida]
+  laboratorio      puerto 3004  incompleto: El LLM no está disponible: se agotaron las esperas en un servicio anterior  [resultado=omitida]
+  pagos            puerto 3005  incompleto: El LLM no está disponible: se agotaron las esperas en un servicio anterior  [pago=omitida, cita=omitida]
+  gestion          puerto 3006  incompleto: El LLM no está disponible: se agotaron las esperas en un servicio anterior  [medico=omitida, especialidad=omitida, sede=omitida, horario=omitida, reporte=omitida, notificacion=omitida, datos_personales=omitida, paciente=omitida, aviso=omitida]
+2 de 6 servicios completos; resumen en salida/servicios/eval-03_citas_medicas-20261125-183854/sistema.json
+$ framework servicio sistema --sin-graphrag --reanudar …
+auth (1/6): completo en la ejecución anterior: se conserva
+  citas (2/6): completo en la ejecución anterior: se conserva
+  historia (3/6): el LLM propone los campos de 8 entidades
+  historia (3/6): no se completó: todos los proveedores (groq, gemini) alcanzaron su límite de uso
+  laboratorio (4/6): el LLM propone los campos de 1 entidades
+  laboratorio (4/6): no se completó: El LLM no está disponible: se agotaron las esperas en un servicio anterior
+  pagos (5/6): el LLM propone los campos de 2 entidades
+  pagos (5/6): no se completó: El LLM no está disponible: se agotaron las esperas en un servicio anterior
+  gestion (6/6): el LLM propone los campos de 9 entidades
+  gestion (6/6): no se completó: El LLM no está disponible: se agotaron las esperas en un servicio anterior
+Uso del LLM: groq: 1 llamadas al proveedor, 0 desde caché, 4140 tokens (2081 de entrada y 2059 de salida)
+
+Servicios en salida/servicios/eval-03_citas_medicas-20261125-183854
+  auth             puerto 3001  completo  [cuenta=aceptada, paciente=sin_logica, personal=aceptada, sesion=aceptada]
+  citas            puerto 3002  completo  [cita=aceptada, horario=sin_logica, especialidad=aceptada, medico=aceptada, sede=aceptada, hijo=aceptada, teleconsulta=aceptada]
+  historia         puerto 3003  incompleto: todos los proveedores (groq, gemini) alcanzaron su límite de uso  [historia_clinica=omitida, diagnostico=omitida, tratamiento=omitida, nota_consulta=omitida, acceso=omitida, aviso=omitida, pdf=omitida, paciente=omitida]
+  laboratorio      puerto 3004  incompleto: El LLM no está disponible: se agotaron las esperas en un servicio anterior  [resultado=omitida]
+  pagos            puerto 3005  incompleto: El LLM no está disponible: se agotaron las esperas en un servicio anterior  [pago=omitida, cita=omitida]
+  gestion          puerto 3006  incompleto: El LLM no está disponible: se agotaron las esperas en un servicio anterior  [medico=omitida, especialidad=omitida, sede=omitida, horario=omitida, reporte=omitida, notificacion=omitida, datos_personales=omitida, paciente=omitida, aviso=omitida]
+2 de 6 servicios completos; resumen en salida/servicios/eval-03_citas_medicas-20261125-183854/sistema.json
+$ framework servicio sistema --sin-graphrag --reanudar …
+auth (1/6): completo en la ejecución anterior: se conserva
+  citas (2/6): completo en la ejecución anterior: se conserva
+  historia (3/6): el LLM propone los campos de 8 entidades
+  historia (3/6): no se completó: todos los proveedores (groq, gemini) alcanzaron su límite de uso
+  laboratorio (4/6): el LLM propone los campos de 1 entidades
+  laboratorio (4/6): no se completó: El LLM no está disponible: se agotaron las esperas en un servicio anterior
+  pagos (5/6): el LLM propone los campos de 2 entidades
+  pagos (5/6): no se completó: El LLM no está disponible: se agotaron las esperas en un servicio anterior
+  gestion (6/6): el LLM propone los campos de 9 entidades
+  gestion (6/6): no se completó: El LLM no está disponible: se agotaron las esperas en un servicio anterior
+Uso del LLM: groq: 1 llamadas al proveedor, 0 desde caché, 5123 tokens (2103 de entrada y 3020 de salida)
+
+Servicios en salida/servicios/eval-03_citas_medicas-20261125-183854
+  auth             puerto 3001  completo  [cuenta=aceptada, paciente=sin_logica, personal=aceptada, sesion=aceptada]
+  citas            puerto 3002  completo  [cita=aceptada, horario=sin_logica, especialidad=aceptada, medico=aceptada, sede=aceptada, hijo=aceptada, teleconsulta=aceptada]
+  historia         puerto 3003  incompleto: todos los proveedores (groq, gemini) alcanzaron su límite de uso  [historia_clinica=omitida, diagnostico=omitida, tratamiento=omitida, nota_consulta=omitida, acceso=omitida, aviso=omitida, pdf=omitida, paciente=omitida]
+  laboratorio      puerto 3004  incompleto: El LLM no está disponible: se agotaron las esperas en un servicio anterior  [resultado=omitida]
+  pagos            puerto 3005  incompleto: El LLM no está disponible: se agotaron las esperas en un servicio anterior  [pago=omitida, cita=omitida]
+  gestion          puerto 3006  incompleto: El LLM no está disponible: se agotaron las esperas en un servicio anterior  [medico=omitida, especialidad=omitida, sede=omitida, horario=omitida, reporte=omitida, notificacion=omitida, datos_personales=omitida, paciente=omitida, aviso=omitida]
+2 de 6 servicios completos; resumen en salida/servicios/eval-03_citas_medicas-20261125-183854/sistema.json
+$ framework servicio sistema --sin-graphrag --reanudar …
+auth (1/6): completo en la ejecución anterior: se conserva
+  citas (2/6): completo en la ejecución anterior: se conserva
+  historia (3/6): el LLM propone los campos de 8 entidades
+  historia (3/6): generado con la plantilla: 89 archivos, estructura validada
+  historia (3/6): instalando dependencias y generando el cliente de Prisma
+  historia (3/6): compila con tsc
+  historia (3/6): lógica de negocio de historia_clinica
+  historia (3/6): pruebas Jest de las reglas de historia_clinica
+  historia (3/6): lógica de negocio de diagnostico
+  historia (3/6): pruebas Jest de las reglas de diagnostico
+  historia (3/6): lógica de negocio de tratamiento
+  historia (3/6): lógica de negocio de nota_consulta
+  historia (3/6): pruebas Jest de las reglas de nota_consulta
+  historia (3/6): lógica de negocio de acceso
+  historia (3/6): pruebas Jest de las reglas de acceso
+  historia (3/6): lógica de negocio de aviso
+  historia (3/6): pruebas Jest de las reglas de aviso
+  historia (3/6): lógica de negocio de pdf
+  historia (3/6): pruebas Jest de las reglas de pdf
+  historia (3/6): lógica de negocio de paciente
+  historia (3/6): pruebas Jest de las reglas de paciente
+  historia (3/6): comprobando con tsc la lógica y las pruebas
+  historia (3/6): listo
+  laboratorio (4/6): el LLM propone los campos de 1 entidades
+  laboratorio (4/6): no se completó: openrouter: la respuesta no cumplió el esquema EntidadesDeLaArquitectura tras 3 intento(s)
+  pagos (5/6): el LLM propone los campos de 2 entidades
+  pagos (5/6): generado con la plantilla: 47 archivos, estructura validada
+  pagos (5/6): instalando dependencias y generando el cliente de Prisma
+  pagos (5/6): compila con tsc
+  pagos (5/6): lógica de negocio de pago
+  pagos (5/6): pruebas Jest de las reglas de pago
+  pagos (5/6): lógica de negocio de cita
+  pagos (5/6): comprobando con tsc la lógica y las pruebas
+  pagos (5/6): terminado con problemas
+  gestion (6/6): el LLM propone los campos de 9 entidades
+  gestion (6/6): generado con la plantilla: 96 archivos, estructura validada
+  gestion (6/6): instalando dependencias y generando el cliente de Prisma
+  gestion (6/6): compila con tsc
+  gestion (6/6): lógica de negocio de medico
+  gestion (6/6): pruebas Jest de las reglas de medico
+  gestion (6/6): lógica de negocio de especialidad
+  gestion (6/6): pruebas Jest de las reglas de especialidad
+  gestion (6/6): lógica de negocio de sede
+  gestion (6/6): pruebas Jest de las reglas de sede
+  gestion (6/6): lógica de negocio de horario
+  gestion (6/6): pruebas Jest de las reglas de horario
+  gestion (6/6): lógica de negocio de reporte
+  gestion (6/6): pruebas Jest de las reglas de reporte
+  gestion (6/6): lógica de negocio de notificacion
+  gestion (6/6): pruebas Jest de las reglas de notificacion
+  gestion (6/6): lógica de negocio de datos_personales
+  gestion (6/6): pruebas Jest de las reglas de datos_personales
+  gestion (6/6): lógica de negocio de paciente
+  gestion (6/6): pruebas Jest de las reglas de paciente
+  gestion (6/6): lógica de negocio de aviso
+  gestion (6/6): pruebas Jest de las reglas de aviso
+  gestion (6/6): comprobando con tsc la lógica y las pruebas
+  gestion (6/6): listo
+Uso del LLM: groq: 55 llamadas al proveedor, 0 desde caché, 248098 tokens (118405 de entrada y 129693 de salida); gemini: 2 llamadas al proveedor, 0 desde caché, 7763 tokens (4761 de entrada y 3002 de salida); openrouter: 3 llamadas al proveedor, 0 desde caché, 41334 tokens (2439 de entrada y 38895 de salida)
+
+Servicios en salida/servicios/eval-03_citas_medicas-20261125-183854
+  auth             puerto 3001  completo  [cuenta=aceptada, paciente=sin_logica, personal=aceptada, sesion=aceptada]
+  citas            puerto 3002  completo  [cita=aceptada, horario=sin_logica, especialidad=aceptada, medico=aceptada, sede=aceptada, hijo=aceptada, teleconsulta=aceptada]
+  historia         puerto 3003  completo  [historia_clinica=aceptada, diagnostico=aceptada, tratamiento=sin_logica, nota_consulta=aceptada, acceso=aceptada, aviso=aceptada, pdf=aceptada, paciente=aceptada]
+  laboratorio      puerto 3004  incompleto: openrouter: la respuesta no cumplió el esquema EntidadesDeLaArquitectura tras 3 intento(s)  [resultado=omitida]
+  pagos            puerto 3005  incompleto: revisa el resumen  [pago=aceptada, cita=error]
+  gestion          puerto 3006  completo  [medico=aceptada, especialidad=aceptada, sede=aceptada, horario=aceptada, reporte=aceptada, notificacion=aceptada, datos_personales=aceptada, paciente=aceptada, aviso=aceptada]
+4 de 6 servicios completos; resumen en salida/servicios/eval-03_citas_medicas-20261125-183854/sistema.json
+$ framework servicio sistema --sin-graphrag --reanudar …
+auth (1/6): completo en la ejecución anterior: se conserva
+  citas (2/6): completo en la ejecución anterior: se conserva
+  historia (3/6): completo en la ejecución anterior: se conserva
+  laboratorio (4/6): el LLM propone los campos de 1 entidades
+  laboratorio (4/6): generado con la plantilla: 40 archivos, estructura validada
+  laboratorio (4/6): instalando dependencias y generando el cliente de Prisma
+  laboratorio (4/6): compila con tsc
+  laboratorio (4/6): lógica de negocio de resultado
+  laboratorio (4/6): pruebas Jest de las reglas de resultado
+  laboratorio (4/6): comprobando con tsc la lógica y las pruebas
+  laboratorio (4/6): listo
+  pagos (5/6): el LLM propone los campos de 2 entidades
+  pagos (5/6): generado con la plantilla: 47 archivos, estructura validada
+  pagos (5/6): instalando dependencias y generando el cliente de Prisma
+  pagos (5/6): compila con tsc
+  pagos (5/6): lógica de negocio de pago
+  pagos (5/6): pruebas Jest de las reglas de pago
+  pagos (5/6): lógica de negocio de cita
+  pagos (5/6): comprobando con tsc la lógica y las pruebas
+  pagos (5/6): terminado con problemas
+  gestion (6/6): completo en la ejecución anterior: se conserva
+Uso del LLM: groq: 4 llamadas al proveedor, 3 desde caché, 9418 tokens (6299 de entrada y 3119 de salida)
+
+Servicios en salida/servicios/eval-03_citas_medicas-20261125-183854
+  auth             puerto 3001  completo  [cuenta=aceptada, paciente=sin_logica, personal=aceptada, sesion=aceptada]
+  citas            puerto 3002  completo  [cita=aceptada, horario=sin_logica, especialidad=aceptada, medico=aceptada, sede=aceptada, hijo=aceptada, teleconsulta=aceptada]
+  historia         puerto 3003  completo  [historia_clinica=aceptada, diagnostico=aceptada, tratamiento=sin_logica, nota_consulta=aceptada, acceso=aceptada, aviso=aceptada, pdf=aceptada, paciente=aceptada]
+  laboratorio      puerto 3004  completo  [resultado=aceptada]
+  pagos            puerto 3005  incompleto: revisa el resumen  [pago=aceptada, cita=error]
+  gestion          puerto 3006  completo  [medico=aceptada, especialidad=aceptada, sede=aceptada, horario=aceptada, reporte=aceptada, notificacion=aceptada, datos_personales=aceptada, paciente=aceptada, aviso=aceptada]
+5 de 6 servicios completos; resumen en salida/servicios/eval-03_citas_medicas-20261125-183854/sistema.json
+$ framework servicio sistema --sin-graphrag --reanudar …
+auth (1/6): completo en la ejecución anterior: se conserva
+  citas (2/6): completo en la ejecución anterior: se conserva
+  historia (3/6): completo en la ejecución anterior: se conserva
+  laboratorio (4/6): completo en la ejecución anterior: se conserva
+  pagos (5/6): el LLM propone los campos de 2 entidades
+  pagos (5/6): generado con la plantilla: 47 archivos, estructura validada
+  pagos (5/6): instalando dependencias y generando el cliente de Prisma
+  pagos (5/6): compila con tsc
+  pagos (5/6): lógica de negocio de pago
+  pagos (5/6): pruebas Jest de las reglas de pago
+  pagos (5/6): lógica de negocio de cita
+  pagos (5/6): comprobando con tsc la lógica y las pruebas
+  pagos (5/6): listo
+  gestion (6/6): completo en la ejecución anterior: se conserva
+Uso del LLM: groq: 1 llamadas al proveedor, 3 desde caché, 4757 tokens (1717 de entrada y 3040 de salida); openrouter: 2 llamadas al proveedor, 0 desde caché, 16679 tokens (3187 de entrada y 13492 de salida)
+
+Servicios en salida/servicios/eval-03_citas_medicas-20261125-183854
+  auth             puerto 3001  completo  [cuenta=aceptada, paciente=sin_logica, personal=aceptada, sesion=aceptada]
+  citas            puerto 3002  completo  [cita=aceptada, horario=sin_logica, especialidad=aceptada, medico=aceptada, sede=aceptada, hijo=aceptada, teleconsulta=aceptada]
+  historia         puerto 3003  completo  [historia_clinica=aceptada, diagnostico=aceptada, tratamiento=sin_logica, nota_consulta=aceptada, acceso=aceptada, aviso=aceptada, pdf=aceptada, paciente=aceptada]
+  laboratorio      puerto 3004  completo  [resultado=aceptada]
+  pagos            puerto 3005  completo  [pago=aceptada, cita=sin_logica]
+  gestion          puerto 3006  completo  [medico=aceptada, especialidad=aceptada, sede=aceptada, horario=aceptada, reporte=aceptada, notificacion=aceptada, datos_personales=aceptada, paciente=aceptada, aviso=aceptada]
+6 de 6 servicios completos; resumen en salida/servicios/eval-03_citas_medicas-20261125-183854/sistema.json
+$ framework servicio sistema --sin-graphrag …
+auth (1/6): el LLM propone los campos de 4 entidades
+  auth (1/6): generado con la plantilla: 61 archivos, estructura validada
+  auth (1/6): instalando dependencias y generando el cliente de Prisma
+  auth (1/6): compila con tsc
+  auth (1/6): lógica de negocio de cuenta
+  auth (1/6): pruebas Jest de las reglas de cuenta
+  auth (1/6): lógica de negocio de paciente
+  auth (1/6): pruebas Jest de las reglas de paciente
+  auth (1/6): lógica de negocio de personal
+  auth (1/6): pruebas Jest de las reglas de personal
+  auth (1/6): lógica de negocio de sesion
+  ningún proveedor de LLM disponible (groq, gemini, openrouter). Motivos: groq: cuota diaria agotada; se renueva en 4 min; gemini: cuota diaria agotada; se renueva en 10.8 h; openrouter: la respuesta llegó vacía: se reintenta en 30 s
+  ningún proveedor de LLM disponible (groq, gemini, openrouter). Motivos: groq: cuota diaria agotada; se renueva en 68 s; gemini: cuota diaria agotada; se renueva en 10.8 h; openrouter: la respuesta llegó vacía: se reintenta en 60 s
+  auth (1/6): pruebas Jest de las reglas de sesion
+  auth (1/6): comprobando con tsc la lógica y las pruebas
+  auth (1/6): listo
+  citas (2/6): el LLM propone los campos de 7 entidades
+  citas (2/6): generado con la plantilla: 82 archivos, estructura validada
+  citas (2/6): instalando dependencias y generando el cliente de Prisma
+  citas (2/6): compila con tsc
+  citas (2/6): lógica de negocio de cita
+  ningún proveedor de LLM disponible (groq, gemini, openrouter). Motivos: groq: cuota diaria agotada; se renueva en 17 min; gemini: cuota diaria agotada; se renueva en 10.8 h; openrouter: la respuesta llegó vacía: se reintenta en 30 s
+  ningún proveedor de LLM disponible (groq, gemini, openrouter). Motivos: groq: cuota diaria agotada; se renueva en 17 min; gemini: cuota diaria agotada; se renueva en 10.8 h; openrouter: la respuesta llegó vacía: se reintenta en 60 s
+  citas (2/6): lógica de negocio de horario
+  ningún proveedor de LLM disponible (groq, gemini, openrouter). Motivos: groq: cuota diaria agotada; se renueva en 17 min; gemini: cuota diaria agotada; se renueva en 10.8 h; openrouter: la respuesta llegó vacía: se reintenta en 30 s
+  ningún proveedor de LLM disponible (groq, gemini, openrouter). Motivos: groq: cuota diaria agotada; se renueva en 17 min; gemini: cuota diaria agotada; se renueva en 10.8 h; openrouter: la respuesta llegó vacía: se reintenta en 60 s
+  citas (2/6): lógica de negocio de especialidad
+  citas (2/6): lógica de negocio de medico
+  citas (2/6): pruebas Jest de las reglas de medico
+  citas (2/6): lógica de negocio de sede
+  citas (2/6): pruebas Jest de las reglas de sede
+  citas (2/6): lógica de negocio de hijo
+  citas (2/6): pruebas Jest de las reglas de hijo
+  citas (2/6): lógica de negocio de teleconsulta
+  citas (2/6): pruebas Jest de las reglas de teleconsulta
+  citas (2/6): comprobando con tsc la lógica y las pruebas
+  citas (2/6): listo
+  historia (3/6): el LLM propone los campos de 8 entidades
+  historia (3/6): generado con la plantilla: 89 archivos, estructura validada
+  historia (3/6): instalando dependencias y generando el cliente de Prisma
+  historia (3/6): compila con tsc
+  historia (3/6): lógica de negocio de historia_clinica
+  historia (3/6): pruebas Jest de las reglas de historia_clinica
+  historia (3/6): lógica de negocio de diagnostico
+  historia (3/6): pruebas Jest de las reglas de diagnostico
+  historia (3/6): lógica de negocio de tratamiento
+  historia (3/6): lógica de negocio de nota_consulta
+  historia (3/6): pruebas Jest de las reglas de nota_consulta
+  historia (3/6): lógica de negocio de acceso
+  historia (3/6): pruebas Jest de las reglas de acceso
+  historia (3/6): lógica de negocio de aviso
+  historia (3/6): pruebas Jest de las reglas de aviso
+  historia (3/6): lógica de negocio de pdf
+  historia (3/6): pruebas Jest de las reglas de pdf
+  historia (3/6): lógica de negocio de paciente
+  historia (3/6): pruebas Jest de las reglas de paciente
+  historia (3/6): comprobando con tsc la lógica y las pruebas
+  historia (3/6): listo
+  laboratorio (4/6): el LLM propone los campos de 1 entidades
+  laboratorio (4/6): generado con la plantilla: 40 archivos, estructura validada
+  laboratorio (4/6): instalando dependencias y generando el cliente de Prisma
+  laboratorio (4/6): compila con tsc
+  laboratorio (4/6): lógica de negocio de resultado
+  laboratorio (4/6): pruebas Jest de las reglas de resultado
+  laboratorio (4/6): comprobando con tsc la lógica y las pruebas
+  laboratorio (4/6): listo
+  pagos (5/6): el LLM propone los campos de 2 entidades
+  pagos (5/6): generado con la plantilla: 47 archivos, estructura validada
+  pagos (5/6): instalando dependencias y generando el cliente de Prisma
+  pagos (5/6): compila con tsc
+  pagos (5/6): lógica de negocio de pago
+  pagos (5/6): pruebas Jest de las reglas de pago
+  pagos (5/6): lógica de negocio de cita
+  pagos (5/6): comprobando con tsc la lógica y las pruebas
+  pagos (5/6): listo
+  gestion (6/6): el LLM propone los campos de 9 entidades
+  gestion (6/6): generado con la plantilla: 96 archivos, estructura validada
+  gestion (6/6): instalando dependencias y generando el cliente de Prisma
+  gestion (6/6): compila con tsc
+  gestion (6/6): lógica de negocio de medico
+  gestion (6/6): lógica de negocio de especialidad
+  gestion (6/6): pruebas Jest de las reglas de especialidad
+  gestion (6/6): lógica de negocio de sede
+  gestion (6/6): pruebas Jest de las reglas de sede
+  gestion (6/6): lógica de negocio de horario
+  gestion (6/6): lógica de negocio de reporte
+  gestion (6/6): pruebas Jest de las reglas de reporte
+  gestion (6/6): lógica de negocio de notificacion
+  gestion (6/6): lógica de negocio de datos_personales
+  gestion (6/6): lógica de negocio de paciente
+  gestion (6/6): lógica de negocio de aviso
+  gestion (6/6): comprobando con tsc la lógica y las pruebas
+  gestion (6/6): terminado con problemas
+Uso del LLM: groq: 16 llamadas al proveedor, 34 desde caché, 76716 tokens (35960 de entrada y 40756 de salida); openrouter: 42 llamadas al proveedor, 2 desde caché, 452813 tokens (82030 de entrada y 370783 de salida)
+
+Servicios en salida/servicios/eval-03_citas_medicas-20261126-204053
+  auth             puerto 3001  completo  [cuenta=aceptada, paciente=aceptada, personal=aceptada, sesion=aceptada]
+  citas            puerto 3002  completo  [cita=sin_logica, horario=sin_logica, especialidad=sin_logica, medico=aceptada, sede=aceptada, hijo=aceptada, teleconsulta=aceptada]
+  historia         puerto 3003  completo  [historia_clinica=aceptada, diagnostico=aceptada, tratamiento=sin_logica, nota_consulta=aceptada, acceso=aceptada, aviso=aceptada, pdf=aceptada, paciente=aceptada]
+  laboratorio      puerto 3004  completo  [resultado=aceptada]
+  pagos            puerto 3005  completo  [pago=aceptada, cita=sin_logica]
+  gestion          puerto 3006  incompleto: revisa el resumen  [medico=sin_logica, especialidad=aceptada, sede=aceptada, horario=sin_logica, reporte=aceptada, notificacion=sin_logica, datos_personales=error, paciente=error, aviso=error]
+5 de 6 servicios completos; resumen en salida/servicios/eval-03_citas_medicas-20261126-204053/sistema.json

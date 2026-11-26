@@ -1,0 +1,196 @@
+servicio: citas
+descripcion: Búsqueda y reserva de horarios, reglas de negocio (máximo 2 pendientes,
+  bloqueo por ausencias, cancelación, cambios), generación de eventos de pago, recordatorios,
+  enlaces de teleconsulta y vista de agenda para médicos.
+base_datos: citas_db
+puerto: 3002
+entidades:
+- nombre: cita
+  descripcion: Representa una reserva de cita médica
+  campos:
+  - nombre: paciente_id
+    tipo: uuid
+    descripcion: identificador del paciente en Keycloak (servicio usuarios)
+    requerido: true
+  - nombre: hijo_id
+    tipo: referencia
+    requerido: false
+    entidad: hijo
+  - nombre: horario_id
+    tipo: referencia
+    requerido: true
+    entidad: horario
+  - nombre: medico_id
+    tipo: referencia
+    requerido: true
+    entidad: medico
+  - nombre: sede_id
+    tipo: referencia
+    requerido: true
+    entidad: sede
+  - nombre: especialidad_id
+    tipo: referencia
+    requerido: true
+    entidad: especialidad
+  - nombre: estado
+    tipo: enumeracion
+    requerido: true
+    valores:
+    - pendiente
+    - confirmada
+    - cancelada
+    - completada
+    - bloqueada
+  - nombre: fecha_hora
+    tipo: fecha_hora
+    requerido: true
+  - nombre: motivo
+    tipo: texto
+    requerido: false
+    min: 5
+    max: 200
+  - nombre: teleconsulta_id
+    tipo: referencia
+    requerido: false
+    entidad: teleconsulta
+  - nombre: creado_por
+    tipo: enumeracion
+    requerido: true
+    valores:
+    - paciente
+    - recepcion
+- nombre: horario
+  descripcion: Bloque de tiempo disponible para un médico en una sede y especialidad
+  campos:
+  - nombre: medico_id
+    tipo: referencia
+    requerido: true
+    entidad: medico
+  - nombre: sede_id
+    tipo: referencia
+    requerido: true
+    entidad: sede
+  - nombre: especialidad_id
+    tipo: referencia
+    requerido: true
+    entidad: especialidad
+  - nombre: fecha
+    tipo: fecha
+    requerido: true
+  - nombre: hora_inicio
+    tipo: fecha_hora
+    requerido: true
+  - nombre: duracion_minutos
+    tipo: entero
+    requerido: true
+    min: 15
+    max: 240
+  - nombre: disponible
+    tipo: booleano
+    requerido: true
+  - nombre: cupo
+    tipo: entero
+    requerido: true
+    min: 1
+    max: 10
+- nombre: especialidad
+  descripcion: Especialidad médica (ej. pediatría, cardiología)
+  campos:
+  - nombre: nombre
+    tipo: texto
+    requerido: true
+    unico: true
+    min: 3
+    max: 100
+  - nombre: descripcion
+    tipo: texto
+    requerido: false
+    min: 0
+    max: 500
+- nombre: medico
+  descripcion: Datos del profesional médico
+  campos:
+  - nombre: usuario_id
+    tipo: uuid
+    descripcion: identificador del médico en Keycloak (servicio usuarios)
+    requerido: true
+  - nombre: nombre
+    tipo: texto
+    requerido: true
+    min: 2
+    max: 50
+  - nombre: apellido
+    tipo: texto
+    requerido: true
+    min: 2
+    max: 50
+  - nombre: email
+    tipo: correo
+    requerido: true
+    unico: true
+  - nombre: especialidad_id
+    tipo: referencia
+    requerido: true
+    entidad: especialidad
+  - nombre: activo
+    tipo: booleano
+    requerido: true
+- nombre: sede
+  descripcion: Ubicación física de la clínica o consultorio
+  campos:
+  - nombre: nombre
+    tipo: texto
+    requerido: true
+    unico: true
+    min: 2
+    max: 100
+  - nombre: direccion
+    tipo: texto
+    requerido: true
+    min: 5
+    max: 200
+  - nombre: telefono
+    tipo: texto
+    requerido: false
+    min: 5
+    max: 20
+- nombre: hijo
+  descripcion: Datos del hijo menor asociado a un paciente
+  campos:
+  - nombre: paciente_id
+    tipo: uuid
+    descripcion: identificador del padre/madre en Keycloak (servicio usuarios)
+    requerido: true
+  - nombre: nombre
+    tipo: texto
+    requerido: true
+    min: 2
+    max: 50
+  - nombre: apellido
+    tipo: texto
+    requerido: true
+    min: 2
+    max: 50
+  - nombre: fecha_nacimiento
+    tipo: fecha
+    requerido: true
+  - nombre: documento
+    tipo: texto
+    requerido: false
+    min: 5
+    max: 20
+- nombre: teleconsulta
+  descripcion: Enlace y estado de la teleconsulta asociada a una cita
+  campos:
+  - nombre: cita_id
+    tipo: referencia
+    requerido: true
+    entidad: cita
+  - nombre: enlace
+    tipo: texto
+    requerido: true
+    min: 10
+    max: 200
+  - nombre: activo
+    tipo: booleano
+    requerido: true

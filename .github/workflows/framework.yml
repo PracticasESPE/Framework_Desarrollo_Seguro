@@ -6,17 +6,40 @@ on:
   push:
     branches: [dev, test, main]
   workflow_dispatch:
+    inputs:
+      documento:
+        description: >-
+          Fases 1 a 4 con un documento del dataset (evaluation/fases_1_4.py). «ninguno» ejecuta
+          el pipeline de siempre.
+        type: choice
+        options: [ninguno, 01_tienda_en_linea, 02_gestion_academica, 03_citas_medicas]
+        default: ninguno
+      reutilizar:
+        description: >-
+          Reutilizar las fases 1 y 2 ya guardadas en evaluation/resultados/sprint4/fases_1_4/ y
+          generar solo las fases 3 y 4 (ahorra cuota del LLM).
+        type: boolean
+        default: false
+      nivel_pruebas:
+        description: >-
+          Modelo de las pruebas Jest de la fase 3: razonamiento (el de la evaluación) o rapido, que
+          gasta mucha menos cuota pero cambia los resultados.
+        type: choice
+        options: [razonamiento, rapido]
+        default: razonamiento
 
 permissions:
   contents: read
 
+# La evaluación de un documento tiene su propio grupo: un push a la misma rama no la cancela.
 concurrency:
-  group: framework-${{ github.ref }}
+  group: framework-${{ github.ref }}-${{ inputs.documento || 'ninguno' }}
   cancel-in-progress: true
 
 jobs:
   pipeline:
     name: Pipeline por fases
+    if: github.event_name != 'workflow_dispatch' || inputs.documento == 'ninguno'
     # Versión fijada: ubuntu-latest pasa a Ubuntu 26 desde el 19/10/2026 y cambiaría el
     # entorno a mitad del proyecto. Se actualiza a propósito, no por sorpresa.
     runs-on: ubuntu-24.04
@@ -361,6 +384,7 @@ jobs:
   # validaciones de la especificación y el texto generado los cubre pytest en el pipeline.
   plantilla:
     name: Plantilla NestJS (servicio de ejemplo)
+    if: github.event_name != 'workflow_dispatch' || inputs.documento == 'ninguno'
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     permissions:
@@ -534,6 +558,7 @@ jobs:
   # dejará en la misma carpeta.
   gate1-servicios:
     name: Gate 1 sobre los servicios generados
+    if: github.event_name != 'workflow_dispatch' || inputs.documento == 'ninguno'
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     permissions:
@@ -592,12 +617,103 @@ jobs:
             salida/gates/servicios/
           if-no-files-found: warn
 
+  # Fases 1 a 4 con un documento del dataset (#75, #76), con el LLM real: requisitos,
+  # arquitectura con el ciclo LLM ↔ OPA, los microservicios de la fase 3 y el Gate 1 sobre ellos.
+  # Se lanza a mano (Actions > Run workflow, o `gh workflow run`) porque gasta llamadas al LLM.
+  # Sin Neo4j ni GraphRAG: la base de conocimiento no se carga en el CI.
+  evaluacion:
+    name: Fases 1 a 4 con un documento del dataset
+    if: github.event_name == 'workflow_dispatch' && inputs.documento != 'ninguno'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    permissions:
+      contents: read
+      security-events: write
+    env:
+      # El documento por variable de entorno, nunca interpolado en el script (inyección).
+      DOCUMENTO: ${{ inputs.documento }}
+      REUTILIZAR: ${{ inputs.reutilizar }}
+      LLM_PROVIDER: groq
+      # OpenRouter (modelos :free) y Claude (de pago) entran en la cadena solo si el repositorio
+      # tiene su secreto: un respaldo sin clave se omite (orchestrator/llm/fabrica.py).
+      LLM_RESPALDO: gemini,openrouter,claude
+      LLM_NIVEL_PRUEBAS: ${{ inputs.nivel_pruebas }}
+      GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+    steps:
+      - name: Descargar el repositorio
+        uses: actions/checkout@v6
+
+      - name: Preparar Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+
+      - name: Preparar uv (motor en Python)
+        uses: astral-sh/setup-uv@v10.3.0
+        with:
+          enable-cache: true
+
+      - name: Preparar OPA
+        uses: open-policy-agent/setup-opa@v2
+        with:
+          version: 1.21.x
+
+      - name: Caché de los modelos de Docling
+        uses: actions/cache@v5
+        with:
+          path: ~/.cache/huggingface
+          key: docling-modelos-${{ hashFiles('uv.lock') }}
+          restore-keys: docling-modelos-
+
+      - name: Preparar ESLint del framework
+        run: npm ci --ignore-scripts --no-audit --no-fund --prefix eslint
+
+      - name: "Fases 1 a 4"
+        run: |
+          set -o pipefail
+          mkdir -p salida
+          opciones=(--sin-grafo)
+          if [ "$REUTILIZAR" = "true" ]; then opciones+=(--reutilizar); fi
+          uv run python -m evaluation.fases_1_4 "$DOCUMENTO" "${opciones[@]}" 2>&1 | tee salida/evaluacion.txt
+          {
+            echo "## Fases 1 a 4: $DOCUMENTO"
+            echo
+            cat evaluation/resultados/sprint4/fases_1_4/README.md
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      # El script ya pide la decisión de OPA de cada servicio y la añade al resumen del job.
+      - name: "Publicar SARIF de los servicios generados"
+        if: ${{ !cancelled() && hashFiles('salida/security/sarif/servicios-github/*.sarif') != '' }}
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: salida/security/sarif/servicios-github
+
+      # Los resultados (para copiarlos en evaluation/resultados) y el código generado, sin las
+      # dependencias.
+      - name: Guardar los resultados y los servicios generados
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v6
+        with:
+          name: fases-1-4-${{ inputs.documento }}
+          path: |
+            evaluation/resultados/sprint4/fases_1_4/
+            salida/evaluacion.txt
+            salida/servicios/eval-*/
+            !salida/servicios/**/node_modules/**
+            salida/security/sarif/servicios/
+            salida/gates/servicios/
+          if-no-files-found: warn
+
   # El dashboard es la interfaz del propio framework, no parte de lo que genera. Por eso no entra
   # en el Gate 1, cuyos SARIF alimentan la decisión de OPA y las métricas de cada ejecución, sino
   # que se revisa aquí con las mismas herramientas. Trivy fs y Gitleaks del Gate 1 ya cubren su
   # package-lock.json y su historial.
   dashboard:
     name: Dashboard (React + Vite)
+    if: github.event_name != 'workflow_dispatch' || inputs.documento == 'ninguno'
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     permissions:
