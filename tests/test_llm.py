@@ -72,7 +72,7 @@ def test_claude_nivel_rapido_usa_haiku_sin_fallbacks():
     assert resultado == ESPERADO
     assert beta.llamadas == []
     llamada = normal.llamadas[0]
-    assert llamada["model"] == "claude-haiku-4-5"
+    assert llamada["model"] == "claude-haiku-5-5"
     assert llamada["output_format"] is Requisito
     assert "temperature" not in llamada
 

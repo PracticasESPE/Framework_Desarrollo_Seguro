@@ -212,6 +212,17 @@ export interface ResumenFase3 {
   servicios: ServicioGenerado[]
   advertencias: string[]
   completos: number
+  /** Modelo con el que se pidieron las pruebas Jest (LLM_NIVEL_PRUEBAS). */
+  nivel_pruebas?: 'rapido' | 'razonamiento'
+  /** Uso del LLM por proveedor; al reanudar suma todas las ejecuciones. */
+  uso_llm?: Record<string, UsoLLM>
+}
+
+export interface UsoLLM {
+  llamadas: number
+  desde_cache: number
+  tokens_entrada: number
+  tokens_salida: number
 }
 
 /** Lo que llega en cada evento de /ejecuciones/{id}/eventos (orchestrator/ejecuciones.py). */
@@ -254,13 +265,15 @@ export async function iniciarFase2(documento: string): Promise<Ejecucion> {
 
 /**
  * Lanza la fase 3 (un microservicio por servicio de la arquitectura aprobada). Gasta llamadas al
- * LLM, así que solo se llama cuando la persona lo pide después de revisar la arquitectura.
+ * LLM, así que solo se llama cuando la persona lo pide después de revisar la arquitectura. Con
+ * `reanudar`, el motor continúa en la última carpeta generada: conserva los servicios completos y
+ * genera los demás (los que dejó sin hacer, por ejemplo, el límite de uso del LLM).
  */
-export async function iniciarFase3(documento: string): Promise<Ejecucion> {
+export async function iniciarFase3(documento: string, reanudar = false): Promise<Ejecucion> {
   const respuesta = await fetch('/ejecuciones', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ documento, fase: 3 }),
+    body: JSON.stringify(reanudar ? { documento, fase: 3, reanudar: true } : { documento, fase: 3 }),
   })
   return leer<Ejecucion>(respuesta)
 }

@@ -9,6 +9,12 @@ Cada proveedor tiene su propia caché, así que una respuesta de Gemini nunca se
 de Groq.
 """
 
+import json
+import logging
+import os
+from dataclasses import asdict
+from pathlib import Path
+
 from pydantic import SecretStr
 
 from orchestrator.config import PROVEEDORES_LLM, Configuracion, obtener_configuracion
@@ -18,10 +24,16 @@ from orchestrator.llm.cadena import ProveedorEnCadena
 
 PROVEEDORES = PROVEEDORES_LLM
 
+log = logging.getLogger(__name__)
+
+
+class ErrorClaveFaltante(ErrorLLM):
+    """El proveedor elegido no tiene su clave en el entorno ni en .env."""
+
 
 def _clave(valor: SecretStr | None, variable: str) -> str:
     if valor is None:
-        raise ErrorLLM(f"Falta la variable {variable} en el entorno o en .env")
+        raise ErrorClaveFaltante(f"Falta la variable {variable} en el entorno o en .env")
     return valor.get_secret_value()
 
 
@@ -48,7 +60,7 @@ def nombres_de_respaldo(config: Configuracion, principal: str) -> list[str]:
             raise ErrorLLM(
                 "LLM_RESPALDO solo admite nombres de proveedor separados por comas "
                 f"({', '.join(PROVEEDORES)}) y tiene otro valor. Las claves van en "
-                "GEMINI_API_KEY, GROQ_API_KEY o ANTHROPIC_API_KEY."
+                "GEMINI_API_KEY, GROQ_API_KEY, ANTHROPIC_API_KEY u OPENROUTER_API_KEY."
             )
         nombres.append(nombre)
     return nombres
@@ -65,7 +77,15 @@ def crear_proveedor(
     proveedores: list[ProveedorLLM] = []
     for elegido in nombres:
         # Los modelos de LLM_MODELO_* son del principal: los de respaldo usan los suyos.
-        proveedor = crear_adaptador(elegido, config, modelos_configurados=elegido == principal)
+        try:
+            proveedor = crear_adaptador(elegido, config, modelos_configurados=elegido == principal)
+        except ErrorClaveFaltante:
+            if elegido == principal:
+                raise
+            # Un respaldo sin clave no entra en la cadena: así LLM_RESPALDO puede nombrar uno de
+            # pago (claude) que solo se usa en las máquinas que tienen su clave.
+            log.info("Respaldo %s sin clave: no entra en la cadena", elegido)
+            continue
         if config.llm_cache:
             proveedor = ProveedorConCache(proveedor, config.llm_cache_dir)
         proveedores.append(proveedor)
@@ -102,6 +122,21 @@ def crear_adaptador(
             max_intentos=intentos,
             esfuerzo_razonamiento=config.llm_esfuerzo_razonamiento,
         )
+    if elegido == "openrouter":
+        from orchestrator.llm.openrouter import ProveedorOpenRouter
+
+        # Sus modelos propios valen siempre, sea principal o respaldo; LLM_MODELO_* los reemplaza
+        # solo si es el principal.
+        propios = (
+            _modelos(config.openrouter_modelo_rapido, config.openrouter_modelo_razonamiento)
+            if config.openrouter_modelo_rapido or config.openrouter_modelo_razonamiento
+            else None
+        )
+        return ProveedorOpenRouter(
+            api_key=_clave(config.openrouter_api_key, "OPENROUTER_API_KEY"),
+            modelos=modelos or propios,
+            max_intentos=intentos,
+        )
     if elegido == "claude":
         from orchestrator.llm.claude import ProveedorClaude
 
@@ -135,6 +170,40 @@ def uso_por_proveedor(proveedor: object) -> dict[str, UsoLLM]:
         return {nombre: proveedor.uso_total()}
     uso = getattr(proveedor, "uso", None)
     return {nombre: uso if isinstance(uso, UsoLLM) else UsoLLM()}
+
+
+def uso_en_json(proveedor: object) -> dict[str, dict[str, int]]:
+    """El uso de cada proveedor que intervino, para guardarlo en los resúmenes."""
+    return {
+        nombre: asdict(uso)
+        for nombre, uso in uso_por_proveedor(proveedor).items()
+        if uso.llamadas or uso.desde_cache
+    }
+
+
+def sumar_usos(*usos: dict[str, dict[str, int]]) -> dict[str, dict[str, int]]:
+    """Suma, proveedor por proveedor, usos guardados con `uso_en_json`."""
+    total: dict[str, dict[str, int]] = {}
+    for uso in usos:
+        for nombre, valores in uso.items():
+            acumulado = total.setdefault(nombre, {})
+            for clave, valor in valores.items():
+                acumulado[clave] = acumulado.get(clave, 0) + valor
+    return total
+
+
+# Si está definida, cada comando que usa el LLM añade ahí una línea JSON con su uso. La
+# evaluación (evaluation/fases_1_4.py) la usa para medir los tokens de cada fase.
+VARIABLE_REGISTRO_USO = "FRAMEWORK_REGISTRO_USO"
+
+
+def registrar_uso(proveedor: object, paso: str) -> None:
+    ruta = os.environ.get(VARIABLE_REGISTRO_USO)
+    if not ruta:
+        return
+    linea = json.dumps({"paso": paso, "uso": uso_en_json(proveedor)}, ensure_ascii=False)
+    with Path(ruta).open("a", encoding="utf-8") as registro:
+        registro.write(linea + "\n")
 
 
 def describir_uso(proveedor: object) -> str:

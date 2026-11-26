@@ -87,15 +87,33 @@ Para que Gemini funcionara hubo que corregir dos cosas:
    - El cambio de proveedor se ve en el progreso del dashboard y en la CLI.
 4. **Esfuerzo de razonamiento (`LLM_ESFUERZO_RAZONAMIENTO`).** Gasta menos tokens, pero bajó la
    calidad de las etiquetas (tabla anterior). Úsalo solo si falta cuota.
+5. **Pruebas con el modelo rápido (`LLM_NIVEL_PRUEBAS=rapido`).** La fase 3 pide las pruebas Jest
+   de cada entidad; con el modelo rápido gasta mucha menos cuota, pero cambia los resultados, así
+   que la evaluación de la tesis se hace con `razonamiento` (el valor por defecto).
+6. **Reanudar la fase 3.** Si la cuota corta la fase 3, `framework servicio sistema --reanudar` (o
+   el botón «Generar los servicios que faltan» del dashboard) conserva los servicios completos y
+   genera solo los demás, sin volver a gastar lo ya hecho.
+
+## Uso medido
+
+Cada comando que usa el LLM muestra su uso («Uso del LLM: …») y la fase 3 lo guarda en
+`sistema.json` (`uso_llm`, sumando las ejecuciones reanudadas). Con la variable
+`FRAMEWORK_REGISTRO_USO=<archivo>`, además, cada comando añade a ese archivo una línea JSON con su
+uso: así `evaluation/fases_1_4.py` mide los tokens de cada fase (`uso_llm.jsonl` y `resumen.json`).
 
 ## Respaldo recomendado
 
 | Proveedor | Coste | Cómo activarlo |
 |---|---|---|
 | Gemini | Plan gratuito, con límites por proyecto. Probado: ver la tabla anterior | Crear una clave en Google AI Studio y ponerla en `GEMINI_API_KEY` |
+| OpenRouter | Modelos `:free` gratis: 20 peticiones por minuto y 50 al día (1000 al día con 10 USD de créditos comprados alguna vez). Los modelos gratuitos cambian a menudo | Crear una clave en openrouter.ai y ponerla en `OPENROUTER_API_KEY`; los modelos se cambian con `OPENROUTER_MODELO_RAPIDO` y `OPENROUTER_MODELO_RAZONAMIENTO`. Algunos modelos gratuitos solo responden si en Settings > Privacy se permiten los endpoints que pueden guardar los prompts |
+| Claude | De pago (por token), sin cuota diaria. Opus 5.5 para razonar y Haiku 5.5 para lo rápido | Crear una clave en la consola de Anthropic y ponerla en `ANTHROPIC_API_KEY` |
 | Ollama | Gratis, local, sin cuota; más lento | Instalar Ollama, descargar `ollama pull llama3.1` y dejar `OLLAMA_HOST` |
 
-Por ejemplo: `LLM_RESPALDO=gemini,ollama`.
+Por ejemplo: `LLM_RESPALDO=gemini,openrouter,claude`. Un respaldo sin su clave no entra en la
+cadena, así que esa línea sirve también en las máquinas sin `OPENROUTER_API_KEY` o
+`ANTHROPIC_API_KEY` (y en el CI sin esos secretos): allí se omiten. `framework llm estado` muestra
+cuáles entran.
 
 **Evaluación de la tesis.** Mezclar modelos cambia los resultados. Las corridas de evaluación se
 hacen con un solo proveedor y sin respaldo (`LLM_RESPALDO=` vacío). La comparación de modelos

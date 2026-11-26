@@ -18,6 +18,10 @@ Encadena las piezas de la fase 3, servicio por servicio:
 
 Un fallo en un servicio no detiene los demás: queda en su resumen. La cancelación sí detiene la
 fase (entre pasos, nunca a mitad de escribir un archivo).
+
+Con `reanudar`, la fase continúa en una carpeta que ya tiene su sistema.json: los servicios
+completos se conservan y los demás se generan de nuevo. Sirve cuando el límite de uso del LLM corta
+la ejecución, como con los planes gratuitos en un documento con muchas entidades.
 """
 
 from __future__ import annotations
@@ -25,7 +29,6 @@ from __future__ import annotations
 import hashlib
 import json
 import os
-import re
 import shutil
 import time
 from collections.abc import Callable
@@ -54,7 +57,14 @@ from orchestrator.generation.plantilla import ErrorPlantilla, generar_servicio
 from orchestrator.generation.pruebas import generar_pruebas
 from orchestrator.knowledge.graphrag import ContextoGraphRAG
 from orchestrator.llm import ErrorLLM
-from orchestrator.llm.base import ErrorLimiteLLM, ErrorProveedorLLM, ProveedorLLM
+from orchestrator.llm.base import (
+    ErrorLimiteLLM,
+    ErrorProveedorLLM,
+    Nivel,
+    ProveedorLLM,
+    mensaje_breve,
+)
+from orchestrator.llm.fabrica import sumar_usos, uso_en_json
 from orchestrator.llm.prompts import contexto_vacio, prompt_especificacion
 
 CARPETA_DEPENDENCIAS = ".dependencias"
@@ -65,17 +75,6 @@ ESPERAS_LIMITE_S = (30.0, 60.0, 120.0)
 ESPERA_MAXIMA_S = 120.0
 
 EstadoLogica = Literal["aceptada", "sin_logica", "error", "omitida"]
-
-
-def mensaje_breve(error: object, maximo: int = 300) -> str:
-    """El mensaje de un error para el resumen y el dashboard: una línea y sin el cuerpo de la
-    respuesta del proveedor del LLM, que incluye identificadores de la cuenta (p. ej. la
-    organización de Groq). «groq: error 413 de la API: Error code: 413 - {...}» queda en
-    «groq: error 413 de la API».
-    """
-    linea = (str(error).splitlines() or [""])[0]
-    breve = re.split(r":\s*(?:Error code|\{)", linea, maxsplit=1)[0]
-    return breve[:maximo].rstrip(" :")
 
 
 class ErrorSistema(Exception):
@@ -139,6 +138,14 @@ class ResultadoSistema(BaseModel):
     compilado: bool = Field(description="Se instalaron las dependencias y se compiló con tsc")
     servicios: list[ServicioGenerado]
     advertencias: list[str] = Field(default_factory=list)
+    nivel_pruebas: Nivel = Field(
+        default="razonamiento", description="Modelo con el que se pidieron las pruebas Jest"
+    )
+    uso_llm: dict[str, dict[str, int]] = Field(
+        default_factory=dict,
+        description="Llamadas, respuestas desde la caché y tokens de cada proveedor; al reanudar "
+        "se suman los de todas las ejecuciones",
+    )
 
     @computed_field
     @property
@@ -293,6 +300,8 @@ def generar_sistema(
     avance: Avance = _sin_aviso,
     comprobar_cancelacion: Callable[[], None] = _nada,
     esperar: Callable[[float], None] = time.sleep,
+    reanudar: bool = False,
+    nivel_pruebas: Nivel = "razonamiento",
 ) -> ResultadoSistema:
     """Genera en `destino` un microservicio por cada servicio de `arquitectura` (un Arquitectura).
 
@@ -300,7 +309,9 @@ def generar_sistema(
     de un servicio (por defecto, vacío). Sin `compilar_servicios` no se instala nada, no se compila
     y no hay pruebas: la lógica solo pasa el análisis del código. `dependencias` es la carpeta de
     las dependencias compartidas (por defecto, `destino/.dependencias`). `esperar` hace las
-    esperas por el límite de uso del LLM (la API pasa una que se corta al cancelar).
+    esperas por el límite de uso del LLM (la API pasa una que se corta al cancelar). Con
+    `reanudar`, `destino` es la carpeta de una ejecución anterior con la misma arquitectura: se
+    conservan sus servicios completos y se generan de nuevo los demás.
     """
     try:
         parametros = parametros_de_arquitectura(arquitectura)
@@ -309,11 +320,15 @@ def generar_sistema(
             "La arquitectura no se puede convertir en parámetros de la plantilla: "
             + "; ".join(error.problemas)
         ) from error
-    if destino.exists() and any(destino.iterdir()):
+    anterior = _ejecucion_anterior(destino, parametros) if reanudar else None
+    conservados = {s.servicio: s for s in anterior.servicios if s.completo} if anterior else {}
+    uso_anterior = anterior.uso_llm if anterior else {}
+    proveedor = llm  # sin las esperas: es el que cuenta las llamadas y los tokens
+    if not reanudar and destino.exists() and any(destino.iterdir()):
         raise ErrorSistema(f"{destino.as_posix()} ya existe y no está vacía")
     destino.mkdir(parents=True, exist_ok=True)
     especificaciones = destino / "especificaciones"
-    especificaciones.mkdir()
+    especificaciones.mkdir(exist_ok=True)
     raiz_dependencias = dependencias or destino / CARPETA_DEPENDENCIAS
     contexto_de = contexto_de or (lambda servicio: contexto_vacio())
     llm = LLMConEsperas(
@@ -327,8 +342,11 @@ def generar_sistema(
         documento=documento,
         carpeta=destino.as_posix(),
         compilado=compilar_servicios,
-        servicios=[_resumen_inicial(p) for p in parametros.servicios],
+        servicios=[
+            conservados.get(p.servicio) or _resumen_inicial(p) for p in parametros.servicios
+        ],
         advertencias=list(parametros.advertencias),
+        nivel_pruebas=nivel_pruebas,
     )
     total = len(parametros.servicios)
     por_nombre = {s.nombre: s for s in arquitectura.servicios}
@@ -344,6 +362,11 @@ def generar_sistema(
         ) -> None:
             avance(f"{nombre} ({indice + 1}/{total}): {mensaje}", (indice + fraccion) / total)
 
+        if params.servicio in conservados:
+            paso("completo en la ejecución anterior: se conserva", 1.0)
+            continue
+        if reanudar:
+            _borrar_servicio(destino / resumen.carpeta)
         try:
             _generar_un_servicio(
                 params,
@@ -357,6 +380,7 @@ def generar_sistema(
                 compilar_servicios=compilar_servicios,
                 con_logica=con_logica,
                 con_pruebas=con_pruebas,
+                nivel_pruebas=nivel_pruebas,
                 raiz_dependencias=raiz_dependencias,
                 paso=paso,
                 comprobar_cancelacion=comprobar_cancelacion,
@@ -364,9 +388,41 @@ def generar_sistema(
         except (ErrorLLM, ErrorLogica, ErrorPlantilla, ErrorDependencias, ValidationError) as error:
             resumen.error = mensaje_breve(error, 500)
             paso(f"no se completó: {resumen.error}", 1.0)
+        resultado.uso_llm = sumar_usos(uso_anterior, uso_en_json(proveedor))
         _guardar(resultado, destino)
 
     return resultado
+
+
+def _ejecucion_anterior(destino: Path, parametros: Any) -> ResultadoSistema:
+    """El sistema.json de `destino`, si es de la misma arquitectura."""
+    archivo = destino / ARCHIVO_RESUMEN
+    try:
+        anterior = ResultadoSistema.model_validate_json(archivo.read_bytes())
+    except (OSError, ValidationError) as error:
+        raise ErrorSistema(
+            f"No se puede reanudar: {archivo.as_posix()} no existe o no es un resumen de la fase 3"
+        ) from error
+    previos = [s.servicio for s in anterior.servicios]
+    if previos != [p.servicio for p in parametros.servicios]:
+        raise ErrorSistema(
+            "No se puede reanudar: los servicios de la ejecución anterior "
+            f"({', '.join(previos)}) no son los de esta arquitectura"
+        )
+    return anterior
+
+
+def _borrar_servicio(carpeta: Path) -> None:
+    """Borra lo que dejó un servicio incompleto. Su node_modules es un enlace a las dependencias
+    compartidas: se quita el enlace, nunca lo que hay detrás."""
+    if not carpeta.exists():
+        return
+    enlace = carpeta / "node_modules"
+    if enlace.is_symlink():
+        enlace.unlink()
+    elif os.path.isjunction(enlace):
+        os.rmdir(enlace)  # quita la unión de directorios sin entrar en ella
+    shutil.rmtree(carpeta)
 
 
 def _guardar(resultado: ResultadoSistema, destino: Path) -> None:
@@ -386,6 +442,7 @@ def _generar_un_servicio(
     compilar_servicios: bool,
     con_logica: bool,
     con_pruebas: bool,
+    nivel_pruebas: Nivel,
     raiz_dependencias: Path,
     paso: Callable[[str, float], None],
     comprobar_cancelacion: Callable[[], None],
@@ -437,6 +494,7 @@ def _generar_un_servicio(
             resumen,
             compilar_servicios=compilar_servicios,
             con_pruebas=con_pruebas,
+            nivel_pruebas=nivel_pruebas,
             paso=paso,
             comprobar_cancelacion=comprobar_cancelacion,
         )
@@ -486,6 +544,7 @@ def _logica_y_pruebas(
     *,
     compilar_servicios: bool,
     con_pruebas: bool,
+    nivel_pruebas: Nivel,
     paso: Callable[[str, float], None],
     comprobar_cancelacion: Callable[[], None],
 ) -> None:
@@ -528,7 +587,9 @@ def _logica_y_pruebas(
         comprobar_cancelacion()
         paso(f"pruebas Jest de las reglas de {entidad.nombre}", fraccion + 0.35 / max(cantidad, 1))
         try:
-            pruebas = generar_pruebas(carpeta, spec, entidad.nombre, logica.logica, requisitos, llm)
+            pruebas = generar_pruebas(
+                carpeta, spec, entidad.nombre, logica.logica, requisitos, llm, nivel=nivel_pruebas
+            )
         except (ErrorLLM, ErrorLogica) as error:
             entidad.detalle = f"Pruebas: {mensaje_breve(error, 280)}"
             continue

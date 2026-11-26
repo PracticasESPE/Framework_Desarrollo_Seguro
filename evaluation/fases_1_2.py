@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import subprocess
 import sys
 import time
@@ -39,8 +40,20 @@ DATASETS = RAIZ / "evaluation" / "datasets"
 RESULTADOS = RAIZ / "evaluation" / "resultados" / "sprint3"
 
 
-def framework(*argumentos: str) -> tuple[int, str, float]:
-    """Ejecuta un comando del framework; devuelve el código, la salida y los segundos."""
+# Cada comando que usa el LLM añade aquí una línea con su uso (orchestrator/llm/fabrica.py).
+ARCHIVO_USO = "uso_llm.jsonl"
+# Fase de cada paso que llama al LLM, para sumar los tokens por fase.
+FASE_DEL_PASO = {"clasificar": 1, "proponer": 2, "adr": 2, "sistema": 3}
+
+
+def framework(*argumentos: str, registro_uso: Path | None = None) -> tuple[int, str, float]:
+    """Ejecuta un comando del framework; devuelve el código, la salida y los segundos.
+
+    Con `registro_uso`, el comando añade a ese archivo los tokens que gastó.
+    """
+    entorno = {**os.environ, "PYTHONIOENCODING": "utf-8"}
+    if registro_uso is not None:
+        entorno["FRAMEWORK_REGISTRO_USO"] = str(registro_uso)
     inicio = time.perf_counter()
     proceso = subprocess.run(
         [sys.executable, "-m", "orchestrator.cli", *argumentos],
@@ -50,23 +63,61 @@ def framework(*argumentos: str) -> tuple[int, str, float]:
         encoding="utf-8",
         errors="replace",
         check=False,
+        # Con la salida en una tubería, Python en Windows escribe en cp1252 y caracteres como
+        # «↔» rompen el comando: el proceso hijo escribe siempre en UTF-8.
+        env=entorno,
     )
     salida = (proceso.stdout + proceso.stderr).strip()
     return proceso.returncode, salida, round(time.perf_counter() - inicio, 1)
+
+
+def uso_por_fase(archivo: Path) -> dict[str, dict]:
+    """Tokens y llamadas al LLM de cada fase, sumando todas las ejecuciones registradas."""
+    from orchestrator.llm import sumar_usos
+
+    por_fase: dict[str, list[dict]] = {}
+    try:
+        lineas = archivo.read_text(encoding="utf-8").splitlines()
+    except OSError:
+        return {}
+    for linea in lineas:
+        try:
+            registro = json.loads(linea)
+        except ValueError:
+            continue
+        fase = FASE_DEL_PASO.get(registro.get("paso"), 0)
+        por_fase.setdefault(f"fase{fase}", []).append(registro.get("uso", {}))
+    resultado = {}
+    for fase, usos in sorted(por_fase.items()):
+        proveedores = sumar_usos(*usos)
+        resultado[fase] = {
+            "proveedores": proveedores,
+            "llamadas": sum(u.get("llamadas", 0) for u in proveedores.values()),
+            "tokens": sum(
+                u.get("tokens_entrada", 0) + u.get("tokens_salida", 0) for u in proveedores.values()
+            ),
+        }
+    return resultado
 
 
 def _relativa(ruta: Path) -> str:
     return ruta.relative_to(RAIZ).as_posix()
 
 
-def procesar(carpeta: Path, formato: str, grafo: bool, reutilizar: bool = False) -> dict:
-    """Ejecuta las fases 1 y 2 con un documento.
+def procesar(
+    carpeta: Path,
+    formato: str,
+    grafo: bool,
+    reutilizar: bool = False,
+    resultados: Path = RESULTADOS,
+) -> dict:
+    """Ejecuta las fases 1 y 2 con un documento y deja todo en `resultados/<documento>`.
 
     Con `reutilizar`, el modelo de requisitos y la arquitectura que ya estén en la carpeta de
     resultados no se vuelven a pedir al LLM: solo se completan los pasos que faltan.
     """
     referencia = yaml.safe_load((carpeta / "referencia.yaml").read_text(encoding="utf-8"))
-    destino = RESULTADOS / carpeta.name
+    destino = resultados / carpeta.name
     destino.mkdir(parents=True, exist_ok=True)
     base = f"requisitos-{formato}"
     modelo = destino / f"{base}.modelo_requisitos.json"
@@ -74,9 +125,12 @@ def procesar(carpeta: Path, formato: str, grafo: bool, reutilizar: bool = False)
     registro_intentos = destino / f"{base}.intentos.json"
     resumen: dict = {"documento": carpeta.name, "titulo": referencia["titulo"], "pasos": {}}
     registro: list[str] = []
+    registro_uso = destino / ARCHIVO_USO
+    if not reutilizar:
+        registro_uso.unlink(missing_ok=True)  # una ejecución nueva mide desde cero
 
     def paso(nombre: str, *argumentos: str) -> bool:
-        codigo, salida, segundos = framework(*argumentos)
+        codigo, salida, segundos = framework(*argumentos, registro_uso=registro_uso)
         resumen["pasos"][nombre] = {"correcto": codigo == 0, "segundos": segundos}
         registro.append(f"$ framework {' '.join(argumentos)}\n{salida}\n")
         print(f"  {nombre}: {'correcto' if codigo == 0 else 'ERROR'} ({segundos} s)")
@@ -189,6 +243,7 @@ def procesar(carpeta: Path, formato: str, grafo: bool, reutilizar: bool = False)
 
 
 def _cerrar(resumen: dict, registro: list[str], destino: Path) -> dict:
+    resumen["uso_llm"] = uso_por_fase(destino / ARCHIVO_USO)
     (destino / "ejecucion.log").write_text("\n".join(registro), encoding="utf-8")
     (destino / "resumen.json").write_text(
         json.dumps(resumen, indent=2, ensure_ascii=False), encoding="utf-8"

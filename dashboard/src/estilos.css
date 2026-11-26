@@ -741,6 +741,14 @@ progress::-moz-progress-bar {
   padding: 10px 22px;
 }
 
+/* Varios botones en un paso (p. ej. reanudar la fase 3 o volver a generarla entera). */
+.acciones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-self: start;
+}
+
 .pasos {
   margin: 0;
   padding-left: 20px;

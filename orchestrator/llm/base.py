@@ -17,6 +17,17 @@ Nivel = Literal["rapido", "razonamiento"]
 NIVELES: tuple[Nivel, ...] = ("rapido", "razonamiento")
 
 
+def mensaje_breve(error: object, maximo: int = 300) -> str:
+    """El mensaje de un error para el resumen y el dashboard: una línea y sin el cuerpo de la
+    respuesta del proveedor del LLM, que incluye identificadores de la cuenta (p. ej. la
+    organización de Groq). «groq: error 413 de la API: Error code: 413 - {...}» queda en
+    «groq: error 413 de la API».
+    """
+    linea = (str(error).splitlines() or [""])[0]
+    breve = re.split(r":\s*(?:Error code|\{)", linea, maxsplit=1)[0]
+    return breve[:maximo].rstrip(" :")
+
+
 class ErrorLLM(Exception):
     """Error base de la capa de LLM."""
 
@@ -43,7 +54,7 @@ class ErrorLimiteLLM(ErrorProveedorLLM):
 def error_de_limite(proveedor: str, detalle: str, retry_after: str | None) -> ErrorLimiteLLM:
     """Construye el error a partir de la respuesta 429 del proveedor."""
     espera = _segundos(retry_after) if retry_after else _espera_en_texto(detalle)
-    diario = bool(re.search(r"per day|\((?:TPD|RPD)\)|daily|PerDay", detalle, re.IGNORECASE))
+    diario = bool(re.search(r"per[ -]day|\((?:TPD|RPD)\)|daily|PerDay", detalle, re.IGNORECASE))
     if diario:
         cuando = f"; se renueva en {_legible(espera)}" if espera is not None else ""
         return ErrorLimiteLLM(f"{proveedor}: cuota diaria agotada{cuando}", espera, diario=True)

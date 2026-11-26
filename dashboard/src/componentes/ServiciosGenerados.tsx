@@ -21,6 +21,9 @@ export function ServiciosGenerados({ resumen }: { resumen: ResumenFase3 }) {
   const conLogica = entidades.filter((e) => e.logica === 'aceptada').length
   const pruebas = entidades.reduce((suma, e) => suma + e.pruebas_aceptadas, 0)
   const todos = resumen.completos === total
+  const usos = Object.values(resumen.uso_llm ?? {})
+  const tokens = usos.reduce((suma, u) => suma + u.tokens_entrada + u.tokens_salida, 0)
+  const llamadas = usos.reduce((suma, u) => suma + u.llamadas, 0)
 
   return (
     <section className="tarjeta" aria-labelledby="titulo-servicios">
@@ -64,7 +67,19 @@ export function ServiciosGenerados({ resumen }: { resumen: ResumenFase3 }) {
           <dt>Pruebas aceptadas</dt>
           <dd>{pruebas}</dd>
         </div>
+        {usos.length > 0 && (
+          <div>
+            <dt>Tokens del LLM</dt>
+            <dd title={`${llamadas} llamadas al proveedor`}>{tokens.toLocaleString('es')}</dd>
+          </div>
+        )}
       </dl>
+      {resumen.nivel_pruebas === 'rapido' && (
+        <p className="tarjeta__intro">
+          Las pruebas Jest se pidieron con el modelo rápido (LLM_NIVEL_PRUEBAS=rapido), que gasta
+          menos cuota.
+        </p>
+      )}
 
       {resumen.servicios.map((servicio) => (
         <Servicio key={servicio.servicio} servicio={servicio} />

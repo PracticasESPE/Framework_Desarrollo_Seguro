@@ -31,7 +31,7 @@ from typing import Any
 from pydantic import BaseModel
 
 from orchestrator.generation.logica import ErrorLogica, _ejecutar, problemas_del_codigo, solo_codigo
-from orchestrator.llm.base import ProveedorLLM
+from orchestrator.llm.base import Nivel, ProveedorLLM
 from orchestrator.llm.prompts import LogicaEntidad, clase_de, prompt_pruebas
 from orchestrator.llm.prompts.logica import propiedad_de
 from orchestrator.llm.prompts.pruebas import METODOS_PRISMA, CasoPrueba, PruebasEntidad
@@ -240,6 +240,7 @@ def generar_pruebas(
     intentos: int = INTENTOS,
     ejecutor: Ejecutor = ejecutar_jest,
     al_intento: Callable[[IntentoPruebas], None] | None = None,
+    nivel: Nivel = "razonamiento",
 ) -> ResultadoPruebas:
     """Genera y verifica src/<entidad>.reglas.spec.ts. Si nada pasa, no deja el archivo."""
     relativo = f"src/{entidad.replace('_', '-')}.reglas.spec.ts"
@@ -275,7 +276,12 @@ def generar_pruebas(
 
     for _ in range(intentos):
         prompt = prompt_pruebas(
-            especificacion, entidad, logica, requisitos, retroalimentacion=motivos or None
+            especificacion,
+            entidad,
+            logica,
+            requisitos,
+            retroalimentacion=motivos or None,
+            nivel=nivel,
         )
         huella = prompt.huella
         pruebas = prompt.enviar(llm)

@@ -957,7 +957,13 @@ def requisitos_clasificar(
         segmentar,
     )
     from orchestrator.ingest.clasificacion import clasificar_unidades
-    from orchestrator.llm import ErrorLLM, ProveedorEnCadena, crear_proveedor, describir_uso
+    from orchestrator.llm import (
+        ErrorLLM,
+        ProveedorEnCadena,
+        crear_proveedor,
+        describir_uso,
+        registrar_uso,
+    )
 
     extraido, base = _extraer_documento(ruta, documento)
     unidades = segmentar(extraido.markdown)
@@ -970,6 +976,7 @@ def requisitos_clasificar(
         typer.echo(f"  Límite de uso del LLM: se reintenta en {segundos:.0f} s")
         time.sleep(segundos)
 
+    llm = None
     try:
         llm = crear_proveedor(proveedor)
         if isinstance(llm, ProveedorEnCadena):
@@ -983,6 +990,8 @@ def requisitos_clasificar(
         )
     except (ErrorLLM, ValueError) as error:
         typer.echo(f"Error: {error}", err=True)
+        if llm is not None:
+            registrar_uso(llm, "clasificar")
         raise typer.Exit(1) from error
 
     archivo = _carpeta_requisitos(destino) / f"{base}.modelo_requisitos.json"
@@ -993,6 +1002,7 @@ def requisitos_clasificar(
     descartadas = sum(1 for _, c in pares if not c.es_requisito)
     typer.echo(f"Proveedor: {getattr(llm, 'nombre', proveedor)}")
     typer.echo(f"Uso del LLM: {describir_uso(llm)}")
+    registrar_uso(llm, "clasificar")
     typer.echo(
         f"Requisitos: {len(modelo.requisitos)} (funcionales: {tipos['funcional']}, "
         f"no funcionales: {tipos['no_funcional']}); unidades descartadas: {descartadas}"
@@ -1151,6 +1161,7 @@ def llm_estado() -> None:
         "groq": config.groq_api_key,
         "gemini": config.gemini_api_key,
         "claude": config.anthropic_api_key,
+        "openrouter": config.openrouter_api_key,
     }
     typer.echo(f"Proveedor principal: {principal}")
     typer.echo(f"Respaldo: {', '.join(respaldo) or 'ninguno (LLM_RESPALDO vacío)'}")
@@ -1159,7 +1170,10 @@ def llm_estado() -> None:
             typer.echo(f"  {nombre}: servidor local en {config.ollama_host}")
         else:
             definida = claves.get(nombre) is not None
-            typer.echo(f"  {nombre}: clave {'definida' if definida else 'NO definida'}")
+            estado = "definida" if definida else "NO definida"
+            if not definida and nombre != principal:
+                estado += " (no entra en la cadena)"
+            typer.echo(f"  {nombre}: clave {estado}")
     typer.echo(
         f"Esfuerzo de razonamiento (Groq): {config.llm_esfuerzo_razonamiento or 'el de Groq'}"
     )
@@ -1284,7 +1298,7 @@ def arquitectura_proponer(
         proponer_arquitectura,
     )
     from orchestrator.ingest import ModeloRequisitos
-    from orchestrator.llm import ErrorLLM, crear_proveedor
+    from orchestrator.llm import ErrorLLM, crear_proveedor, describir_uso, registrar_uso
     from orchestrator.opa import ErrorOPA
 
     if nivel not in ("razonamiento", "rapido"):
@@ -1321,6 +1335,7 @@ def arquitectura_proponer(
 
     typer.echo(f"Documento: {datos.documento.nombre}, {len(datos.requisitos)} requisitos")
     typer.echo(f"Ciclo LLM ↔ OPA (máximo {intentos} intentos):")
+    llm = None
     try:
         llm = crear_proveedor(proveedor)
         resultado = ciclo_llm_opa(
@@ -1335,6 +1350,11 @@ def arquitectura_proponer(
     except (ErrorLLM, ErrorOPA, ValueError) as error:
         typer.echo(f"Error: {error}", err=True)
         raise typer.Exit(1) from error
+    finally:
+        # También si falla: las llamadas ya hechas gastaron cuota.
+        if llm is not None:
+            typer.echo(f"Uso del LLM: {describir_uso(llm)}")
+            registrar_uso(llm, "proponer")
 
     base = modelo.name.removesuffix(".json").removesuffix(".modelo_requisitos") or "documento"
     carpeta = destino or obtener_configuracion().directorio_salida / "arquitectura"
@@ -1454,7 +1474,7 @@ def arquitectura_adr(
     from orchestrator.architecture import Arquitectura, validar_arquitectura
     from orchestrator.architecture.adr import ErrorADR, construir_adrs, escribir_adrs, redactar
     from orchestrator.ingest import ModeloRequisitos
-    from orchestrator.llm import ErrorLLM, crear_proveedor, describir_uso
+    from orchestrator.llm import ErrorLLM, crear_proveedor, describir_uso, registrar_uso
     from orchestrator.opa import ErrorOPA
 
     try:
@@ -1509,6 +1529,7 @@ def arquitectura_adr(
 
     if llm is not None:
         typer.echo(f"Uso del LLM: {describir_uso(llm)}")
+        registrar_uso(llm, "adr")
     typer.echo(f"{len(adrs)} ADR y el índice README.md escritos en {destino.as_posix()}")
     for archivo in escritos:
         typer.echo(f"  {archivo.name}")
@@ -1692,6 +1713,22 @@ def servicio_sistema(
         str | None,
         typer.Option("--proveedor", help="Proveedor de LLM; por defecto LLM_PROVIDER."),
     ] = None,
+    nivel_pruebas: Annotated[
+        str | None,
+        typer.Option(
+            "--nivel-pruebas",
+            help="Modelo de las pruebas Jest: razonamiento o rapido (gasta menos cuota); por "
+            "defecto LLM_NIVEL_PRUEBAS.",
+        ),
+    ] = None,
+    reanudar: Annotated[
+        bool,
+        typer.Option(
+            "--reanudar",
+            help="Continuar en la carpeta de --destino: conserva los servicios completos de su "
+            "sistema.json y genera los demás (p. ej. tras agotar el límite de uso del LLM).",
+        ),
+    ] = False,
 ) -> None:
     """Fase 3 completa: un microservicio por cada servicio de la arquitectura."""
     from datetime import UTC, datetime
@@ -1706,8 +1743,12 @@ def servicio_sistema(
         generar_sistema,
     )
     from orchestrator.ingest import ModeloRequisitos
-    from orchestrator.llm import ErrorLLM, crear_proveedor
+    from orchestrator.llm import ErrorLLM, crear_proveedor, describir_uso, registrar_uso
 
+    nivel = nivel_pruebas or obtener_configuracion().llm_nivel_pruebas
+    if nivel not in ("rapido", "razonamiento"):
+        typer.echo("Error: --nivel-pruebas admite razonamiento o rapido", err=True)
+        raise typer.Exit(2)
     try:
         arq = Arquitectura.model_validate_json(arquitectura.read_bytes())
         modelo = ModeloRequisitos.model_validate_json(requisitos.read_bytes())
@@ -1716,6 +1757,9 @@ def servicio_sistema(
             f"Error: no se pudieron leer la arquitectura o los requisitos: {error}", err=True
         )
         raise typer.Exit(1) from error
+    if reanudar and destino is None:
+        typer.echo("Error: --reanudar necesita --destino con la carpeta a continuar", err=True)
+        raise typer.Exit(2)
     servicios = obtener_configuracion().directorio_salida / "servicios"
     nombre = arquitectura.name.removesuffix(".arquitectura.json")
     fecha = datetime.now(UTC).strftime("%Y%m%d-%H%M%S")
@@ -1727,6 +1771,7 @@ def servicio_sistema(
             contexto_de, cerrar = contexto_graphrag_en_neo4j()
         except Exception as error:  # Neo4j o los embeddings no están disponibles
             typer.echo(f"Sin contexto GraphRAG: {error}", err=True)
+    llm = None
     try:
         llm = crear_proveedor(proveedor)
         resultado = generar_sistema(
@@ -1741,6 +1786,8 @@ def servicio_sistema(
             con_pruebas=con_pruebas,
             dependencias=servicios / CARPETA_DEPENDENCIAS,
             avance=lambda mensaje, progreso=None: typer.echo(f"  {mensaje}"),
+            reanudar=reanudar,
+            nivel_pruebas=nivel,
         )
     except (ErrorSistema, ErrorLLM) as error:
         typer.echo(f"Error: {error}", err=True)
@@ -1748,6 +1795,9 @@ def servicio_sistema(
     finally:
         if cerrar is not None:
             cerrar()
+        if llm is not None:
+            typer.echo(f"Uso del LLM: {describir_uso(llm)}")
+            registrar_uso(llm, "sistema")
 
     typer.echo(f"\nServicios en {carpeta.as_posix()}")
     for s in resultado.servicios:

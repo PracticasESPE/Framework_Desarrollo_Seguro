@@ -30,6 +30,7 @@ from orchestrator.llm.base import (
     Nivel,
     ProveedorLLM,
     T,
+    mensaje_breve,
 )
 
 # Cuánto se aparta un proveedor cuando no dice cuánto esperar.
@@ -45,6 +46,7 @@ class _Apartado:
     hasta: float = 0.0
     por_limite: bool = False
     diario: bool = False
+    motivo: str = ""
 
 
 class ProveedorEnCadena:
@@ -88,11 +90,15 @@ class ProveedorEnCadena:
                 pausa = error.espera_s
                 if pausa is None:
                     pausa = PAUSA_LIMITE_DIARIO_S if error.diario else PAUSA_LIMITE_S
-                self._apartados[indice] = _Apartado(self._reloj() + pausa, True, error.diario)
+                self._apartados[indice] = _Apartado(
+                    self._reloj() + pausa, True, error.diario, mensaje_breve(error, 200)
+                )
                 anterior = (nombre, str(error))
                 continue
             except ErrorProveedorLLM as error:
-                self._apartados[indice] = _Apartado(self._reloj() + PAUSA_ERROR_S)
+                self._apartados[indice] = _Apartado(
+                    self._reloj() + PAUSA_ERROR_S, motivo=mensaje_breve(error, 200)
+                )
                 anterior = (nombre, str(error))
                 continue
             self.respuestas_por_proveedor[nombre] += 1
@@ -110,4 +116,16 @@ class ProveedorEnCadena:
                 espera_s=espera,
                 diario=all(a.diario for a in self._apartados),
             )
-        return ErrorProveedorLLM(f"ningún proveedor de LLM disponible ({nombres})")
+        # El motivo de cada uno (sin el cuerpo de la respuesta, que lleva datos de la cuenta):
+        # sin él no se sabe si fue la red, la clave o una petición demasiado grande.
+        motivos = "; ".join(
+            motivo if motivo.startswith(f"{nombre}:") else f"{nombre}: {motivo}"
+            for nombre, motivo in zip(
+                self.nombres, (a.motivo for a in self._apartados), strict=True
+            )
+            if motivo
+        )
+        return ErrorProveedorLLM(
+            f"ningún proveedor de LLM disponible ({nombres})"
+            + (f". Motivos: {motivos}" if motivos else "")
+        )

@@ -720,6 +720,9 @@ describe('App: fase 3', () => {
     compilado: true,
     advertencias: ['La entidad «cliente» está en usuarios, pedidos'],
     completos: 1,
+    uso_llm: {
+      groq: { llamadas: 6, desde_cache: 0, tokens_entrada: 10000, tokens_salida: 2345 },
+    },
     servicios: [
       {
         servicio: 'usuarios',
@@ -922,6 +925,34 @@ describe('App: fase 3', () => {
     expect(pedidos.querySelector('script')).toBeNull()
     expect(within(fases).getAllByRole('listitem')[2]).toHaveTextContent('Completada')
     expect(screen.queryByRole('button', { name: /fase 3/ })).not.toBeInTheDocument()
+    expect(servicios).toHaveTextContent(/Tokens del LLM\s*12.?345/)
+  })
+
+  it('si quedaron servicios sin completar, ofrece generar solo esos', async () => {
+    const fetchSimulado = simularApi({
+      alIniciar: respuestaJson(EJECUCION, 201),
+      alIniciarFase2: respuestaJson(EJECUCION_FASE2, 201),
+      alIniciarFase3: respuestaJson(EJECUCION_FASE3, 201),
+    })
+    const usuario = userEvent.setup()
+    render(<App />)
+    await terminarFases1y2(usuario)
+    await usuario.click(screen.getByRole('button', { name: 'Continuar a la fase 3' }))
+    const fuente3 = EventSourceSimulado.instancias[2]
+    fuente3?.emitir(evento({ tipo: 'fase', fase: 3, estado: 'en_curso', mensaje: 'Generación' }))
+    fuente3?.emitir(evento({ tipo: 'resultado', fase: 3, progreso: 1, servicios: SERVICIOS }))
+    fuente3?.emitir(evento({ tipo: 'fin', estado: 'completada', mensaje: 'Ejecución completada' }))
+
+    const paso = screen.getByRole('region', { name: 'Siguiente paso: fase 3' })
+    expect(paso).toHaveTextContent('Quedó 1 servicio de tienda.docx sin completar')
+    expect(within(paso).getByRole('button', { name: 'Volver a generar todos' })).toBeEnabled()
+    await usuario.click(within(paso).getByRole('button', { name: 'Generar el servicio que falta' }))
+
+    expect(llamadasDeFase3(fetchSimulado).at(-1)?.[1]).toEqual(
+      expect.objectContaining({
+        body: JSON.stringify({ documento: DOCUMENTO.id, fase: 3, reanudar: true }),
+      }),
+    )
   })
 
   it('muestra el motivo si el motor no puede lanzar la fase 3 y permite reintentar', async () => {
