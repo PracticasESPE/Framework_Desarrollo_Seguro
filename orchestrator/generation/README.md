@@ -94,7 +94,10 @@ uv run framework servicio sistema salida/arquitectura/<id>.arquitectura.json \
 ```
 
 `--sin-compilar` genera sin instalar, compilar ni probar; `--sin-logica` y `--sin-pruebas` omiten
-esos pasos del LLM; `--sin-graphrag` no consulta Neo4j.
+esos pasos del LLM; `--sin-graphrag` no consulta Neo4j. `--reanudar` (con `--destino`) continúa
+en la carpeta de una ejecución anterior: conserva los servicios completos de su `sistema.json` y
+genera de nuevo los demás. Al borrar lo que dejó un servicio a medias se quita el enlace de su
+`node_modules`, nunca las dependencias compartidas.
 
 **Lo que aprendimos con el LLM real** (arquitectura de 5 servicios y 7 entidades, 24/11), y cómo
 lo resuelve la fase:
@@ -120,6 +123,16 @@ lo resuelve la fase:
 Con esos ajustes, la ejecución real desde el dashboard generó los 5 servicios en 4,5 minutos (con
 las dependencias ya instaladas): 4 entidades con lógica aceptada y 49 pruebas Jest que pasan, y 3
 sin lógica para revisión. Sin tocar nada a mano, el Gate 1 los aprobó a los 5 sin hallazgos.
+
+**Con el documento 3 del dataset** (6 servicios y 31 entidades, 25/11; ver
+`evaluation/resultados/sprint4/fases_1_4/`):
+
+- *Cuota diaria.* Los 2 primeros servicios (11 entidades) gastaron la cuota diaria de Groq y Gemini
+  respondía 503 por alta demanda: los otros 4 quedaron sin generar. De ahí `--reanudar`, y que el
+  error «ningún proveedor disponible» diga ahora el motivo de cada uno.
+- *Espacios que ESLint rechaza.* El LLM escribió «24 h» con un espacio fino (U+202F) en un
+  pendiente, y `no-irregular-whitespace` (alta) rechazó el servicio en el Gate 1. Los comentarios y
+  el código de la lógica se normalizan antes de insertarlos (`logica.py`).
 
 ## Parámetros por servicio (`parametros.py`)
 

@@ -16,6 +16,9 @@ from orchestrator.llm.fabrica import (
     crear_adaptador,
     crear_proveedor,
     describir_uso,
+    registrar_uso,
+    sumar_usos,
+    uso_en_json,
     uso_por_proveedor,
 )
 
@@ -33,5 +36,8 @@ __all__ = [
     "crear_adaptador",
     "crear_proveedor",
     "describir_uso",
+    "registrar_uso",
+    "sumar_usos",
+    "uso_en_json",
     "uso_por_proveedor",
 ]

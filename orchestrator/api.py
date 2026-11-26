@@ -321,6 +321,7 @@ class SolicitudEjecucion(BaseModel):
                 {"documento": "0123456789abcdef0123456789abcdef"},
                 {"documento": "0123456789abcdef0123456789abcdef", "fase": 2},
                 {"documento": "0123456789abcdef0123456789abcdef", "fase": 3},
+                {"documento": "0123456789abcdef0123456789abcdef", "fase": 3, "reanudar": True},
             ]
         },
     )
@@ -332,6 +333,11 @@ class SolicitudEjecucion(BaseModel):
         "modelo de requisitos que dejó la fase 1 y gasta llamadas al LLM. 3: generación de los "
         "microservicios, que parte de la arquitectura aprobada en la fase 2 y gasta llamadas "
         "al LLM",
+    )
+    reanudar: bool = Field(
+        default=False,
+        description="Solo con la fase 3: continuar en la última carpeta generada para el "
+        "documento, conservando los servicios completos y generando los demás",
     )
 
 
@@ -384,6 +390,8 @@ def iniciar_ejecucion(
             status_code=409,
             detail="Falta la fase 1: procesa el documento antes de proponer la arquitectura",
         )
+    if solicitud.reanudar and solicitud.fase != 3:
+        raise HTTPException(status_code=422, detail="«reanudar» solo vale para la fase 3")
     if solicitud.fase == 3:
         if not (destino_arquitectura / nombre_arquitectura(documento.id)).is_file():
             raise HTTPException(
@@ -398,6 +406,7 @@ def iniciar_ejecucion(
             destino_servicios,
             crear_llm,
             crear_contexto,
+            reanudar=solicitud.reanudar,
         )
     elif solicitud.fase == 2:
         trabajo = trabajo_fase2(

@@ -1,0 +1,50 @@
+servicio: laboratorio
+descripcion: Recepción segura de resultados del laboratorio externo, validación de
+  autenticación, almacenamiento de PDFs y emisión de eventos de disponibilidad.
+base_datos: laboratorio_db
+puerto: 3004
+entidades:
+- nombre: resultado
+  campos:
+  - nombre: lab_id
+    tipo: uuid
+    descripcion: Identificador del laboratorio externo autenticado (proviene de Keycloak)
+    requerido: true
+    unico: false
+  - nombre: paciente_id
+    tipo: uuid
+    descripcion: Identificador del paciente (proviene del servicio de usuarios)
+    requerido: true
+    unico: false
+  - nombre: examen_id
+    tipo: uuid
+    descripcion: Identificador del examen (proviene del catálogo de exámenes)
+    requerido: true
+    unico: false
+  - nombre: resultado
+    tipo: texto
+    descripcion: Resultado del examen en texto
+    requerido: true
+    unico: false
+    min: 1
+    max: 500
+  - nombre: pdf_url
+    tipo: texto
+    descripcion: URL al archivo PDF del resultado
+    requerido: true
+    unico: false
+    min: 1
+    max: 2048
+  - nombre: recibido_en
+    tipo: fecha_hora
+    descripcion: Fecha y hora de recepción del resultado
+    requerido: true
+    unico: false
+  - nombre: estado
+    tipo: enumeracion
+    descripcion: Estado de disponibilidad del resultado
+    requerido: true
+    unico: false
+    valores:
+    - pendiente
+    - disponible

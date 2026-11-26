@@ -1,0 +1,565 @@
+{
+  "documento": "requisitos.docx",
+  "carpeta": "salida/servicios/eval-03_citas_medicas-20261126-204053",
+  "compilado": true,
+  "servicios": [
+    {
+      "servicio": "auth",
+      "carpeta": "auth",
+      "puerto": 3001,
+      "base_datos": "auth_db",
+      "prefijo": "/api/auth",
+      "entidades": [
+        {
+          "nombre": "cuenta",
+          "ruta": "/api/auth/cuenta",
+          "logica": "aceptada",
+          "requisitos": [
+            "RF-03"
+          ],
+          "pendientes": [
+            "RF-04: requiere registro y conteo de intentos fallidos de contraseña, no disponible en este método",
+            "RF-06: requiere verificación MFA para personal, no manejado aquí",
+            "RNF-01: gestión de expiración de sesiones, fuera del alcance de estos métodos"
+          ],
+          "intentos_logica": 3,
+          "pruebas_aceptadas": 6,
+          "pruebas_descartadas": 0,
+          "detalle": null
+        },
+        {
+          "nombre": "paciente",
+          "ruta": "/api/auth/paciente",
+          "logica": "aceptada",
+          "requisitos": [],
+          "pendientes": [],
+          "intentos_logica": 2,
+          "pruebas_aceptadas": 6,
+          "pruebas_descartadas": 0,
+          "detalle": null
+        },
+        {
+          "nombre": "personal",
+          "ruta": "/api/auth/personal",
+          "logica": "aceptada",
+          "requisitos": [],
+          "pendientes": [],
+          "intentos_logica": 2,
+          "pruebas_aceptadas": 12,
+          "pruebas_descartadas": 0,
+          "detalle": null
+        },
+        {
+          "nombre": "sesion",
+          "ruta": "/api/auth/sesion",
+          "logica": "aceptada",
+          "requisitos": [],
+          "pendientes": [],
+          "intentos_logica": 2,
+          "pruebas_aceptadas": 17,
+          "pruebas_descartadas": 0,
+          "detalle": null
+        }
+      ],
+      "archivos": 61,
+      "estructura_valida": true,
+      "problemas_estructura": [],
+      "dependencias_permitidas": true,
+      "problemas_dependencias": [],
+      "dependencias_compartidas": true,
+      "compila": true,
+      "errores_tsc": [],
+      "error": null,
+      "completo": true
+    },
+    {
+      "servicio": "citas",
+      "carpeta": "citas",
+      "puerto": 3002,
+      "base_datos": "citas_db",
+      "prefijo": "/api/citas",
+      "entidades": [
+        {
+          "nombre": "cita",
+          "ruta": "/api/citas/cita",
+          "logica": "sin_logica",
+          "requisitos": [],
+          "pendientes": [],
+          "intentos_logica": 3,
+          "pruebas_aceptadas": 0,
+          "pruebas_descartadas": 0,
+          "detalle": "Ningún intento pasó el análisis y tsc: queda para revisión"
+        },
+        {
+          "nombre": "horario",
+          "ruta": "/api/citas/horario",
+          "logica": "sin_logica",
+          "requisitos": [],
+          "pendientes": [],
+          "intentos_logica": 3,
+          "pruebas_aceptadas": 0,
+          "pruebas_descartadas": 0,
+          "detalle": "Ningún intento pasó el análisis y tsc: queda para revisión"
+        },
+        {
+          "nombre": "especialidad",
+          "ruta": "/api/citas/especialidad",
+          "logica": "sin_logica",
+          "requisitos": [],
+          "pendientes": [],
+          "intentos_logica": 3,
+          "pruebas_aceptadas": 0,
+          "pruebas_descartadas": 0,
+          "detalle": "Ningún intento pasó el análisis y tsc: queda para revisión"
+        },
+        {
+          "nombre": "medico",
+          "ruta": "/api/citas/medico",
+          "logica": "aceptada",
+          "requisitos": [
+            "RF-08",
+            "RF-33"
+          ],
+          "pendientes": [],
+          "intentos_logica": 1,
+          "pruebas_aceptadas": 11,
+          "pruebas_descartadas": 0,
+          "detalle": null
+        },
+        {
+          "nombre": "sede",
+          "ruta": "/api/citas/sede",
+          "logica": "aceptada",
+          "requisitos": [],
+          "pendientes": [],
+          "intentos_logica": 1,
+          "pruebas_aceptadas": 7,
+          "pruebas_descartadas": 0,
+          "detalle": null
+        },
+        {
+          "nombre": "hijo",
+          "ruta": "/api/citas/hijo",
+          "logica": "aceptada",
+          "requisitos": [],
+          "pendientes": [
+            "RF-05: falta de información del usuario autenticado para validar que el pacienteId del hijo corresponde al paciente que está creando o modificando el registro.",
+            "RF-08, RF-09, RF-10, RF-11, RF-12, RF-13, RF-28, RF-29, RF-32, RF-33: no aplican directamente a la entidad Hijo o requieren datos de citas, horarios o usuarios que no están disponibles en estos métodos."
+          ],
+          "intentos_logica": 2,
+          "pruebas_aceptadas": 3,
+          "pruebas_descartadas": 0,
+          "detalle": null
+        },
+        {
+          "nombre": "teleconsulta",
+          "ruta": "/api/citas/teleconsulta",
+          "logica": "aceptada",
+          "requisitos": [
+            "RF-32"
+          ],
+          "pendientes": [
+            "RF-05: falta de información del usuario autenticado para validar que la cita pertenece al paciente o a su hijo.",
+            "RF-08: búsqueda y reserva de horarios libres no se gestiona en este método.",
+            "RF-09: control de doble reserva de horario debe implementarse en la lógica de creación de citas.",
+            "RF-10: límite de dos citas pendientes por especialidad requiere consulta a otras citas del paciente.",
+            "RF-11: restricción por ausencias requiere historial de citas y fechas.",
+            "RF-12: autorización de recepción necesita contexto de rol del usuario.",
+            "RF-13: validación de cancelación o cambio dentro de 24 h necesita la fecha/hora de la cita.",
+            "RF-28: envío de recordatorios por correo y SMS está fuera del alcance de estos métodos.",
+            "RF-29: contenido de los recordatorios no se controla aquí.",
+            "RF-33: vista consolidada de citas para el médico no corresponde a la entidad Teleconsulta."
+          ],
+          "intentos_logica": 1,
+          "pruebas_aceptadas": 7,
+          "pruebas_descartadas": 0,
+          "detalle": null
+        }
+      ],
+      "archivos": 82,
+      "estructura_valida": true,
+      "problemas_estructura": [],
+      "dependencias_permitidas": true,
+      "problemas_dependencias": [],
+      "dependencias_compartidas": true,
+      "compila": true,
+      "errores_tsc": [],
+      "error": null,
+      "completo": true
+    },
+    {
+      "servicio": "historia",
+      "carpeta": "historia",
+      "puerto": 3003,
+      "base_datos": "historia_db",
+      "prefijo": "/api/historia",
+      "entidades": [
+        {
+          "nombre": "historia_clinica",
+          "ruta": "/api/historia/historia-clinica",
+          "logica": "aceptada",
+          "requisitos": [
+            "RF-14"
+          ],
+          "pendientes": [
+            "Validar que el código CIE-10 del diagnóstico sea válido según el catálogo externo, lo cual requiere acceso a un servicio de códigos CIE-10 que no está disponible en este microservicio."
+          ],
+          "intentos_logica": 2,
+          "pruebas_aceptadas": 20,
+          "pruebas_descartadas": 0,
+          "detalle": null
+        },
+        {
+          "nombre": "diagnostico",
+          "ruta": "/api/historia/diagnostico",
+          "logica": "aceptada",
+          "requisitos": [
+            "RF-14"
+          ],
+          "pendientes": [
+            "RF-15: requiere información del médico y citas previas para validar acceso",
+            "RF-16: necesita registrar acceso de urgencia y notificar, información no disponible aquí",
+            "RF-17: control de notas firmadas no aplica a diagnóstico",
+            "RF-18: registro de accesos a historia clínica no manejado en este método",
+            "RF-20: descarga de PDF no corresponde a reglas de diagnóstico",
+            "RF-01: requisitos generales de seguridad y auditoría no implementados en estos métodos"
+          ],
+          "intentos_logica": 1,
+          "pruebas_aceptadas": 4,
+          "pruebas_descartadas": 0,
+          "detalle": null
+        },
+        {
+          "nombre": "tratamiento",
+          "ruta": "/api/historia/tratamiento",
+          "logica": "sin_logica",
+          "requisitos": [],
+          "pendientes": [],
+          "intentos_logica": 3,
+          "pruebas_aceptadas": 0,
+          "pruebas_descartadas": 0,
+          "detalle": "Ningún intento pasó el análisis y tsc: queda para revisión"
+        },
+        {
+          "nombre": "nota_consulta",
+          "ruta": "/api/historia/nota-consulta",
+          "logica": "aceptada",
+          "requisitos": [
+            "RF-17"
+          ],
+          "pendientes": [
+            "Validar que el autorId tenga permiso para crear o actualizar notas en la historia clínica (RF-15, RF-16). Requiere información del usuario autenticado que no está disponible en estos métodos.",
+            "Registrar auditoría de acceso a la historia clínica al crear o actualizar notas (RF-18). Necesita contexto de acceso que no se recibe aquí."
+          ],
+          "intentos_logica": 3,
+          "pruebas_aceptadas": 9,
+          "pruebas_descartadas": 0,
+          "detalle": null
+        },
+        {
+          "nombre": "acceso",
+          "ruta": "/api/historia/acceso",
+          "logica": "aceptada",
+          "requisitos": [
+            "RF-16",
+            "RF-18"
+          ],
+          "pendientes": [
+            "RF-15: validar que el médico solo abra historias de pacientes con cita previa (requiere datos de citas y rol del usuario)",
+            "RF-16: generar aviso a la dirección médica al crear un acceso de urgencia (requiere crear registro de aviso después de obtener accesoId)",
+            "RF-02: controlar la visibilidad de la historia clínica según el perfil del usuario (requiere información de roles y permisos)"
+          ],
+          "intentos_logica": 1,
+          "pruebas_aceptadas": 4,
+          "pruebas_descartadas": 0,
+          "detalle": null
+        },
+        {
+          "nombre": "aviso",
+          "ruta": "/api/historia/aviso",
+          "logica": "aceptada",
+          "requisitos": [
+            "RF-16",
+            "RF-18"
+          ],
+          "pendientes": [
+            "Validar que el acceso sea de tipo emergencia según el campo tipoAcceso del modelo acceso."
+          ],
+          "intentos_logica": 2,
+          "pruebas_aceptadas": 6,
+          "pruebas_descartadas": 0,
+          "detalle": null
+        },
+        {
+          "nombre": "pdf",
+          "ruta": "/api/historia/pdf",
+          "logica": "aceptada",
+          "requisitos": [
+            "RF-20"
+          ],
+          "pendientes": [
+            "Registrar auditoría de creación y eliminación de PDFs según requisitos de auditoría"
+          ],
+          "intentos_logica": 2,
+          "pruebas_aceptadas": 4,
+          "pruebas_descartadas": 0,
+          "detalle": null
+        },
+        {
+          "nombre": "paciente",
+          "ruta": "/api/historia/paciente",
+          "logica": "aceptada",
+          "requisitos": [],
+          "pendientes": [
+            "RNF-02: Las historias clínicas deben guardarse cifradas y conservarse al menos 15 años; este método no gestiona cifrado ni retención.",
+            "RF-15 y RF-16: Control de acceso a la historia clínica según perfil; no se implementa en estos métodos.",
+            "RF-17: Inmutabilidad de notas de consulta; no corresponde a la entidad Paciente.",
+            "RF-18: Registro de accesos a la historia clínica; no corresponde a la entidad Paciente.",
+            "RF-20: Generación y descarga de PDF de la historia clínica; no corresponde a la entidad Paciente."
+          ],
+          "intentos_logica": 2,
+          "pruebas_aceptadas": 0,
+          "pruebas_descartadas": 10,
+          "detalle": null
+        }
+      ],
+      "archivos": 89,
+      "estructura_valida": true,
+      "problemas_estructura": [],
+      "dependencias_permitidas": true,
+      "problemas_dependencias": [],
+      "dependencias_compartidas": true,
+      "compila": true,
+      "errores_tsc": [],
+      "error": null,
+      "completo": true
+    },
+    {
+      "servicio": "laboratorio",
+      "carpeta": "laboratorio",
+      "puerto": 3004,
+      "base_datos": "laboratorio_db",
+      "prefijo": "/api/laboratorio",
+      "entidades": [
+        {
+          "nombre": "resultado",
+          "ruta": "/api/laboratorio/resultado",
+          "logica": "aceptada",
+          "requisitos": [
+            "RF-21",
+            "RF-23"
+          ],
+          "pendientes": [
+            "Validar que el archivo PDF no supere 5 MB (no disponible en este método)"
+          ],
+          "intentos_logica": 2,
+          "pruebas_aceptadas": 1,
+          "pruebas_descartadas": 0,
+          "detalle": null
+        }
+      ],
+      "archivos": 40,
+      "estructura_valida": true,
+      "problemas_estructura": [],
+      "dependencias_permitidas": true,
+      "problemas_dependencias": [],
+      "dependencias_compartidas": true,
+      "compila": true,
+      "errores_tsc": [],
+      "error": null,
+      "completo": true
+    },
+    {
+      "servicio": "pagos",
+      "carpeta": "pagos",
+      "puerto": 3005,
+      "base_datos": "pagos_db",
+      "prefijo": "/api/pagos",
+      "entidades": [
+        {
+          "nombre": "pago",
+          "ruta": "/api/pagos/pago",
+          "logica": "aceptada",
+          "requisitos": [
+            "RF-25",
+            "RF-26"
+          ],
+          "pendientes": [
+            "RF-27: Verificar la autenticidad de las notificaciones de la pasarela de pagos"
+          ],
+          "intentos_logica": 1,
+          "pruebas_aceptadas": 7,
+          "pruebas_descartadas": 0,
+          "detalle": null
+        },
+        {
+          "nombre": "cita",
+          "ruta": "/api/pagos/cita",
+          "logica": "sin_logica",
+          "requisitos": [],
+          "pendientes": [],
+          "intentos_logica": 3,
+          "pruebas_aceptadas": 0,
+          "pruebas_descartadas": 0,
+          "detalle": "Ningún intento pasó el análisis y tsc: queda para revisión"
+        }
+      ],
+      "archivos": 47,
+      "estructura_valida": true,
+      "problemas_estructura": [],
+      "dependencias_permitidas": true,
+      "problemas_dependencias": [],
+      "dependencias_compartidas": true,
+      "compila": true,
+      "errores_tsc": [],
+      "error": null,
+      "completo": true
+    },
+    {
+      "servicio": "gestion",
+      "carpeta": "gestion",
+      "puerto": 3006,
+      "base_datos": "gestion_db",
+      "prefijo": "/api/gestion",
+      "entidades": [
+        {
+          "nombre": "medico",
+          "ruta": "/api/gestion/medico",
+          "logica": "sin_logica",
+          "requisitos": [],
+          "pendientes": [],
+          "intentos_logica": 3,
+          "pruebas_aceptadas": 0,
+          "pruebas_descartadas": 0,
+          "detalle": "Ningún intento pasó el análisis y tsc: queda para revisión"
+        },
+        {
+          "nombre": "especialidad",
+          "ruta": "/api/gestion/especialidad",
+          "logica": "aceptada",
+          "requisitos": [],
+          "pendientes": [],
+          "intentos_logica": 1,
+          "pruebas_aceptadas": 9,
+          "pruebas_descartadas": 0,
+          "detalle": null
+        },
+        {
+          "nombre": "sede",
+          "ruta": "/api/gestion/sede",
+          "logica": "aceptada",
+          "requisitos": [
+            "RF-07",
+            "RF-31"
+          ],
+          "pendientes": [],
+          "intentos_logica": 3,
+          "pruebas_aceptadas": 8,
+          "pruebas_descartadas": 0,
+          "detalle": null
+        },
+        {
+          "nombre": "horario",
+          "ruta": "/api/gestion/horario",
+          "logica": "sin_logica",
+          "requisitos": [],
+          "pendientes": [],
+          "intentos_logica": 3,
+          "pruebas_aceptadas": 0,
+          "pruebas_descartadas": 0,
+          "detalle": "Ningún intento pasó el análisis y tsc: queda para revisión"
+        },
+        {
+          "nombre": "reporte",
+          "ruta": "/api/gestion/reporte",
+          "logica": "aceptada",
+          "requisitos": [],
+          "pendientes": [],
+          "intentos_logica": 3,
+          "pruebas_aceptadas": 3,
+          "pruebas_descartadas": 0,
+          "detalle": null
+        },
+        {
+          "nombre": "notificacion",
+          "ruta": "/api/gestion/notificacion",
+          "logica": "sin_logica",
+          "requisitos": [],
+          "pendientes": [],
+          "intentos_logica": 3,
+          "pruebas_aceptadas": 0,
+          "pruebas_descartadas": 0,
+          "detalle": "Ningún intento pasó el análisis y tsc: queda para revisión"
+        },
+        {
+          "nombre": "datos_personales",
+          "ruta": "/api/gestion/datos-personales",
+          "logica": "error",
+          "requisitos": [],
+          "pendientes": [],
+          "intentos_logica": 0,
+          "pruebas_aceptadas": 0,
+          "pruebas_descartadas": 0,
+          "detalle": "todos los proveedores (groq, gemini, openrouter) alcanzaron su límite de uso"
+        },
+        {
+          "nombre": "paciente",
+          "ruta": "/api/gestion/paciente",
+          "logica": "error",
+          "requisitos": [],
+          "pendientes": [],
+          "intentos_logica": 0,
+          "pruebas_aceptadas": 0,
+          "pruebas_descartadas": 0,
+          "detalle": "El LLM no está disponible: se agotaron las esperas en un servicio anterior"
+        },
+        {
+          "nombre": "aviso",
+          "ruta": "/api/gestion/aviso",
+          "logica": "error",
+          "requisitos": [],
+          "pendientes": [],
+          "intentos_logica": 0,
+          "pruebas_aceptadas": 0,
+          "pruebas_descartadas": 0,
+          "detalle": "El LLM no está disponible: se agotaron las esperas en un servicio anterior"
+        }
+      ],
+      "archivos": 96,
+      "estructura_valida": true,
+      "problemas_estructura": [],
+      "dependencias_permitidas": true,
+      "problemas_dependencias": [],
+      "dependencias_compartidas": true,
+      "compila": true,
+      "errores_tsc": [],
+      "error": null,
+      "completo": false
+    }
+  ],
+  "advertencias": [
+    "La entidad «aviso» está en historia, gestion: cada servicio tendrá su propia tabla en su base (Database per Service)",
+    "La entidad «cita» está en citas, pagos: cada servicio tendrá su propia tabla en su base (Database per Service)",
+    "La entidad «especialidad» está en citas, gestion: cada servicio tendrá su propia tabla en su base (Database per Service)",
+    "La entidad «horario» está en citas, gestion: cada servicio tendrá su propia tabla en su base (Database per Service)",
+    "La entidad «medico» está en citas, gestion: cada servicio tendrá su propia tabla en su base (Database per Service)",
+    "La entidad «paciente» está en auth, historia, gestion: cada servicio tendrá su propia tabla en su base (Database per Service)",
+    "La entidad «sede» está en citas, gestion: cada servicio tendrá su propia tabla en su base (Database per Service)"
+  ],
+  "nivel_pruebas": "rapido",
+  "uso_llm": {
+    "groq": {
+      "llamadas": 16,
+      "desde_cache": 34,
+      "tokens_entrada": 35960,
+      "tokens_salida": 40756
+    },
+    "openrouter": {
+      "llamadas": 42,
+      "desde_cache": 2,
+      "tokens_entrada": 82030,
+      "tokens_salida": 370783
+    }
+  },
+  "completos": 5
+}

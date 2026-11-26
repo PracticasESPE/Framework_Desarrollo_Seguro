@@ -134,14 +134,26 @@ def problemas_de_la_respuesta(
 # --- Inserción en el punto de extensión --------------------------------------------------------
 
 
+# Los espacios que ESLint rechaza (no-irregular-whitespace, como error): el LLM los escribe a
+# veces, p. ej. «24\u202fh», y bloquean el Gate 1 del servicio aunque estén en un comentario.
+_ESPACIOS_IRREGULARES = re.compile(
+    "[\u000b\u000c\u0085\u00a0\u1680\u180e\u2000-\u200b\u2028\u2029\u202f\u205f\u3000\ufeff]"
+)
+
+
+def _sin_espacios_irregulares(texto: str) -> str:
+    return _ESPACIOS_IRREGULARES.sub(" ", texto)
+
+
 def _comentario(texto: str) -> str:
     """Una línea de comentario segura: sin saltos de línea ni marcas del punto de extensión."""
-    limpio = re.sub(r"[\x00-\x1f\x7f  ]+", " ", texto).replace("@framework:", "")
-    return limpio.strip()[:300]
+    limpio = re.sub(r"[\x00-\x1f\x7f]+", " ", _sin_espacios_irregulares(texto))
+    return limpio.replace("@framework:", "").strip()[:300]
 
 
 def _metodo(firma: str, cuerpo: str, parametros: list[str]) -> str:
     if cuerpo.strip():
+        cuerpo = _sin_espacios_irregulares(cuerpo)
         lineas = "\n".join(f"    {linea}".rstrip() for linea in cuerpo.strip().splitlines())
         return f"  protected async {firma} {{\n{lineas}\n  }}"
     # Sin reglas: el mismo método que deja la plantilla.

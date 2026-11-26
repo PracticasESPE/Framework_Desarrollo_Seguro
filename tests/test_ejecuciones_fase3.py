@@ -185,3 +185,49 @@ def test_sin_neo4j_sigue_sin_contexto(entorno):
 
     assert lista[-1]["estado"] == "completada"
     assert any("Sin contexto GraphRAG" in e["mensaje"] for e in lista)
+
+
+# --- Reanudar (#75: el límite de uso del LLM dejó servicios sin generar) -----------------------
+
+
+def _reanudar(entorno) -> list[dict]:
+    cuerpo = {"documento": entorno["documento"].id, "fase": 3, "reanudar": True}
+    respuesta = entorno["cliente"].post("/ejecuciones", json=cuerpo)
+    assert respuesta.status_code == 201, respuesta.text
+    return eventos(entorno["cliente"], respuesta.json()["id"])
+
+
+def test_reanudar_genera_solo_los_servicios_incompletos(entorno):
+    _fase_1_y_2(entorno)
+    entorno["estado"]["llm"] = LLMSimulado(falla_en="pedidos")
+    _, primera = _lanzar(entorno)
+    carpeta = _servicios(primera)["carpeta"]
+
+    llm = LLMSimulado()
+    entorno["estado"]["llm"] = llm
+    lista = _reanudar(entorno)
+
+    assert lista[-1]["estado"] == "completada"
+    resultado = _servicios(lista)
+    assert resultado["completos"] == 3 and resultado["carpeta"] == carpeta
+    assert llm.llamadas == ["especificacion:pedidos", "logica", "logica"]
+    avances = [e["mensaje"] for e in lista if e["tipo"] == "avance"]
+    assert f"Se reanuda {carpeta}: los servicios completos se conservan" in avances
+    assert "usuarios (1/3): completo en la ejecución anterior: se conserva" in avances
+    assert [c.name for c in entorno["servicios"].iterdir() if c.is_dir()] == [carpeta]
+
+
+def test_reanudar_sin_una_fase_3_anterior_lo_explica(entorno):
+    _fase_1_y_2(entorno)
+    lista = _reanudar(entorno)
+
+    assert lista[-1]["estado"] == "fallida"
+    assert "No hay servicios generados antes para este documento" in lista[-1]["mensaje"]
+
+
+def test_reanudar_solo_vale_para_la_fase_3(entorno):
+    _fase_1_y_2(entorno)
+    respuesta = entorno["cliente"].post(
+        "/ejecuciones", json={"documento": entorno["documento"].id, "fase": 2, "reanudar": True}
+    )
+    assert respuesta.status_code == 422

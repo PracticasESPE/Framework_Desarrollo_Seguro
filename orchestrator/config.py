@@ -7,7 +7,7 @@ from typing import Literal
 from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-PROVEEDORES_LLM: tuple[str, ...] = ("gemini", "groq", "claude", "ollama")
+PROVEEDORES_LLM: tuple[str, ...] = ("gemini", "groq", "claude", "openrouter", "ollama")
 
 
 class Configuracion(BaseSettings):
@@ -22,6 +22,11 @@ class Configuracion(BaseSettings):
     gemini_api_key: SecretStr | None = None
     anthropic_api_key: SecretStr | None = None
     groq_api_key: SecretStr | None = None
+    openrouter_api_key: SecretStr | None = None
+    # Modelos de OpenRouter (los gratuitos terminan en «:free» y cambian a menudo). Vacíos: los
+    # del adaptador (orchestrator/llm/openrouter.py). Se usan también cuando es de respaldo.
+    openrouter_modelo_rapido: str | None = None
+    openrouter_modelo_razonamiento: str | None = None
     ollama_host: str = "http://localhost:11434"
     # Si no se definen, cada adaptador usa sus modelos por defecto.
     llm_modelo_rapido: str | None = None
@@ -36,6 +41,9 @@ class Configuracion(BaseSettings):
     # Esfuerzo de razonamiento de los modelos gpt-oss en Groq (low, medium o high). Vacío: el de
     # Groq. Menos esfuerzo gasta menos tokens de la cuota.
     llm_esfuerzo_razonamiento: Literal["low", "medium", "high"] | None = None
+    # Modelo con el que la fase 3 pide las pruebas Jest: «rapido» gasta muchos menos tokens que
+    # «razonamiento», pero cambia los resultados; la evaluación de la tesis usa «razonamiento».
+    llm_nivel_pruebas: Literal["rapido", "razonamiento"] = "razonamiento"
 
     # Modelo local de embeddings (fastembed) y carpeta donde se guarda tras descargarlo.
     embeddings_modelo: str = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
@@ -59,6 +67,7 @@ class Configuracion(BaseSettings):
             "gemini_api_key_definida": self.gemini_api_key is not None,
             "anthropic_api_key_definida": self.anthropic_api_key is not None,
             "groq_api_key_definida": self.groq_api_key is not None,
+            "openrouter_api_key_definida": self.openrouter_api_key is not None,
             "ollama_host": self.ollama_host,
             # Solo los nombres reconocidos: el valor crudo podría ser una clave pegada por error.
             "llm_respaldo": [
@@ -68,6 +77,7 @@ class Configuracion(BaseSettings):
             ],
             "llm_cache": self.llm_cache,
             "llm_esfuerzo_razonamiento": self.llm_esfuerzo_razonamiento,
+            "llm_nivel_pruebas": self.llm_nivel_pruebas,
             "neo4j_uri": self.neo4j_uri,
             "neo4j_user": self.neo4j_user,
             "neo4j_database": self.neo4j_database,

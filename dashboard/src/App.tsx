@@ -84,11 +84,17 @@ export default function App() {
     seguida !== null && fase1Completada && !fase2Completada && (seguida2 === null || terminada2)
   // Igual con la fase 3: solo si OPA aprobó la arquitectura y la persona la revisó.
   const fase3Completada = finDe(eventos3)?.estado === 'completada'
+  // Servicios que quedaron sin completar cuando otros sí se completaron (p. ej. por el límite de
+  // uso del LLM): se ofrece generar solo esos.
+  const faltan3 =
+    terminada3 && servicios !== null && servicios.completos > 0
+      ? servicios.servicios.length - servicios.completos
+      : 0
   const ofrecerFase3 =
     seguida2 !== null &&
     fase2Completada &&
     arquitectura?.aprobada === true &&
-    !fase3Completada &&
+    (!fase3Completada || faltan3 > 0) &&
     (seguida3 === null || terminada3)
 
   async function procesar(documento: DocumentoCargado) {
@@ -122,10 +128,10 @@ export default function App() {
     }
   }
 
-  async function continuarConLaFase3(origen: Seguida) {
+  async function continuarConLaFase3(origen: Seguida, reanudar = false) {
     setInicio3({ tipo: 'iniciando' })
     try {
-      const ejecucion = await iniciarFase3(origen.documento)
+      const ejecucion = await iniciarFase3(origen.documento, reanudar)
       setSeguida3({ ...origen, id: ejecucion.id })
       setInicio3({ tipo: 'inactivo' })
     } catch (error) {
@@ -228,8 +234,10 @@ export default function App() {
               servicios={arquitectura.servicios.length}
               ocupado={ocupado}
               reintento={seguida3 !== null}
+              faltan={faltan3}
               error={inicio3.tipo === 'error' ? inicio3.mensaje : undefined}
               onContinuar={() => void continuarConLaFase3(seguida2)}
+              onReanudar={() => void continuarConLaFase3(seguida2, true)}
             />
           )}
           {seguida3 && (

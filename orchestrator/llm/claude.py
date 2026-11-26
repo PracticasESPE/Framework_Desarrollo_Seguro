@@ -7,7 +7,7 @@ import anthropic
 from orchestrator.llm.base import ErrorProveedorLLM, Nivel, ProveedorBase, T, error_de_limite
 
 MODELOS_POR_DEFECTO: dict[Nivel, str] = {
-    "rapido": "claude-haiku-4-5",
+    "rapido": "claude-haiku-5-5",
     "razonamiento": "claude-opus-5-5",
 }
 

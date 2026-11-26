@@ -1,0 +1,7 @@
+{"paso": "sistema", "uso": {"groq": {"llamadas": 1, "desde_cache": 0, "tokens_entrada": 2103, "tokens_salida": 2915}}}
+{"paso": "sistema", "uso": {"groq": {"llamadas": 1, "desde_cache": 0, "tokens_entrada": 2081, "tokens_salida": 2059}}}
+{"paso": "sistema", "uso": {"groq": {"llamadas": 1, "desde_cache": 0, "tokens_entrada": 2103, "tokens_salida": 3020}}}
+{"paso": "sistema", "uso": {"groq": {"llamadas": 55, "desde_cache": 0, "tokens_entrada": 118405, "tokens_salida": 129693}, "gemini": {"llamadas": 2, "desde_cache": 0, "tokens_entrada": 4761, "tokens_salida": 3002}, "openrouter": {"llamadas": 3, "desde_cache": 0, "tokens_entrada": 2439, "tokens_salida": 38895}}}
+{"paso": "sistema", "uso": {"groq": {"llamadas": 4, "desde_cache": 3, "tokens_entrada": 6299, "tokens_salida": 3119}}}
+{"paso": "sistema", "uso": {"groq": {"llamadas": 1, "desde_cache": 3, "tokens_entrada": 1717, "tokens_salida": 3040}, "openrouter": {"llamadas": 2, "desde_cache": 0, "tokens_entrada": 3187, "tokens_salida": 13492}}}
+{"paso": "sistema", "uso": {"groq": {"llamadas": 16, "desde_cache": 34, "tokens_entrada": 35960, "tokens_salida": 40756}, "openrouter": {"llamadas": 42, "desde_cache": 2, "tokens_entrada": 82030, "tokens_salida": 370783}}}

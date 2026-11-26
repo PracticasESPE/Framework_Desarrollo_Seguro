@@ -13,6 +13,7 @@ from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints
 
+from orchestrator.llm.base import Nivel
 from orchestrator.llm.prompts.comun import AVISO_DATOS, Prompt, bloque, nuevo_codigo
 from orchestrator.llm.prompts.logica import (
     LogicaEntidad,
@@ -118,6 +119,7 @@ def prompt_pruebas(
     requisitos: list[Any],
     codigo: str | None = None,
     retroalimentacion: list[str] | None = None,
+    nivel: Nivel = "razonamiento",
 ) -> Prompt[PruebasEntidad]:
     """Prompt para las pruebas de las reglas de negocio de `entidad`."""
     datos = next((e for e in especificacion.entidades if e.nombre == entidad), None)
@@ -165,6 +167,6 @@ def prompt_pruebas(
         sistema=SISTEMA,
         usuario="\n\n".join(partes),
         esquema=PruebasEntidad,
-        nivel="razonamiento",
+        nivel=nivel,
         codigo=codigo,
     )

@@ -1,0 +1,75 @@
+servicio: pagos
+descripcion: Integración con pasarela externa, iniciar pagos, recibir notificaciones
+  de pagos aprobados o reembolsados, emitir eventos y reembolsos automáticos.
+base_datos: pagos_db
+puerto: 3005
+entidades:
+- nombre: pago
+  campos:
+  - nombre: external_payment_id
+    tipo: uuid
+    descripcion: identificador del pago en la pasarela externa
+    requerido: true
+    unico: true
+  - nombre: amount
+    tipo: decimal
+    descripcion: importe del pago
+    requerido: true
+    min: 0.0
+  - nombre: currency
+    tipo: texto
+    descripcion: código ISO 4217 de la moneda
+    requerido: true
+    min: 3
+    max: 3
+  - nombre: status
+    tipo: enumeracion
+    requerido: true
+    valores:
+    - pendiente
+    - aprobado
+    - reembolsado
+    - fallido
+  - nombre: cita_id
+    tipo: referencia
+    requerido: true
+    entidad: cita
+  - nombre: paciente_id
+    tipo: uuid
+    descripcion: identificador del usuario en el servicio de usuarios (Keycloak)
+    requerido: true
+- nombre: cita
+  campos:
+  - nombre: medico_id
+    tipo: uuid
+    descripcion: identificador del médico en el servicio de médicos
+    requerido: true
+  - nombre: paciente_id
+    tipo: uuid
+    descripcion: identificador del usuario en el servicio de usuarios (Keycloak)
+    requerido: true
+  - nombre: fecha_hora
+    tipo: fecha_hora
+    requerido: true
+  - nombre: duracion_minutos
+    tipo: entero
+    requerido: true
+    min: 1
+    max: 240
+  - nombre: estado
+    tipo: enumeracion
+    requerido: true
+    valores:
+    - reservada
+    - confirmada
+    - cancelada
+    - libre
+  - nombre: pago_id
+    tipo: referencia
+    descripcion: pago asociado cuando está aprobado
+    requerido: false
+    entidad: pago
+  - nombre: notas
+    tipo: texto
+    requerido: false
+    max: 500

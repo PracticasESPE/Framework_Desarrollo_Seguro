@@ -1,0 +1,184 @@
+servicio: historia
+descripcion: Almacenar y compartir historias clínicas entre sedes, control de acceso
+  según citas, auditoría de accesos, notas inmutables, descarga PDF, retención cifrada
+  15 años.
+base_datos: historia_db
+puerto: 3003
+entidades:
+- nombre: historia_clinica
+  campos:
+  - nombre: paciente_id
+    tipo: referencia
+    requerido: true
+    entidad: paciente
+  - nombre: motivo_consulta
+    tipo: texto
+    requerido: true
+    min: 1
+    max: 500
+  - nombre: exploracion
+    tipo: texto
+    requerido: false
+    min: 0
+    max: 1000
+  - nombre: diagnostico_id
+    tipo: referencia
+    requerido: false
+    entidad: diagnostico
+  - nombre: tratamiento_id
+    tipo: referencia
+    requerido: false
+    entidad: tratamiento
+- nombre: diagnostico
+  campos:
+  - nombre: codigo_cie10
+    tipo: texto
+    requerido: true
+    min: 1
+    max: 10
+  - nombre: descripcion
+    tipo: texto
+    requerido: true
+    min: 1
+    max: 255
+  - nombre: historia_clinica_id
+    tipo: referencia
+    requerido: true
+    entidad: historia_clinica
+- nombre: tratamiento
+  campos:
+  - nombre: descripcion
+    tipo: texto
+    requerido: true
+    min: 1
+    max: 255
+  - nombre: historia_clinica_id
+    tipo: referencia
+    requerido: true
+    entidad: historia_clinica
+  - nombre: fecha_inicio
+    tipo: fecha_hora
+    requerido: false
+  - nombre: fecha_fin
+    tipo: fecha_hora
+    requerido: false
+- nombre: nota_consulta
+  campos:
+  - nombre: contenido
+    tipo: texto
+    requerido: true
+    min: 1
+    max: 2000
+  - nombre: autor_id
+    tipo: uuid
+    descripcion: identificador del usuario en Keycloak (servicio de usuarios)
+    requerido: true
+  - nombre: historia_clinica_id
+    tipo: referencia
+    requerido: true
+    entidad: historia_clinica
+  - nombre: nota_anterior_id
+    tipo: referencia
+    requerido: false
+    entidad: nota_consulta
+  - nombre: firma_hash
+    tipo: texto
+    requerido: true
+    min: 64
+    max: 64
+- nombre: acceso
+  campos:
+  - nombre: historia_clinica_id
+    tipo: referencia
+    requerido: true
+    entidad: historia_clinica
+  - nombre: usuario_id
+    tipo: uuid
+    descripcion: identificador del usuario en Keycloak
+    requerido: true
+  - nombre: fecha_hora
+    tipo: fecha_hora
+    requerido: true
+  - nombre: motivo
+    tipo: texto
+    requerido: true
+    min: 1
+    max: 255
+  - nombre: tipo_acceso
+    tipo: enumeracion
+    requerido: true
+    valores:
+    - consulta
+    - urgencia
+- nombre: aviso
+  campos:
+  - nombre: acceso_id
+    tipo: referencia
+    requerido: true
+    entidad: acceso
+  - nombre: mensaje
+    tipo: texto
+    requerido: true
+    min: 1
+    max: 500
+  - nombre: fecha_hora
+    tipo: fecha_hora
+    requerido: true
+  - nombre: leido
+    tipo: booleano
+    requerido: false
+- nombre: pdf
+  campos:
+  - nombre: historia_clinica_id
+    tipo: referencia
+    requerido: true
+    entidad: historia_clinica
+  - nombre: url
+    tipo: texto
+    requerido: true
+    min: 1
+    max: 500
+  - nombre: hash
+    tipo: texto
+    requerido: true
+    min: 64
+    max: 64
+- nombre: paciente
+  campos:
+  - nombre: nombre
+    tipo: texto
+    requerido: true
+    min: 1
+    max: 100
+  - nombre: apellido
+    tipo: texto
+    requerido: true
+    min: 1
+    max: 100
+  - nombre: fecha_nacimiento
+    tipo: fecha
+    requerido: true
+  - nombre: documento_identidad
+    tipo: texto
+    requerido: true
+    unico: true
+    min: 1
+    max: 20
+  - nombre: email
+    tipo: correo
+    requerido: true
+    unico: true
+  - nombre: telefono
+    tipo: texto
+    requerido: false
+    min: 0
+    max: 20
+  - nombre: direccion
+    tipo: texto
+    requerido: false
+    min: 0
+    max: 255
+  - nombre: keycloak_id
+    tipo: uuid
+    descripcion: identificador del usuario en Keycloak
+    requerido: true

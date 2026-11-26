@@ -945,6 +945,7 @@ def trabajo_fase3(
     crear_llm: Callable[[], ProveedorLLM],
     crear_contexto: CrearContexto | None = None,
     compilar: bool = True,
+    reanudar: bool = False,
 ) -> Trabajo:
     """Fase 3 completa, como `framework servicio sistema`: un microservicio por servicio.
 
@@ -954,9 +955,13 @@ def trabajo_fase3(
     `carpeta_servicios/.dependencias` y las comparten todos los servicios y todas las ejecuciones
     con el mismo package-lock.json. Con `crear_contexto`, cada servicio recibe el contexto de
     seguridad de GraphRAG; si Neo4j no responde, la fase sigue sin él y lo avisa.
+
+    Con `reanudar`, continúa en la última carpeta de la fase 3 de este documento: conserva los
+    servicios completos y genera los demás (p. ej. los que dejó sin hacer el límite de uso del LLM).
     """
 
     def trabajo(ejecucion: Ejecucion) -> None:
+        from orchestrator.config import obtener_configuracion
         from orchestrator.generation.sistema import (
             CARPETA_DEPENDENCIAS,
             ErrorSistema,
@@ -993,8 +998,16 @@ def trabajo_fase3(
                 log.warning("Fase 3 sin contexto GraphRAG: %s", error)
                 avance("Sin contexto GraphRAG (Neo4j no responde): los prompts van sin él")
 
-        fecha = datetime.now(UTC).strftime("%Y%m%d-%H%M%S")
-        destino = carpeta_servicios / f"{documento.id}-{fecha}"
+        if reanudar:
+            destino = ultima_fase3(carpeta_servicios, documento.id)
+            if destino is None:
+                raise ErrorFase(
+                    "No hay servicios generados antes para este documento: lanza la fase 3 completa"
+                )
+            avance(f"Se reanuda {destino.name}: los servicios completos se conservan")
+        else:
+            fecha = datetime.now(UTC).strftime("%Y%m%d-%H%M%S")
+            destino = carpeta_servicios / f"{documento.id}-{fecha}"
         try:
             resultado = generar_sistema(
                 arquitectura,
@@ -1008,6 +1021,8 @@ def trabajo_fase3(
                 avance=avance,
                 comprobar_cancelacion=ejecucion.comprobar_cancelacion,
                 esperar=ejecucion.esperar,
+                reanudar=reanudar,
+                nivel_pruebas=obtener_configuracion().llm_nivel_pruebas,
             )
         except ErrorSistema as error:
             raise ErrorFase(str(error)) from error
@@ -1028,6 +1043,16 @@ def trabajo_fase3(
         ejecucion.publicar("fase", NOMBRE_FASE3, fase=3, estado="completada", progreso=1.0)
 
     return trabajo
+
+
+def ultima_fase3(carpeta_servicios: Path, id_documento: str) -> Path | None:
+    """La carpeta más reciente de la fase 3 de un documento que dejó su sistema.json."""
+    candidatas = sorted(
+        c
+        for c in carpeta_servicios.glob(f"{id_documento}-*")
+        if c.is_dir() and (c / "sistema.json").is_file()
+    )
+    return candidatas[-1] if candidatas else None
 
 
 def _leer_arquitectura(carpeta: Path, id_documento: str) -> Arquitectura:

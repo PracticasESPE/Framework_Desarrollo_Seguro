@@ -80,3 +80,57 @@ def test_el_informe_muestra_los_documentos_que_fallaron():
     assert "| 02_gestion_academica | no se pudo clasificar | | | |" in texto
     assert "| 03_citas_medicas | rechazada en 3 intentos | | | | | |" in texto
     assert "clasificar 3.0 s (ERROR)" in texto
+
+
+def test_el_comando_del_framework_escribe_en_utf8(monkeypatch):
+    """Con la salida en una tubería, Python en Windows usa cp1252 y «↔» rompía el comando."""
+    import evaluation.fases_1_2 as fases
+
+    entornos = []
+
+    class Proceso:
+        returncode, stdout, stderr = 0, "Ciclo LLM ↔ OPA", ""
+
+    monkeypatch.setattr(
+        fases.subprocess, "run", lambda *a, **k: entornos.append(k["env"]) or Proceso()
+    )
+
+    codigo, salida, _ = fases.framework("arquitectura", "proponer")
+
+    assert (codigo, salida) == (0, "Ciclo LLM ↔ OPA")
+    assert entornos[0]["PYTHONIOENCODING"] == "utf-8"
+
+
+def test_los_tokens_se_suman_por_fase(tmp_path):
+    import json
+
+    from evaluation.fases_1_2 import uso_por_fase
+
+    def linea(paso, llamadas, entrada, salida, proveedor="groq"):
+        uso = {"llamadas": llamadas, "tokens_entrada": entrada, "tokens_salida": salida}
+        return json.dumps({"paso": paso, "uso": {proveedor: uso}})
+
+    registro = tmp_path / "uso_llm.jsonl"
+    registro.write_text(
+        "\n".join(
+            [
+                linea("clasificar", 13, 18000, 2000),
+                linea("proponer", 2, 9000, 3000),
+                linea("adr", 10, 5000, 1000),
+                linea("sistema", 30, 150000, 40000),
+                linea("sistema", 5, 20000, 5000, proveedor="gemini"),  # al reanudar
+                "no es json",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    uso = uso_por_fase(registro)
+
+    assert {f: (u["llamadas"], u["tokens"]) for f, u in uso.items()} == {
+        "fase1": (13, 20000),
+        "fase2": (12, 18000),
+        "fase3": (35, 215000),
+    }
+    assert set(uso["fase3"]["proveedores"]) == {"groq", "gemini"}
+    assert uso_por_fase(tmp_path / "no-existe.jsonl") == {}

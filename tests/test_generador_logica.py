@@ -20,6 +20,7 @@ from orchestrator.generation import (
     problemas_del_codigo,
 )
 from orchestrator.generation.logica import (
+    bloque_logica,
     errores_del_archivo,
     insertar_logica,
     problemas_de_la_respuesta,
@@ -304,3 +305,20 @@ def test_comando_logica_sin_compilar(servicio, tmp_path, monkeypatch):
     assert "protected async reglasAlEliminar" in (servicio / "src" / "pedido.service.ts").read_text(
         encoding="utf-8"
     )
+
+
+def test_el_bloque_no_lleva_espacios_que_eslint_rechaza():
+    """El LLM escribió «24\u202fh» en un pendiente y ESLint (no-irregular-whitespace, alta)
+    rechazó el servicio en el Gate 1 (#75, documento 3)."""
+    logica = LogicaEntidad(
+        reglas_al_crear="if (datos.horas < 24) {\u00a0throw new Error('Antes de 24\u202fh');\n}",
+        reglas_al_actualizar="",
+        reglas_al_eliminar="",
+        pendientes=["RF-13: cancelación dentro de 24\u202fh\u2028con la fecha de la cita"],
+    )
+
+    bloque = bloque_logica("cita", logica)
+
+    assert all(c not in bloque for c in "\u00a0\u202f\u2028\u2029\ufeff")
+    assert "// Pendiente: RF-13: cancelación dentro de 24 h con la fecha de la cita" in bloque
+    assert "throw new Error('Antes de 24 h');" in bloque

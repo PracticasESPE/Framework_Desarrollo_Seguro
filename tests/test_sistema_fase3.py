@@ -169,6 +169,103 @@ def test_no_escribe_sobre_una_carpeta_con_contenido(tmp_path: Path):
         _generar(tmp_path)
 
 
+def test_reanudar_conserva_los_completos_y_genera_los_demas(tmp_path: Path):
+    """El límite de uso del LLM cortó la fase en «pedidos» (#75, documento 3)."""
+    _generar(tmp_path, LLMSimulado(falla_en="pedidos"))
+    destino = tmp_path / "sistema"
+    marca = destino / "usuarios" / "src" / "marca.txt"
+    marca.write_text("de la ejecución anterior", encoding="utf-8")
+    # Lo que dejó un servicio a medias, con su node_modules enlazado a las compartidas.
+    compartidas = tmp_path / "compartidas" / "node_modules"
+    compartidas.mkdir(parents=True)
+    (compartidas / "paquete.js").write_text("x", encoding="utf-8")
+    (destino / "pedidos").mkdir()
+    (destino / "pedidos" / "a-medias.ts").write_text("x", encoding="utf-8")
+    enlazar_directorio(destino / "pedidos" / "node_modules", compartidas)
+
+    llm = LLMSimulado()
+    avisos: list[str] = []
+    resultado = _generar(tmp_path, llm, reanudar=True, avance=lambda m, p=None: avisos.append(m))
+
+    assert resultado.completos == 3
+    assert llm.llamadas == ["especificacion:pedidos", "logica", "logica"]
+    assert "usuarios (1/3): completo en la ejecución anterior: se conserva" in avisos
+    assert marca.is_file()  # los completos no se tocan
+    assert not (destino / "pedidos" / "a-medias.ts").exists()
+    assert (compartidas / "paquete.js").is_file()  # el enlace se quita, no lo que hay detrás
+    assert (destino / "pedidos" / "src" / "pedido.service.ts").is_file()
+    guardado = json.loads((destino / ARCHIVO_RESUMEN).read_text(encoding="utf-8"))
+    assert guardado["completos"] == 3
+
+
+class LLMConUso(LLMSimulado):
+    """Cuenta llamadas y tokens como los adaptadores reales."""
+
+    nombre = "groq"
+
+    def __init__(self, falla_en: str | None = None) -> None:
+        from orchestrator.llm import UsoLLM
+
+        super().__init__(falla_en)
+        self.uso = UsoLLM()
+
+    def generar_estructurado(self, prompt, esquema, nivel="rapido", sistema=None):
+        self.uso.llamadas += 1
+        self.uso.tokens_entrada += 1000
+        self.uso.tokens_salida += 200
+        return super().generar_estructurado(prompt, esquema, nivel, sistema)
+
+
+def test_sistema_json_guarda_el_uso_del_llm_y_lo_suma_al_reanudar(tmp_path: Path):
+    primero, segundo = LLMConUso(falla_en="pedidos"), LLMConUso()
+    _generar(tmp_path, primero, nivel_pruebas="rapido")
+    resultado = _generar(tmp_path, segundo, reanudar=True, nivel_pruebas="rapido")
+
+    llamadas = primero.uso.llamadas + segundo.uso.llamadas
+    assert resultado.uso_llm == {
+        "groq": {
+            "llamadas": llamadas,
+            "desde_cache": 0,
+            "tokens_entrada": 1000 * llamadas,
+            "tokens_salida": 200 * llamadas,
+        }
+    }
+    guardado = json.loads((tmp_path / "sistema" / ARCHIVO_RESUMEN).read_text(encoding="utf-8"))
+    assert guardado["uso_llm"] == resultado.uso_llm
+    assert guardado["nivel_pruebas"] == "rapido"
+
+
+def test_las_pruebas_se_piden_con_el_nivel_elegido(tmp_path: Path, monkeypatch):
+    import orchestrator.generation.pruebas as modulo
+
+    niveles: list[str] = []
+
+    class Detener(Exception):
+        pass
+
+    def prompt(*argumentos, nivel, **opciones):
+        niveles.append(nivel)
+        raise Detener
+
+    monkeypatch.setattr(modulo, "prompt_pruebas", prompt)
+    with pytest.raises(Detener):
+        modulo.generar_pruebas(tmp_path, None, "pedido", None, [], None, nivel="rapido")
+    assert niveles == ["rapido"]
+
+
+def test_reanudar_necesita_el_resumen_de_la_misma_arquitectura(tmp_path: Path):
+    with pytest.raises(ErrorSistema, match="No se puede reanudar"):
+        _generar(tmp_path, reanudar=True)
+
+    _generar(tmp_path, LLMSimulado(falla_en="pedidos"))
+    resumen = tmp_path / "sistema" / ARCHIVO_RESUMEN
+    datos = json.loads(resumen.read_text(encoding="utf-8"))
+    datos["servicios"] = datos["servicios"][:2]
+    resumen.write_text(json.dumps(datos), encoding="utf-8")
+    with pytest.raises(ErrorSistema, match="no son los de esta arquitectura"):
+        _generar(tmp_path, reanudar=True)
+
+
 def test_una_arquitectura_sin_parametros_validos_no_genera_nada(tmp_path: Path):
     arquitectura = _arquitectura(_con_entidades("pedidos", ["RF-01", "RF-02", "RF-03"], ["Prisma"]))
     with pytest.raises(ErrorSistema, match="nombre reservado"):
@@ -258,6 +355,30 @@ def test_cli_servicio_sistema(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     assert "3 de 3 servicios completos" in resultado.output
     assert (destino / "sistema.json").is_file()
     assert (destino / "notificaciones" / "src" / "notificacion.service.ts").is_file()
+
+    # --reanudar continúa en la carpeta de --destino, y sin ella no sabe cuál.
+    reanudado = CliRunner().invoke(
+        app,
+        [
+            "servicio",
+            "sistema",
+            str(arquitectura),
+            "--requisitos",
+            str(requisitos),
+            "--destino",
+            str(destino),
+            "--sin-compilar",
+            "--sin-graphrag",
+            "--reanudar",
+        ],
+    )
+    assert reanudado.exit_code == 0, reanudado.output
+    assert "completo en la ejecución anterior: se conserva" in reanudado.output
+    sin_destino = CliRunner().invoke(
+        app,
+        ["servicio", "sistema", str(arquitectura), "--requisitos", str(requisitos), "--reanudar"],
+    )
+    assert sin_destino.exit_code == 2 and "--reanudar necesita --destino" in sin_destino.output
 
 
 # --- Límite de uso del LLM ---------------------------------------------------------------------

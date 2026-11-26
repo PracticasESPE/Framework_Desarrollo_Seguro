@@ -29,6 +29,9 @@ from orchestrator.llm import (
     UsoLLM,
     crear_proveedor,
     describir_uso,
+    registrar_uso,
+    sumar_usos,
+    uso_en_json,
     uso_por_proveedor,
 )
 from orchestrator.llm.base import error_de_limite
@@ -383,6 +386,29 @@ def test_si_todos_fallan_por_red_no_se_presenta_como_limite():
     with pytest.raises(ErrorProveedorLLM, match="ningún proveedor") as capturado:
         cadena.generar_estructurado("p", Requisito)
     assert not isinstance(capturado.value, ErrorLimiteLLM)
+    assert "Motivos: groq: caído; ollama: x" in str(capturado.value)
+
+
+def test_el_motivo_de_cada_proveedor_no_incluye_el_cuerpo_de_la_respuesta():
+    """Groq devuelve el identificador de la organización en el cuerpo del error."""
+    cadena = ProveedorEnCadena(
+        [
+            Simulado(
+                "groq",
+                ErrorProveedorLLM(
+                    "groq: error 413 de la API: Error code: 413 - {'org': 'org_secreta'}"
+                ),
+            ),
+            Simulado("gemini", ErrorProveedorLLM("gemini: sin respuesta en 180 s")),
+        ],
+        reloj=Reloj(),
+    )
+    with pytest.raises(ErrorProveedorLLM) as capturado:
+        cadena.generar_estructurado("p", Requisito)
+    assert str(capturado.value) == (
+        "ningún proveedor de LLM disponible (groq, gemini). Motivos: groq: error 413 de la API; "
+        "gemini: sin respuesta en 180 s"
+    )
 
 
 def test_una_salida_invalida_no_cambia_de_proveedor():
@@ -437,12 +463,37 @@ def test_la_fabrica_sin_cache_ni_respaldo():
     assert isinstance(proveedor, ProveedorOllama)
 
 
-def test_la_fabrica_rechaza_un_respaldo_desconocido_o_sin_clave(monkeypatch):
-    monkeypatch.delenv("GEMINI_API_KEY", raising=False)
+def test_la_fabrica_rechaza_un_respaldo_desconocido(monkeypatch):
     with pytest.raises(ErrorLLM, match="LLM_RESPALDO solo admite nombres"):
         crear_proveedor(configuracion=_config(llm_provider="ollama", llm_respaldo="otro"))
+
+
+def test_un_respaldo_sin_clave_no_entra_en_la_cadena(monkeypatch):
+    """LLM_RESPALDO puede nombrar claude (de pago) aunque esta máquina no tenga su clave."""
+    for variable in ("GEMINI_API_KEY", "ANTHROPIC_API_KEY"):
+        monkeypatch.delenv(variable, raising=False)
+    solo = crear_proveedor(
+        configuracion=_config(llm_provider="ollama", llm_respaldo="gemini,claude", llm_cache=False)
+    )
+    assert isinstance(solo, ProveedorOllama)
+
+    cadena = crear_proveedor(
+        configuracion=_config(
+            llm_provider="ollama",
+            llm_respaldo="gemini,claude",
+            anthropic_api_key="k",
+            llm_cache=False,
+        )
+    )
+    assert isinstance(cadena, ProveedorEnCadena) and cadena.nombres == ["ollama", "claude"]
+    assert cadena.proveedores[1].modelos == {
+        "rapido": "claude-haiku-5-5",
+        "razonamiento": "claude-opus-5-5",
+    }
+
+    # El principal sí la necesita.
     with pytest.raises(ErrorLLM, match="GEMINI_API_KEY"):
-        crear_proveedor(configuracion=_config(llm_provider="ollama", llm_respaldo="gemini"))
+        crear_proveedor(configuracion=_config(llm_provider="gemini"))
 
 
 def test_la_configuracion_rechaza_un_esfuerzo_no_valido():
@@ -466,6 +517,30 @@ def test_uso_por_proveedor_suma_cache_y_cadena(tmp_path: Path):
         "gemini: 1 llamadas al proveedor, 1 desde caché, 100 tokens (100 de entrada y 0 de salida)"
     )
     assert describir_uso(Simulado()) == "sin llamadas al LLM"
+
+
+def test_el_uso_se_guarda_en_json_y_se_suma(tmp_path: Path, monkeypatch):
+    gemini = Simulado("gemini")
+    gemini.generar_estructurado("p", Requisito)
+    uso = uso_en_json(gemini)
+    assert uso == {
+        "gemini": {"llamadas": 1, "desde_cache": 0, "tokens_entrada": 100, "tokens_salida": 0}
+    }
+    assert uso_en_json(Simulado()) == {}  # sin llamadas no aparece
+    assert sumar_usos(uso, uso, {"groq": {"llamadas": 2}}) == {
+        "gemini": {"llamadas": 2, "desde_cache": 0, "tokens_entrada": 200, "tokens_salida": 0},
+        "groq": {"llamadas": 2},
+    }
+
+    registro = tmp_path / "uso.jsonl"
+    registrar_uso(gemini, "clasificar")  # sin la variable no escribe nada
+    assert not registro.exists()
+    monkeypatch.setenv("FRAMEWORK_REGISTRO_USO", str(registro))
+    registrar_uso(gemini, "clasificar")
+    registrar_uso(gemini, "proponer")
+    lineas = [json.loads(linea) for linea in registro.read_text(encoding="utf-8").splitlines()]
+    assert [linea["paso"] for linea in lineas] == ["clasificar", "proponer"]
+    assert lineas[0]["uso"] == uso
 
 
 # --- Clasificación ante el límite ----------------------------------------------------------------
@@ -683,3 +758,82 @@ def test_gemini_se_rinde_si_el_error_pasajero_persiste():
     with pytest.raises(ErrorProveedorLLM, match="503"):
         gemini.generar_estructurado("x", Requisito)
     assert esperas == [3.0, 10.0]
+
+
+# --- OpenRouter ---------------------------------------------------------------------------------
+
+
+def _limite_openrouter(mensaje: str, cabeceras: dict[str, str]) -> openai.RateLimitError:
+    peticion = httpx.Request("POST", "https://openrouter.ai/api/v1/chat/completions")
+    respuesta = httpx.Response(429, request=peticion, headers=cabeceras)
+    return openai.RateLimitError(mensaje, response=respuesta, body=None)
+
+
+def test_openrouter_pide_el_esquema_solo_a_proveedores_que_lo_admiten():
+    from orchestrator.llm.openrouter import ProveedorOpenRouter
+
+    cliente, llamadas = _cliente_groq(VALIDO)
+    openrouter = ProveedorOpenRouter(cliente=cliente)
+    resultado = openrouter.generar_estructurado("x", Requisito, nivel="razonamiento", sistema="s")
+
+    assert resultado == ESPERADO
+    llamada = llamadas[0]
+    assert llamada["model"] == "baidu/ernie-5.5-flash-preview:free"
+    assert llamada["response_format"]["type"] == "json_schema"
+    assert llamada["response_format"]["json_schema"]["schema"] == Requisito.model_json_schema()
+    assert llamada["extra_body"] == {"provider": {"require_parameters": True}}
+    assert llamada["messages"][0] == {"role": "system", "content": "s"}
+    assert openrouter.uso == UsoLLM(llamadas=1, tokens_entrada=120, tokens_salida=30)
+
+
+def test_openrouter_cuota_diaria_de_los_modelos_gratuitos():
+    from orchestrator.llm.openrouter import ProveedorOpenRouter
+
+    # X-RateLimit-Reset va en milisegundos desde 1970: dentro de 2 horas.
+    ahora = 1_800_000_000.0
+    limite = _limite_openrouter(
+        "Rate limit exceeded: free-models-per-day. Add 10 credits to unlock 1000 free model "
+        "requests per day",
+        {"x-ratelimit-reset": str(int((ahora + 7200) * 1000))},
+    )
+    cliente, _ = _cliente_groq(limite)
+    with pytest.raises(ErrorLimiteLLM) as capturado:
+        ProveedorOpenRouter(cliente=cliente, reloj=lambda: ahora).generar_estructurado(
+            "x", Requisito
+        )
+    assert capturado.value.diario is True
+    assert capturado.value.espera_s == pytest.approx(7200.0)
+    assert str(capturado.value) == "openrouter: cuota diaria agotada; se renueva en 2.0 h"
+
+    por_minuto = _limite_openrouter(
+        "Rate limit exceeded: free-models-per-min", {"retry-after": "9"}
+    )
+    cliente, _ = _cliente_groq(por_minuto)
+    with pytest.raises(ErrorLimiteLLM) as capturado:
+        ProveedorOpenRouter(cliente=cliente).generar_estructurado("x", Requisito)
+    assert (capturado.value.diario, capturado.value.espera_s) == (False, 9.0)
+
+
+def test_openrouter_en_la_fabrica_con_sus_modelos_aunque_sea_respaldo(monkeypatch):
+    from orchestrator.llm.openrouter import ProveedorOpenRouter
+
+    monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
+    config = _config(
+        llm_provider="ollama",
+        llm_respaldo="openrouter",
+        openrouter_api_key="k",
+        openrouter_modelo_rapido="a:free",
+        openrouter_modelo_razonamiento="b:free",
+        llm_modelo_rapido="principal-a",
+        llm_modelo_razonamiento="principal-b",
+        llm_cache=False,
+    )
+    cadena = crear_proveedor(configuracion=config)
+    assert isinstance(cadena, ProveedorEnCadena) and cadena.nombres == ["ollama", "openrouter"]
+    openrouter = cadena.proveedores[1]
+    assert isinstance(openrouter, ProveedorOpenRouter)
+    assert openrouter.modelos == {"rapido": "a:free", "razonamiento": "b:free"}
+
+    # Sin su clave, el respaldo no entra en la cadena.
+    sin_clave = _config(llm_provider="ollama", llm_respaldo="openrouter", llm_cache=False)
+    assert isinstance(crear_proveedor(configuracion=sin_clave), ProveedorOllama)
