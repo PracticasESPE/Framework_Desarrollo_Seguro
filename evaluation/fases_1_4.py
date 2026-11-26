@@ -52,9 +52,13 @@ DECISIONES = RAIZ / "salida" / "gates" / "servicios"
 HERRAMIENTAS = ("eslint", "semgrep", "gitleaks", "trivy-fs", "trivy-config", "hadolint")
 
 
+def _es_windows() -> bool:
+    return os.name == "nt"
+
+
 def _bash() -> str:
     """Git Bash en Windows (el «bash» de PowerShell es el de WSL); bash en los demás."""
-    if os.name == "nt":
+    if _es_windows():
         git_bash = Path(os.environ.get("ProgramFiles", r"C:\Program Files")) / "Git/bin/bash.exe"
         if git_bash.is_file():
             return str(git_bash)

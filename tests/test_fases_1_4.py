@@ -217,11 +217,11 @@ def test_usa_git_bash_en_windows_y_no_el_de_wsl(tmp_path: Path, monkeypatch):
     git_bash = tmp_path / "Git" / "bin" / "bash.exe"
     git_bash.parent.mkdir(parents=True)
     git_bash.write_text("", encoding="utf-8")
-    monkeypatch.setattr(fases.os, "name", "nt")
+    monkeypatch.setattr(fases, "_es_windows", lambda: True)
     monkeypatch.setenv("ProgramFiles", str(tmp_path))
     assert fases._bash() == str(git_bash)
 
-    monkeypatch.setattr(fases.os, "name", "posix")
+    monkeypatch.setattr(fases, "_es_windows", lambda: False)
     monkeypatch.setattr(fases.shutil, "which", lambda nombre: "/usr/bin/bash")
     assert fases._bash() == "/usr/bin/bash"
 
