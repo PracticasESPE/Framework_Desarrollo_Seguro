@@ -19,9 +19,9 @@
       "segundos": 2.5
     },
     "sistema": {
-      "correcto": false,
-      "segundos": 4985.8,
-      "ejecuciones": 1
+      "correcto": true,
+      "segundos": 5305.7,
+      "ejecuciones": 2
     }
   },
   "fase1": {
@@ -113,10 +113,10 @@
     "fase3": {
       "proveedores": {
         "groq": {
-          "llamadas": 79,
-          "desde_cache": 40,
-          "tokens_entrada": 168668,
-          "tokens_salida": 184602
+          "llamadas": 80,
+          "desde_cache": 67,
+          "tokens_entrada": 170815,
+          "tokens_salida": 186603
         },
         "gemini": {
           "llamadas": 2,
@@ -131,22 +131,22 @@
           "tokens_salida": 423170
         }
       },
-      "llamadas": 128,
-      "tokens": 871859
+      "llamadas": 129,
+      "tokens": 876007
     }
   },
   "carpeta_servicios": "salida/servicios/eval-03_citas_medicas-20261126-204053",
   "fase3": {
     "servicios": 6,
-    "completos": 5,
+    "completos": 6,
     "entidades": 31,
-    "logica_aceptada": 20,
-    "logica_al_primer_intento": 7,
-    "sin_logica": 8,
-    "logica_con_error": 3,
-    "pruebas_aceptadas": 144,
+    "logica_aceptada": 26,
+    "logica_al_primer_intento": 10,
+    "sin_logica": 5,
+    "logica_con_error": 0,
+    "pruebas_aceptadas": 185,
     "pruebas_descartadas": 10,
-    "pendientes": 36,
+    "pendientes": 45,
     "advertencias": [
       "La entidad «aviso» está en historia, gestion: cada servicio tendrá su propia tabla en su base (Database per Service)",
       "La entidad «cita» está en citas, pagos: cada servicio tendrá su propia tabla en su base (Database per Service)",

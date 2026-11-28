@@ -406,3 +406,43 @@ Servicios en salida/servicios/eval-03_citas_medicas-20261126-204053
   pagos            puerto 3005  completo  [pago=aceptada, cita=sin_logica]
   gestion          puerto 3006  incompleto: revisa el resumen  [medico=sin_logica, especialidad=aceptada, sede=aceptada, horario=sin_logica, reporte=aceptada, notificacion=sin_logica, datos_personales=error, paciente=error, aviso=error]
 5 de 6 servicios completos; resumen en salida/servicios/eval-03_citas_medicas-20261126-204053/sistema.json
+$ framework servicio sistema --sin-graphrag --reanudar …
+auth (1/6): completo en la ejecución anterior: se conserva
+  citas (2/6): completo en la ejecución anterior: se conserva
+  historia (3/6): completo en la ejecución anterior: se conserva
+  laboratorio (4/6): completo en la ejecución anterior: se conserva
+  pagos (5/6): completo en la ejecución anterior: se conserva
+  gestion (6/6): el LLM propone los campos de 9 entidades
+  gestion (6/6): generado con la plantilla: 96 archivos, estructura validada
+  gestion (6/6): instalando dependencias y generando el cliente de Prisma
+  gestion (6/6): compila con tsc
+  gestion (6/6): lógica de negocio de medico
+  gestion (6/6): pruebas Jest de las reglas de medico
+  gestion (6/6): lógica de negocio de especialidad
+  gestion (6/6): pruebas Jest de las reglas de especialidad
+  gestion (6/6): lógica de negocio de sede
+  gestion (6/6): pruebas Jest de las reglas de sede
+  gestion (6/6): lógica de negocio de horario
+  gestion (6/6): pruebas Jest de las reglas de horario
+  gestion (6/6): lógica de negocio de reporte
+  gestion (6/6): pruebas Jest de las reglas de reporte
+  gestion (6/6): lógica de negocio de notificacion
+  gestion (6/6): pruebas Jest de las reglas de notificacion
+  gestion (6/6): lógica de negocio de datos_personales
+  gestion (6/6): pruebas Jest de las reglas de datos_personales
+  gestion (6/6): lógica de negocio de paciente
+  gestion (6/6): pruebas Jest de las reglas de paciente
+  gestion (6/6): lógica de negocio de aviso
+  gestion (6/6): pruebas Jest de las reglas de aviso
+  gestion (6/6): comprobando con tsc la lógica y las pruebas
+  gestion (6/6): listo
+Uso del LLM: groq: 1 llamadas al proveedor, 27 desde caché, 4148 tokens (2147 de entrada y 2001 de salida)
+
+Servicios en salida/servicios/eval-03_citas_medicas-20261126-204053
+  auth             puerto 3001  completo  [cuenta=aceptada, paciente=aceptada, personal=aceptada, sesion=aceptada]
+  citas            puerto 3002  completo  [cita=sin_logica, horario=sin_logica, especialidad=sin_logica, medico=aceptada, sede=aceptada, hijo=aceptada, teleconsulta=aceptada]
+  historia         puerto 3003  completo  [historia_clinica=aceptada, diagnostico=aceptada, tratamiento=sin_logica, nota_consulta=aceptada, acceso=aceptada, aviso=aceptada, pdf=aceptada, paciente=aceptada]
+  laboratorio      puerto 3004  completo  [resultado=aceptada]
+  pagos            puerto 3005  completo  [pago=aceptada, cita=sin_logica]
+  gestion          puerto 3006  completo  [medico=aceptada, especialidad=aceptada, sede=aceptada, horario=aceptada, reporte=aceptada, notificacion=aceptada, datos_personales=aceptada, paciente=aceptada, aviso=aceptada]
+6 de 6 servicios completos; resumen en salida/servicios/eval-03_citas_medicas-20261126-204053/sistema.json

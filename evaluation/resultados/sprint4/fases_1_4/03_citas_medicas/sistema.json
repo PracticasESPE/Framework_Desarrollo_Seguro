@@ -425,20 +425,31 @@
         {
           "nombre": "medico",
           "ruta": "/api/gestion/medico",
-          "logica": "sin_logica",
-          "requisitos": [],
-          "pendientes": [],
+          "logica": "aceptada",
+          "requisitos": [
+            "RF-07",
+            "RF-31"
+          ],
+          "pendientes": [
+            "Validar que la duración de los bloques de horario sea 20 o 40 minutos según la especialidad (requiere acceso a horarios y a la propiedad duracionBloque).",
+            "Impedir la eliminación de un médico si existen horarios futuros o citas asociadas (requiere información de citas)."
+          ],
           "intentos_logica": 3,
-          "pruebas_aceptadas": 0,
+          "pruebas_aceptadas": 8,
           "pruebas_descartadas": 0,
-          "detalle": "Ningún intento pasó el análisis y tsc: queda para revisión"
+          "detalle": null
         },
         {
           "nombre": "especialidad",
           "ruta": "/api/gestion/especialidad",
           "logica": "aceptada",
-          "requisitos": [],
-          "pendientes": [],
+          "requisitos": [
+            "RF-07",
+            "RF-31"
+          ],
+          "pendientes": [
+            "Validar que los horarios existentes de médicos sean compatibles al cambiar la duración del bloque."
+          ],
           "intentos_logica": 1,
           "pruebas_aceptadas": 9,
           "pruebas_descartadas": 0,
@@ -449,80 +460,102 @@
           "ruta": "/api/gestion/sede",
           "logica": "aceptada",
           "requisitos": [
-            "RF-07",
             "RF-31"
           ],
           "pendientes": [],
-          "intentos_logica": 3,
-          "pruebas_aceptadas": 8,
+          "intentos_logica": 2,
+          "pruebas_aceptadas": 6,
           "pruebas_descartadas": 0,
           "detalle": null
         },
         {
           "nombre": "horario",
           "ruta": "/api/gestion/horario",
-          "logica": "sin_logica",
-          "requisitos": [],
+          "logica": "aceptada",
+          "requisitos": [
+            "RF-07"
+          ],
           "pendientes": [],
-          "intentos_logica": 3,
-          "pruebas_aceptadas": 0,
+          "intentos_logica": 1,
+          "pruebas_aceptadas": 4,
           "pruebas_descartadas": 0,
-          "detalle": "Ningún intento pasó el análisis y tsc: queda para revisión"
+          "detalle": null
         },
         {
           "nombre": "reporte",
           "ruta": "/api/gestion/reporte",
           "logica": "aceptada",
-          "requisitos": [],
-          "pendientes": [],
-          "intentos_logica": 3,
-          "pruebas_aceptadas": 3,
+          "requisitos": [
+            "RF-30"
+          ],
+          "pendientes": [
+            "Validar que el usuario autenticado tenga permiso de dirección médica para crear, actualizar o eliminar reportes (RF-30).",
+            "Garantizar que el reporte no incluya datos identificables de pacientes, cumpliendo con la privacidad requerida (RF-30)."
+          ],
+          "intentos_logica": 1,
+          "pruebas_aceptadas": 10,
           "pruebas_descartadas": 0,
           "detalle": null
         },
         {
           "nombre": "notificacion",
           "ruta": "/api/gestion/notificacion",
-          "logica": "sin_logica",
-          "requisitos": [],
-          "pendientes": [],
-          "intentos_logica": 3,
-          "pruebas_aceptadas": 0,
+          "logica": "aceptada",
+          "requisitos": [
+            "RF-22"
+          ],
+          "pendientes": [
+            "Verificar que el médico haya revisado el resultado antes de crear la notificación de tipo \"resultado_examen\""
+          ],
+          "intentos_logica": 1,
+          "pruebas_aceptadas": 6,
           "pruebas_descartadas": 0,
-          "detalle": "Ningún intento pasó el análisis y tsc: queda para revisión"
+          "detalle": null
         },
         {
           "nombre": "datos_personales",
           "ruta": "/api/gestion/datos-personales",
-          "logica": "error",
-          "requisitos": [],
-          "pendientes": [],
-          "intentos_logica": 0,
-          "pruebas_aceptadas": 0,
+          "logica": "aceptada",
+          "requisitos": [
+            "RF-34"
+          ],
+          "pendientes": [
+            "Validar que el usuario autenticado corresponde al pacienteId del registro antes de permitir crear, actualizar o eliminar datos personales."
+          ],
+          "intentos_logica": 2,
+          "pruebas_aceptadas": 3,
           "pruebas_descartadas": 0,
-          "detalle": "todos los proveedores (groq, gemini, openrouter) alcanzaron su límite de uso"
+          "detalle": null
         },
         {
           "nombre": "paciente",
           "ruta": "/api/gestion/paciente",
-          "logica": "error",
-          "requisitos": [],
-          "pendientes": [],
-          "intentos_logica": 0,
-          "pruebas_aceptadas": 0,
+          "logica": "aceptada",
+          "requisitos": [
+            "RF-34"
+          ],
+          "pendientes": [
+            "Validar que el usuario autenticado sea el propietario del paciente al crear, actualizar o eliminar, ya que esa información no está disponible en los parámetros de los métodos."
+          ],
+          "intentos_logica": 3,
+          "pruebas_aceptadas": 8,
           "pruebas_descartadas": 0,
-          "detalle": "El LLM no está disponible: se agotaron las esperas en un servicio anterior"
+          "detalle": null
         },
         {
           "nombre": "aviso",
           "ruta": "/api/gestion/aviso",
-          "logica": "error",
-          "requisitos": [],
-          "pendientes": [],
-          "intentos_logica": 0,
-          "pruebas_aceptadas": 0,
+          "logica": "aceptada",
+          "requisitos": [
+            "RF-22"
+          ],
+          "pendientes": [
+            "Validar que el médico haya revisado el resultado antes de permitir marcar el aviso como visto"
+          ],
+          "intentos_logica": 2,
+          "pruebas_aceptadas": 7,
           "pruebas_descartadas": 0,
-          "detalle": "El LLM no está disponible: se agotaron las esperas en un servicio anterior"
+          "detalle": null
         }
       ],
       "archivos": 96,
@@ -534,7 +567,7 @@
       "compila": true,
       "errores_tsc": [],
       "error": null,
-      "completo": false
+      "completo": true
     }
   ],
   "advertencias": [
@@ -549,10 +582,10 @@
   "nivel_pruebas": "rapido",
   "uso_llm": {
     "groq": {
-      "llamadas": 16,
-      "desde_cache": 34,
-      "tokens_entrada": 35960,
-      "tokens_salida": 40756
+      "llamadas": 17,
+      "desde_cache": 61,
+      "tokens_entrada": 38107,
+      "tokens_salida": 42757
     },
     "openrouter": {
       "llamadas": 42,
@@ -561,5 +594,5 @@
       "tokens_salida": 370783
     }
   },
-  "completos": 5
+  "completos": 6
 }
