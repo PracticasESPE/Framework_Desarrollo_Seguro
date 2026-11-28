@@ -75,13 +75,17 @@ class DriverSimulado:
 
 
 def test_scripts_en_orden():
-    assert [s.name for s in scripts_esquema()] == ["01_restricciones.cypher", "02_indices.cypher"]
+    assert [s.name for s in scripts_esquema()] == [
+        "01_restricciones.cypher",
+        "02_indices.cypher",
+        "03_trazabilidad.cypher",
+    ]
 
 
 def test_todas_las_sentencias_son_idempotentes_y_sin_comentarios():
     sentencias = [s for script in scripts_esquema() for s in leer_sentencias(script)]
 
-    assert len(sentencias) == 22
+    assert len(sentencias) == 23
     for sentencia in sentencias:
         assert sentencia.startswith(("CREATE CONSTRAINT", "CREATE INDEX"))
         assert "IF NOT EXISTS" in sentencia
@@ -122,7 +126,7 @@ def test_leer_sentencias_separa_por_punto_y_coma(tmp_path):
 
 def test_aplicar_esquema_ejecuta_todo_en_la_base_indicada():
     driver = DriverSimulado()
-    assert aplicar_esquema(driver, base_datos="pruebas") == 22
+    assert aplicar_esquema(driver, base_datos="pruebas") == 23
     assert all(base == "pruebas" for _, base in driver.consultas)
     assert driver.consultas[0][0].startswith("CREATE CONSTRAINT patron_id")
 
@@ -177,7 +181,7 @@ def test_cli_grafo_esquema(monkeypatch):
     resultado = runner.invoke(app, ["grafo", "esquema"])
 
     assert resultado.exit_code == 0
-    assert "22 sentencias" in resultado.output
+    assert "23 sentencias" in resultado.output
     assert driver.cerrado
 
 

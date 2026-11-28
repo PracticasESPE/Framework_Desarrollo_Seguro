@@ -2444,5 +2444,79 @@ def servicio_prompt(
         typer.echo(texto)
 
 
+@servicio_app.command("trazabilidad")
+def servicio_trazabilidad(
+    arquitectura: Annotated[
+        Path, typer.Argument(help="arquitectura.json aprobada por «arquitectura proponer».")
+    ],
+    servicios: Annotated[
+        Path, typer.Option("--servicios", help="Carpeta con los servicios generados.")
+    ] = Path("services"),
+    ejecucion: Annotated[
+        str | None,
+        typer.Option(
+            "--ejecucion",
+            help="Ejecución de Neo4j a la que enlazar; por defecto, la última con requisitos.",
+        ),
+    ] = None,
+) -> None:
+    """Enlaza requisito -> servicio -> archivo en Neo4j para los servicios generados."""
+    from pydantic import ValidationError
+
+    from orchestrator.architecture import Arquitectura
+    from orchestrator.generation import ErrorParametros, parametros_de_arquitectura
+    from orchestrator.generation.trazabilidad import (
+        ErrorTrazabilidad,
+        enlaces_de_servicios,
+        registrar_trazabilidad,
+    )
+    from orchestrator.knowledge import ErrorGrafo, conectar
+    from orchestrator.knowledge.registro import ultima_ejecucion_con_requisitos
+
+    try:
+        arq = Arquitectura.model_validate_json(arquitectura.read_bytes())
+        parametros = parametros_de_arquitectura(arq)
+    except (OSError, ValidationError) as error:
+        typer.echo(f"Error: no se pudo leer la arquitectura: {error}", err=True)
+        raise typer.Exit(1) from error
+    except ErrorParametros as error:
+        typer.echo("Error: la arquitectura no se puede parametrizar:", err=True)
+        for problema in error.problemas:
+            typer.echo(f"  - {problema}", err=True)
+        raise typer.Exit(1) from error
+
+    try:
+        enlaces = enlaces_de_servicios(parametros.servicios, servicios)
+    except ErrorTrazabilidad as error:
+        typer.echo(f"Error: {error}", err=True)
+        raise typer.Exit(1) from error
+
+    config = obtener_configuracion()
+    try:
+        driver = conectar(config)
+        try:
+            db = config.neo4j_database
+            ejecucion_id = ejecucion or ultima_ejecucion_con_requisitos(driver, db)
+            if ejecucion_id is None:
+                typer.echo("Error: no hay ninguna ejecución con requisitos en Neo4j.", err=True)
+                raise typer.Exit(1)
+            resumen = registrar_trazabilidad(driver, ejecucion_id, enlaces, base_datos=db)
+        finally:
+            driver.close()
+    except ErrorGrafo as error:
+        typer.echo(f"Error: {error}", err=True)
+        raise typer.Exit(1) from error
+
+    typer.echo(f"Ejecución: {ejecucion_id}")
+    typer.echo(f"Servicios enlazados: {resumen.servicios}")
+    typer.echo(f"Archivos enlazados: {resumen.archivos}")
+    typer.echo(f"Requisitos enlazados: {resumen.requisitos_enlazados}")
+    if resumen.requisitos_sin_nodo:
+        typer.echo(
+            "Requisitos sin nodo en esta ejecución (no enlazados): "
+            + ", ".join(resumen.requisitos_sin_nodo)
+        )
+
+
 if __name__ == "__main__":
     app()
