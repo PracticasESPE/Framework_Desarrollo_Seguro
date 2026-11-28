@@ -8,35 +8,28 @@ puerto: 3006
 entidades:
 - nombre: medico
   campos:
-  - nombre: nombre_completo
+  - nombre: nombre
     tipo: texto
     requerido: true
     min: 1
-    max: 150
-  - nombre: correo
-    tipo: correo
-    requerido: true
-    unico: true
-  - nombre: numero_colegiatura
+    max: 100
+  - nombre: apellido
     tipo: texto
-    descripcion: Número de colegiatura profesional; dato mínimo para identificar al
-      médico.
     requerido: true
-    unico: true
-    min: 3
-    max: 30
-  - nombre: keycloak_id
-    tipo: uuid
-    descripcion: Identificador del médico en Keycloak (servicio de identidad); no
-      se guardan credenciales.
+    min: 1
+    max: 100
+  - nombre: email
+    tipo: correo
     requerido: true
     unico: true
   - nombre: especialidad_id
     tipo: referencia
-    descripcion: Especialidad principal; las adicionales se reflejan en los horarios
-      por sede.
     requerido: true
     entidad: especialidad
+  - nombre: telefono
+    tipo: texto
+    requerido: false
+    max: 20
   - nombre: activo
     tipo: booleano
     requerido: true
@@ -46,52 +39,27 @@ entidades:
     tipo: texto
     requerido: true
     unico: true
-    min: 2
     max: 100
-  - nombre: descripcion
-    tipo: texto
-    requerido: false
-    max: 500
   - nombre: duracion_bloque
-    tipo: enumeracion
+    tipo: entero
     requerido: true
-    valores:
-    - veinte_minutos
-    - cuarenta_minutos
-  - nombre: activo
-    tipo: booleano
-    requerido: true
+    min: 20
+    max: 40
 - nombre: sede
   campos:
   - nombre: nombre
     tipo: texto
     requerido: true
     unico: true
-    min: 2
-    max: 120
+    max: 100
   - nombre: direccion
     tipo: texto
     requerido: true
-    min: 3
-    max: 250
-  - nombre: ciudad
-    tipo: texto
-    requerido: true
-    min: 2
-    max: 80
+    max: 200
   - nombre: telefono
     tipo: texto
     requerido: false
-    min: 6
     max: 20
-  - nombre: zona_horaria
-    tipo: texto
-    requerido: true
-    min: 3
-    max: 40
-  - nombre: activo
-    tipo: booleano
-    requerido: true
 - nombre: horario
   campos:
   - nombre: medico_id
@@ -102,10 +70,6 @@ entidades:
     tipo: referencia
     requerido: true
     entidad: sede
-  - nombre: especialidad_id
-    tipo: referencia
-    requerido: true
-    entidad: especialidad
   - nombre: dia_semana
     tipo: enumeracion
     requerido: true
@@ -118,269 +82,113 @@ entidades:
     - sabado
     - domingo
   - nombre: hora_inicio
-    tipo: texto
-    descripcion: Hora de inicio del bloque en formato HH:MM.
+    tipo: fecha_hora
     requerido: true
-    min: 5
-    max: 5
-  - nombre: hora_fin
-    tipo: texto
-    descripcion: Hora de fin del bloque en formato HH:MM.
+  - nombre: duracion_minutos
+    tipo: entero
     requerido: true
-    min: 5
-    max: 5
-  - nombre: activo
-    tipo: booleano
-    requerido: true
+    min: 20
+    max: 40
 - nombre: reporte
   campos:
-  - nombre: nombre
-    tipo: texto
-    requerido: true
-    min: 2
-    max: 120
   - nombre: tipo
     tipo: enumeracion
     requerido: true
     valores:
-    - ocupacion_agenda
+    - ocupacion
     - ausencias
     - tiempos_espera
   - nombre: sede_id
     tipo: referencia
-    descripcion: Sede del reporte; si se omite, agrega todas las sedes.
-    requerido: false
+    requerido: true
     entidad: sede
   - nombre: especialidad_id
     tipo: referencia
-    descripcion: Especialidad del reporte; si se omite, agrega todas.
-    requerido: false
+    requerido: true
     entidad: especialidad
-  - nombre: fecha_desde
+  - nombre: fecha_inicio
     tipo: fecha
     requerido: true
-  - nombre: fecha_hasta
+  - nombre: fecha_fin
     tipo: fecha
     requerido: true
-  - nombre: total_citas
-    tipo: entero
-    requerido: true
-    min: 0
-    max: 1000000
-  - nombre: total_ausencias
-    tipo: entero
-    requerido: true
-    min: 0
-    max: 1000000
-  - nombre: ocupacion_porcentaje
+  - nombre: valor
     tipo: decimal
     requerido: true
     min: 0.0
-    max: 100.0
-  - nombre: tiempo_espera_promedio_minutos
-    tipo: entero
-    requerido: true
-    min: 0
-    max: 1440
-  - nombre: generado_por
-    tipo: uuid
-    descripcion: Identificador del usuario de la dirección médica en el servicio de
-      identidad (Keycloak).
-    requerido: true
 - nombre: notificacion
   campos:
   - nombre: tipo
     tipo: enumeracion
     requerido: true
     valores:
-    - recordatorio_cita
+    - recordatorio
     - aviso_acceso_urgente
-    - resultado_disponible
-    - aviso_general
-  - nombre: canal
-    tipo: enumeracion
+    - receta
+    - resultado_examen
+  - nombre: destinatario_id
+    tipo: uuid
+    descripcion: identificador del usuario en Keycloak
     requerido: true
-    valores:
-    - correo
-    - sms
-    - push
-    - interno
-  - nombre: asunto
-    tipo: texto
-    requerido: true
-    min: 1
-    max: 150
   - nombre: mensaje
     tipo: texto
     requerido: true
-    min: 1
-    max: 1000
-  - nombre: destinatario_tipo
-    tipo: enumeracion
+    max: 500
+  - nombre: leido
+    tipo: booleano
     requerido: true
-    valores:
-    - paciente
-    - medico
-    - personal
-  - nombre: destinatario_id
-    tipo: uuid
-    descripcion: Identificador del destinatario en el servicio de identidad/usuarios
-      (Keycloak).
-    requerido: true
-  - nombre: paciente_id
-    tipo: referencia
-    requerido: false
-    entidad: paciente
-  - nombre: medico_id
-    tipo: referencia
-    requerido: false
-    entidad: medico
-  - nombre: cita_id
-    tipo: uuid
-    descripcion: Identificador de la cita en el servicio de agenda.
-    requerido: false
-  - nombre: programada_para
-    tipo: fecha_hora
-    requerido: false
-  - nombre: enviada_en
-    tipo: fecha_hora
-    requerido: false
-  - nombre: estado
-    tipo: enumeracion
-    requerido: true
-    valores:
-    - pendiente
-    - enviada
-    - fallida
-    - leida
 - nombre: datos_personales
   campos:
   - nombre: paciente_id
     tipo: referencia
     requerido: true
-    unico: true
     entidad: paciente
-  - nombre: nombres
+  - nombre: nombre
     tipo: texto
     requerido: true
-    min: 1
     max: 100
-  - nombre: apellidos
+  - nombre: apellido
     tipo: texto
     requerido: true
-    min: 1
     max: 100
-  - nombre: correo
+  - nombre: email
     tipo: correo
-    requerido: false
+    requerido: true
   - nombre: telefono
     tipo: texto
     requerido: false
-    min: 6
     max: 20
+  - nombre: direccion
+    tipo: texto
+    requerido: false
+    max: 200
   - nombre: fecha_nacimiento
     tipo: fecha
     requerido: false
-  - nombre: consentimiento_datos
-    tipo: booleano
-    requerido: true
-  - nombre: solicitud_tipo
-    tipo: enumeracion
-    descripcion: Solicitud de derecho ARCO del paciente; solo aplica cuando existe
-      una petición.
-    requerido: false
-    valores:
-    - correccion
-    - eliminacion
-  - nombre: solicitud_detalle
-    tipo: texto
-    requerido: false
-    max: 500
-  - nombre: solicitud_estado
-    tipo: enumeracion
-    requerido: false
-    valores:
-    - recibida
-    - en_revision
-    - aplicada
-    - rechazada
-  - nombre: solicitud_recibida_en
-    tipo: fecha_hora
-    requerido: false
-  - nombre: eliminado_en
-    tipo: fecha_hora
-    descripcion: Fecha de borrado lógico del dato personal cuando se ejerce el derecho
-      de eliminación.
-    requerido: false
 - nombre: paciente
   campos:
-  - nombre: keycloak_id
+  - nombre: usuario_keycloak_id
     tipo: uuid
-    descripcion: Identificador del paciente en Keycloak (servicio de identidad); no
-      se guardan credenciales.
+    descripcion: identificador del usuario en Keycloak
     requerido: true
     unico: true
-  - nombre: estado
-    tipo: enumeracion
-    requerido: true
-    valores:
-    - activo
-    - inactivo
-    - bloqueado
+  - nombre: datos_personales_id
+    tipo: referencia
+    requerido: false
+    entidad: datos_personales
 - nombre: aviso
   campos:
-  - nombre: titulo
-    tipo: texto
+  - nombre: paciente_id
+    tipo: referencia
     requerido: true
-    min: 1
-    max: 150
+    entidad: paciente
   - nombre: mensaje
     tipo: texto
     requerido: true
-    min: 1
-    max: 1000
-  - nombre: tipo
-    tipo: enumeracion
-    requerido: true
-    valores:
-    - resultado_laboratorio
-    - acceso_urgente
-    - recordatorio
-    - general
-  - nombre: prioridad
-    tipo: enumeracion
-    requerido: true
-    valores:
-    - baja
-    - normal
-    - alta
-    - urgente
-  - nombre: medico_id
-    tipo: referencia
-    requerido: false
-    entidad: medico
-  - nombre: paciente_id
-    tipo: referencia
-    requerido: false
-    entidad: paciente
-  - nombre: resultado_id
-    tipo: uuid
-    descripcion: Identificador del resultado en el servicio de laboratorio; el detalle
-      clínico no se almacena en este servicio.
-    requerido: false
-  - nombre: estado
-    tipo: enumeracion
-    requerido: true
-    valores:
-    - pendiente
-    - revisado_por_medico
-    - publicado_paciente
-    - archivado
-  - nombre: visible_para_paciente
-    tipo: booleano
-    descripcion: 'Controla el acceso del paciente: solo es visible cuando el médico
-      revisó el aviso.'
-    requerido: true
-  - nombre: revisado_por_medico_en
+    max: 500
+  - nombre: fecha
     tipo: fecha_hora
-    requerido: false
+    requerido: true
+  - nombre: visto
+    tipo: booleano
+    requerido: true

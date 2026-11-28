@@ -5,3 +5,4 @@
 {"paso": "sistema", "uso": {"groq": {"llamadas": 4, "desde_cache": 3, "tokens_entrada": 6299, "tokens_salida": 3119}}}
 {"paso": "sistema", "uso": {"groq": {"llamadas": 1, "desde_cache": 3, "tokens_entrada": 1717, "tokens_salida": 3040}, "openrouter": {"llamadas": 2, "desde_cache": 0, "tokens_entrada": 3187, "tokens_salida": 13492}}}
 {"paso": "sistema", "uso": {"groq": {"llamadas": 16, "desde_cache": 34, "tokens_entrada": 35960, "tokens_salida": 40756}, "openrouter": {"llamadas": 42, "desde_cache": 2, "tokens_entrada": 82030, "tokens_salida": 370783}}}
+{"paso": "sistema", "uso": {"groq": {"llamadas": 1, "desde_cache": 27, "tokens_entrada": 2147, "tokens_salida": 2001}}}
